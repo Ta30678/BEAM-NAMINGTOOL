@@ -1,0 +1,2 @@
+# BEAM-NAMINGTOOL
+A
