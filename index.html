@@ -318,20 +318,7 @@
             }
         }
         
-        // --- 核心輔助函式與UI互動函式 (此處省略以保持簡潔) ---
-        function populateStorySelector() { /* ... */ }
-        function handleStoryChange() { /* ... */ }
-        function exportToExcel() { /* ... */ }
-        function displayResults(labeledBeams, allBeams, svg, tableBody, grids) { /* ... */ }
-        function parseGrids(content) { /* ... */ }
-        function parseJoints(content) { /* ... */ }
-        function parseFrames(content, story) { /* ... */ }
-        function findClosestGrid(coordinate, grids) { /* ... */ }
-        function generateLabelsForStory(beamsInStory, joints, grids) { /* ... */ }
-        function applySpecialPrefixRules(allBeams) { /* ... */ }
-        function generateSecondaryBeamLabels(allBeams, joints, grids) { /* ... */ }
-
-        // --- 以下為所有函式的完整、正確排版實作 ---
+        // --- UI 互動函式 ---
         function populateStorySelector() {
             const selector = document.getElementById('storySelector');
             selector.innerHTML = '<option value="all">所有樓層</option>';
@@ -391,6 +378,7 @@
             XLSX.writeFile(workbook, "ETABS_Beam_Numbering_All_Stories.xlsx");
         }
         
+        // --- 繪圖與顯示函式 ---
         function displayResults(labeledBeams, allBeams, svg, tableBody, grids) {
             tableBody.innerHTML = '';
             labeledBeams.forEach(beam => {
@@ -523,10 +511,10 @@
                 
                 let className = 'labeled-beam-line';
                  if (beam.newLabel.startsWith('b') || beam.newLabel === 'g1') {
-                    className = 'special-beam-line';
-                } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
-                    className = 'special-beam-line';
-                }
+                     className = 'special-beam-line';
+                 } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
+                     className = 'special-beam-line';
+                 }
 
                 line.setAttribute('class', className);
                 svg.appendChild(line);
@@ -556,6 +544,7 @@
             });
         }
         
+        // --- 核心解析函式 ---
         function parseGrids(content) {
             const grids = { x: [], y: [] };
             const gridTableSection = content.match(/TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/);
@@ -645,6 +634,7 @@
             return frames;
         }
 
+        // --- 核心編號邏輯函式 ---
         function findClosestGrid(coordinate, grids) {
             if (!grids || grids.length === 0) return null;
             return grids.reduce((closest, current) => {
@@ -654,6 +644,9 @@
             });
         }
         
+        // =================================================================
+        // v v v v v v v v v v v   這裡是最終確認後的函式   v v v v v v v v v v v
+        // =================================================================
         function generateLabelsForStory(beamsInStory, joints, grids) {
             const labelComponentMap = new Map();
             const beamsWithCoords = beamsInStory.map(b => {
@@ -665,7 +658,10 @@
                     isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE, isVertical: Math.abs(j1.x - j2.x) < TOLERANCE
                 };
             }).filter(Boolean);
+            
+            const xGridNameToNum = new Map(grids.x.map((grid, index) => [grid.name, index + 1]));
             const yGridNameToNum = new Map(grids.y.map((grid, index) => [grid.name, index + 1]));
+
             const horizontalBeams = beamsWithCoords.filter(b => b.isHorizontal);
             const onGridHorizontal = []; const offGridHorizontal = [];
             horizontalBeams.forEach(beam => {
@@ -673,16 +669,25 @@
                 for (const grid of grids.y) { if (Math.abs(beam.centerY - grid.ordinate) < TOLERANCE) { onGrid = true; break; } }
                 if (onGrid) { onGridHorizontal.push(beam); } else { offGridHorizontal.push(beam); }
             });
+
+            // 水平梁 (通常對應數字格線)
             onGridHorizontal.forEach(beam => {
                 const onGrid = findClosestGrid(beam.centerY, grids.y);
-                const endGrid = findClosestGrid(beam.maxX, grids.x);
-                if (onGrid && endGrid) {
-                    const serial = parseInt(endGrid.name, 10);
-                    if(!isNaN(serial)) {
-                        labelComponentMap.set(beam.name, { isVertical: false, primaryGridName: onGrid.name, subGridMarker: '', serial: serial });
-                    }
+                const startGrid = findClosestGrid(beam.minX, grids.x);
+
+                // 規則：直接使用起點格線的「名稱」當作編號
+                const serial = parseInt(startGrid.name, 10);
+
+                if (onGrid && startGrid && !isNaN(serial)) {
+                    labelComponentMap.set(beam.name, { 
+                        isVertical: false, 
+                        primaryGridName: onGrid.name, 
+                        subGridMarker: '', 
+                        serial: serial 
+                    });
                 }
             });
+
             const yBayGroups = new Map();
             offGridHorizontal.forEach(beam => {
                 let prevGrid = null, nextGrid = null;
@@ -698,10 +703,12 @@
                 const uniqueYCoords = [...new Set(beamsInBay.map(b => b.centerY.toFixed(2)))].sort((a,b) => parseFloat(a) - parseFloat(b));
                 const yCoordToRank = new Map(uniqueYCoords.map((coord, index) => [coord, index]));
                 beamsInBay.forEach(beam => {
-                    const endGrid = findClosestGrid(beam.maxX, grids.x);
-                    if (endGrid) {
+                    const startGrid = findClosestGrid(beam.minX, grids.x);
+                    if (startGrid) {
                         const rank = yCoordToRank.get(beam.centerY.toFixed(2));
-                        const serial = parseInt(endGrid.name, 10);
+                        // 同樣採用起點格線名稱的規則
+                        const serial = parseInt(startGrid.name, 10);
+
                         if (!isNaN(serial) && rank !== undefined) {
                             const subGridMarker = "'".repeat(rank + 1);
                             labelComponentMap.set(beam.name, { isVertical: false, primaryGridName: prevYGridName, subGridMarker: subGridMarker, serial: serial });
@@ -709,6 +716,8 @@
                     }
                 });
             });
+
+            // 垂直梁 (通常對應字母格線)
             const verticalBeams = beamsWithCoords.filter(b => b.isVertical);
             const onGridVertical = []; const offGridVertical = [];
             verticalBeams.forEach(beam => {
@@ -722,6 +731,7 @@
                 if (onGrid && endGrid) {
                     const endYGridNum = yGridNameToNum.get(endGrid.name);
                     if (endYGridNum !== undefined) {
+                        // 規則：使用終點格線的「順序」減 1 (n-1)
                         const serial = endYGridNum - 1;
                         labelComponentMap.set(beam.name, { isVertical: true, primaryGridName: onGrid.name, subGridMarker: '', serial: serial });
                     }
@@ -752,6 +762,9 @@
             });
             return labelComponentMap;
         }
+        // =================================================================
+        // ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^   這裡是最終確認後的函式   ^ ^ ^ ^ ^ ^ ^ ^ ^ ^ ^
+        // =================================================================
 
         function applySpecialPrefixRules(allBeams) {
             const processPrefix = (prefix) => {
