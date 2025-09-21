@@ -225,20 +225,34 @@
                 const joints = parseJoints(fileContent);
                 
                 let allBeamsAcrossStories = [];
-                console.clear();
                 for (const story of availableStories) {
                     const frames = parseFrames(fileContent, story);
-                    console.log(`樓層: ${story}, 找到 ${frames.length} 支梁`);
                     if (frames.length > 0) allBeamsAcrossStories.push(...frames);
                 }
                 if (allBeamsAcrossStories.length === 0) throw new Error("在所有樓層中均未找到符合條件的梁。");
                 
                 fullDrawableBeams = allBeamsAcrossStories.map(f => ({ ...f, j1: joints[f.joint1], j2: joints[f.joint2] }));
-
                 storyOrderInfo = availableStories.reduce((acc, story, index) => { acc[story] = index; return acc; }, {});
-                let allLabeledBeams = [];
+                
+                // 步驟 1: 處理特殊編號 g1
+                let g1BeamsLabeled = [];
+                const remainingBeams = [];
+                allBeamsAcrossStories.forEach(beam => {
+                    if (beam.prop && beam.prop.toUpperCase() === 'SB25X50') {
+                        g1BeamsLabeled.push({ ...beam, newLabel: 'g1' });
+                    } else {
+                        remainingBeams.push(beam);
+                    }
+                });
+
+                // 步驟 2: 處理剩下的小梁與主梁
+                const mainBeams = remainingBeams.filter(b => b.prop && !b.prop.toUpperCase().startsWith('SB'));
+                const secondaryBeams = remainingBeams.filter(b => b.prop && b.prop.toUpperCase().startsWith('SB'));
+
+                // 主梁編號
+                let mainBeamsLabeled = [];
                 for (const story of availableStories) {
-                    const beamsInStory = allBeamsAcrossStories.filter(b => b.story === story);
+                    const beamsInStory = mainBeams.filter(b => b.story === story);
                     if (beamsInStory.length === 0) continue;
                     const labelComponentMap = generateLabelsForStory(beamsInStory, joints, gridData);
                     const labeledBeams = beamsInStory.map(beam => {
@@ -251,14 +265,40 @@
                         const newLabel = `${prefix}${components.primaryGridName}${components.subGridMarker}-${components.serial}`;
                         return { ...beam, newLabel };
                     });
-                    allLabeledBeams.push(...labeledBeams);
+                    mainBeamsLabeled.push(...labeledBeams);
                 }
                 
+                // 小梁編號
+                const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeams, joints, gridData);
+                let allLabeledBeams = [...mainBeamsLabeled];
+                secondaryBeamLabels.forEach((value, key) => {
+                    allLabeledBeams.push({
+                        name: key,
+                        newLabel: value.newLabel,
+                        story: value.story,
+                        prop: value.prop
+                    });
+                });
+                
+                // 步驟 3: 整合所有結果
                 let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
                 finalProcessedData = finalProcessedData.filter(beam => beam.newLabel);
+                finalProcessedData.push(...g1BeamsLabeled);
+                
                 finalProcessedData.sort((a, b) => {
                     const storyCompare = storyOrderInfo[a.story] - storyOrderInfo[b.story];
                     if (storyCompare !== 0) return storyCompare;
+                    
+                    const aIsG1 = a.newLabel === 'g1';
+                    const bIsG1 = b.newLabel === 'g1';
+                    const aIsSecondary = a.newLabel.startsWith('b');
+                    const bIsSecondary = b.newLabel.startsWith('b');
+
+                    if (aIsG1 && !bIsG1) return 1;
+                    if (!aIsG1 && bIsG1) return -1;
+                    if (aIsSecondary && !bIsSecondary) return 1;
+                    if (!aIsSecondary && bIsSecondary) return -1;
+
                     return (a.newLabel || "").localeCompare(b.newLabel || "", "en", { numeric: true });
                 });
                 
@@ -278,6 +318,20 @@
             }
         }
         
+        // --- 核心輔助函式與UI互動函式 (此處省略以保持簡潔) ---
+        function populateStorySelector() { /* ... */ }
+        function handleStoryChange() { /* ... */ }
+        function exportToExcel() { /* ... */ }
+        function displayResults(labeledBeams, allBeams, svg, tableBody, grids) { /* ... */ }
+        function parseGrids(content) { /* ... */ }
+        function parseJoints(content) { /* ... */ }
+        function parseFrames(content, story) { /* ... */ }
+        function findClosestGrid(coordinate, grids) { /* ... */ }
+        function generateLabelsForStory(beamsInStory, joints, grids) { /* ... */ }
+        function applySpecialPrefixRules(allBeams) { /* ... */ }
+        function generateSecondaryBeamLabels(allBeams, joints, grids) { /* ... */ }
+
+        // --- 以下為所有函式的完整、正確排版實作 ---
         function populateStorySelector() {
             const selector = document.getElementById('storySelector');
             selector.innerHTML = '<option value="all">所有樓層</option>';
@@ -314,7 +368,7 @@
             
             const labeledBeamsWithCoords = beamsToDisplay.map(beam => {
                  const originalBeam = fullDrawableBeams.find(b => b.name === beam.name && b.story === beam.story);
-                 return { ...beam, j1: originalBeam.j1, j2: originalBeam.j2 };
+                 return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
             });
 
             displayResults(labeledBeamsWithCoords, backgroundBeams, svg, tableBody, gridData);
@@ -466,8 +520,15 @@
                 line.setAttribute('y1', transformY(beam.j1.y));
                 line.setAttribute('x2', transformX(beam.j2.x));
                 line.setAttribute('y2', transformY(beam.j2.y));
-                const isSpecial = beam.newLabel && (beam.newLabel.startsWith('WB') || beam.newLabel.startsWith('FWB'));
-                line.setAttribute('class', isSpecial ? 'special-beam-line' : 'labeled-beam-line');
+                
+                let className = 'labeled-beam-line';
+                 if (beam.newLabel.startsWith('b') || beam.newLabel === 'g1') {
+                    className = 'special-beam-line';
+                } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
+                    className = 'special-beam-line';
+                }
+
+                line.setAttribute('class', className);
                 svg.appendChild(line);
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
@@ -564,7 +625,7 @@
             const isBeamProp = (propName) => {
                 if (!propName) return false;
                 const p = propName.toUpperCase();
-                return (p.startsWith('B') && !p.startsWith('SB')) || p.startsWith('FB') || p.startsWith('WB') || p.startsWith('FWB') || /^\d+[B]/.test(p);
+                return p.startsWith('B') || p.startsWith('FB') || p.startsWith('WB') || p.startsWith('FWB') || p.startsWith('SB');
             };
             const frameTableSection = content.match(/TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/);
             const frameAssignSection = content.match(/TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/);
@@ -706,6 +767,149 @@
                 return beam;
             });
         }
+
+        function generateSecondaryBeamLabels(allBeams, joints, grids) {
+            const sbLabels = new Map();
+            const stories = [...new Set(allBeams.map(b => b.story))].sort((a,b) => storyOrderInfo[a] - storyOrderInfo[b]);
+
+            for (const story of stories) {
+                const beamsInStory = allBeams
+                    .filter(b => b.story === story)
+                    .map(b => {
+                        const j1 = joints[b.joint1];
+                        const j2 = joints[b.joint2];
+                        if (!j1 || !j2) return null;
+                        return {
+                            ...b, j1, j2,
+                            centerX: (j1.x + j2.x) / 2,
+                            centerY: (j1.y + j2.y) / 2,
+                            isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
+                            isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
+                        };
+                    }).filter(Boolean);
+
+                let horizontalCounter = 1;
+                const horizontalBeams = beamsInStory.filter(b => b.isHorizontal);
+                const yBays = new Map();
+                
+                if (grids.y.length > 1) {
+                    for (let i = 0; i < grids.y.length - 1; i++) {
+                        const y1 = grids.y[i].ordinate;
+                        const y2 = grids.y[i + 1].ordinate;
+                        const bayKey = `${grids.y[i].name}_${grids.y[i+1].name}`;
+                        const beamsInBay = horizontalBeams.filter(b => b.centerY >= y1 && b.centerY <= y2);
+                        if (beamsInBay.length > 0) {
+                            yBays.set(bayKey, { beams: beamsInBay, y1: y1 });
+                        }
+                    }
+                }
+
+                const sortedYBays = [...yBays.entries()].sort((a, b) => a[1].y1 - b[1].y1);
+                
+                for (const [, bayData] of sortedYBays) {
+                    const beamsInBay = bayData.beams;
+                    beamsInBay.sort((a, b) => (a.centerY - b.centerY) || (a.centerX - b.centerX));
+                    
+                    const processed = new Set();
+                    for (const startBeam of beamsInBay) {
+                        if (processed.has(startBeam.name)) continue;
+                        let currentChain = [startBeam];
+                        processed.add(startBeam.name);
+                        let currentBeam = startBeam;
+                        let connectionFound = true;
+                        while(connectionFound) {
+                            connectionFound = false;
+                            for (const nextBeam of beamsInBay) {
+                                if (processed.has(nextBeam.name)) continue;
+                                if (Math.abs(currentBeam.centerY - nextBeam.centerY) < TOLERANCE && (currentBeam.joint2 === nextBeam.joint1 || currentBeam.joint1 === nextBeam.joint2 || currentBeam.joint1 === nextBeam.joint1 || currentBeam.joint2 === nextBeam.joint2)) {
+                                    currentChain.push(nextBeam);
+                                    processed.add(nextBeam.name);
+                                    currentBeam = nextBeam;
+                                    connectionFound = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        currentChain.sort((a, b) => a.centerX - b.centerX);
+                        if (currentChain.length > 1) {
+                            currentChain.forEach((beam, index) => {
+                                sbLabels.set(beam.name, { newLabel: `b${horizontalCounter}-${index + 1}`, story: beam.story, prop: beam.prop });
+                            });
+                        } else {
+                            sbLabels.set(currentChain[0].name, { newLabel: `b${horizontalCounter}`, story: currentChain[0].story, prop: currentChain[0].prop });
+                        }
+                        horizontalCounter++;
+                    }
+                }
+                
+                let verticalCounter = 1;
+                if (horizontalCounter > 1) {
+                    const lastHorizontalNum = horizontalCounter - 1;
+                     if (lastHorizontalNum % 10 === 0) {
+                         verticalCounter = lastHorizontalNum + 1;
+                     } else {
+                         verticalCounter = Math.ceil(lastHorizontalNum / 10) * 10 + 1;
+                     }
+                }
+
+                const verticalBeams = beamsInStory.filter(b => b.isVertical);
+                const xBays = new Map();
+
+                if (grids.x.length > 1) {
+                    for (let i = 0; i < grids.x.length - 1; i++) {
+                        const x1 = grids.x[i].ordinate;
+                        const x2 = grids.x[i+1].ordinate;
+                        const bayKey = `${grids.x[i].name}_${grids.x[i+1].name}`;
+                        const beamsInBay = verticalBeams.filter(b => b.centerX >= x1 && b.centerX <= x2);
+                        if (beamsInBay.length > 0) {
+                            xBays.set(bayKey, { beams: beamsInBay, x1: x1 });
+                        }
+                    }
+                }
+                
+                const sortedXBays = [...xBays.entries()].sort((a, b) => a[1].x1 - b[1].x1);
+
+                for (const [, bayData] of sortedXBays) {
+                    const beamsInBay = bayData.beams;
+                    beamsInBay.sort((a, b) => (a.centerX - b.centerX) || (a.centerY - b.centerY));
+
+                    const processed = new Set();
+                    for (const startBeam of beamsInBay) {
+                        if (processed.has(startBeam.name)) continue;
+                        let currentChain = [startBeam];
+                        processed.add(startBeam.name);
+                        let currentBeam = startBeam;
+                        let connectionFound = true;
+                        while(connectionFound) {
+                            connectionFound = false;
+                            for (const nextBeam of beamsInBay) {
+                                if (processed.has(nextBeam.name)) continue;
+                                if (Math.abs(currentBeam.centerX - nextBeam.centerX) < TOLERANCE && (currentBeam.joint2 === nextBeam.joint1 || currentBeam.joint1 === nextBeam.joint2 || currentBeam.joint1 === nextBeam.joint1 || currentBeam.joint2 === nextBeam.joint2)) {
+                                    currentChain.push(nextBeam);
+                                    processed.add(nextBeam.name);
+                                    currentBeam = nextBeam;
+                                    connectionFound = true;
+                                    break;
+                                }
+                            }
+                        }
+                        
+                        currentChain.sort((a, b) => a.centerY - b.centerY);
+                        if (currentChain.length > 1) {
+                            currentChain.forEach((beam, index) => {
+                                sbLabels.set(beam.name, { newLabel: `b${verticalCounter}-${index + 1}`, story: beam.story, prop: beam.prop });
+                            });
+                        } else {
+                            sbLabels.set(currentChain[0].name, { newLabel: `b${verticalCounter}`, story: currentChain[0].story, prop: currentChain[0].prop });
+                        }
+                        verticalCounter++;
+                    }
+                }
+            }
+            return sbLabels;
+        }
+
     </script>
 </body>
 </html>
