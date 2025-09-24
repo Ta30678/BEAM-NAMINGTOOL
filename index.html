@@ -4,7 +4,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ETABS 梁自動編號工具</title>
-    
+
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 
@@ -15,58 +15,84 @@
     <style>
         /* --- 淺色主題 --- */
         :root {
-            --theme-bg: #f1f5f9; 
-            --theme-surface: #ffffff; 
-            --theme-border: #e2e8f0; 
+            --theme-bg: #f1f5f9;
+            --theme-surface: #ffffff;
+            --theme-border: #e2e8f0;
             --theme-shadow: rgba(0, 0, 0, 0.05);
-            --theme-text-primary: #1e293b; 
-            --theme-text-secondary: #64748b; 
-            --theme-accent: #f97316; 
+            --theme-text-primary: #1e293b;
+            --theme-text-secondary: #64748b;
+            --theme-accent: #f97316;
             --theme-accent-hover: #ea580c;
             --theme-success: #22c55e;
             --theme-success-hover: #16a34a;
         }
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(-10px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(-10px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        body { 
-            font-family: 'Inter', 'Microsoft JhengHei', sans-serif; 
-            display: flex; 
+
+        body {
+            font-family: 'Inter', 'Microsoft JhengHei', sans-serif;
+            display: flex;
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 40px 20px; 
-            color: var(--theme-text-primary); 
+            padding: 40px 20px;
+            color: var(--theme-text-primary);
             background-color: var(--theme-bg);
             position: relative;
         }
-        #container { 
-            width: 90%; max-width: 1200px; 
+
+        #container {
+            width: 90%;
+            max-width: 1200px;
             background: var(--theme-surface);
-            padding: 30px; border-radius: 18px; 
+            padding: 30px;
+            border-radius: 18px;
             border: 1px solid var(--theme-border);
             box-shadow: 0 10px 25px -5px var(--theme-shadow), 0 8px 10px -6px var(--theme-shadow);
             animation: fadeIn 0.8s ease-out forwards;
-            position: relative; z-index: 1;
+            position: relative;
+            z-index: 1;
         }
+
         h1 {
-            font-size: 2.25rem; font-weight: 700; color: var(--theme-text-primary);
-            text-align: center; margin-bottom: 2.5rem; position: relative;
+            font-size: 2.25rem;
+            font-weight: 700;
+            color: var(--theme-text-primary);
+            text-align: center;
+            margin-bottom: 2.5rem;
+            position: relative;
         }
+
         h1::after {
-            content: ''; position: absolute; bottom: -10px; left: 50%;
-            transform: translateX(-50%); width: 80px; height: 3px;
+            content: '';
+            position: absolute;
+            bottom: -10px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 80px;
+            height: 3px;
             background: var(--theme-accent);
             border-radius: 2px;
         }
-        h3 { 
-            color: var(--theme-text-primary); font-weight: 500;
+
+        h3 {
+            color: var(--theme-text-primary);
+            font-weight: 500;
             border-bottom: 1px solid var(--theme-border);
-            padding-bottom: 0.5rem; margin-bottom: 1rem; opacity: 0.9;
+            padding-bottom: 0.5rem;
+            margin-bottom: 1rem;
+            opacity: 0.9;
         }
 
-        /* --- [修改 1] 調整控制區塊的佈局 (新版) --- */
         .control-area {
             margin-bottom: 25px;
             padding: 20px;
@@ -74,96 +100,212 @@
             background: var(--theme-bg);
             border: 1px solid var(--theme-border);
             display: flex;
-            flex-direction: column; /* 將兩行垂直堆疊 */
-            gap: 15px; /* 設定兩行之間的間距 */
+            flex-direction: column;
+            gap: 15px;
         }
+
         .control-row {
             display: flex;
-            justify-content: space-between; /* 讓第一行的左右兩邊對齊 */
+            justify-content: space-between;
             align-items: center;
             width: 100%;
         }
+
         .control-group {
             display: flex;
             gap: 15px;
             align-items: center;
         }
-        /* --- [修改 1 結束] --- */
 
-        label { font-weight: 500; color: var(--theme-text-secondary); }
-        input[type="file"]::file-selector-button {
-            background-color: #ffffff; color: var(--theme-text-secondary);
-            border: 1px solid var(--theme-border); padding: 8px 15px; border-radius: 8px;
-            cursor: pointer; transition: all 0.2s ease;
+        label {
+            font-weight: 500;
+            color: var(--theme-text-secondary);
         }
+
+        input[type="file"]::file-selector-button {
+            background-color: #ffffff;
+            color: var(--theme-text-secondary);
+            border: 1px solid var(--theme-border);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
         input[type="file"]::file-selector-button:hover {
-            background-color: var(--theme-bg); border-color: var(--theme-accent);
+            background-color: var(--theme-bg);
+            border-color: var(--theme-accent);
             color: var(--theme-accent);
         }
+
         select {
-            background-color: #ffffff; color: var(--theme-text-primary);
-            border: 1px solid var(--theme-border); padding: 8px 15px; border-radius: 8px;
-            cursor: pointer; transition: all 0.2s ease;
+            background-color: #ffffff;
+            color: var(--theme-text-primary);
+            border: 1px solid var(--theme-border);
+            padding: 8px 15px;
+            border-radius: 8px;
+            cursor: pointer;
+            transition: all 0.2s ease;
         }
+
         select:hover {
-             border-color: var(--theme-accent);
+            border-color: var(--theme-accent);
         }
+
         select option {
             background-color: #ffffff;
             color: #000000;
         }
-        button { 
-            padding: 12px 24px; color: white; border: none; border-radius: 10px;
-            cursor: pointer; font-size: 16px; font-weight: 500;
+
+        button {
+            padding: 12px 24px;
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: 500;
             transition: all 0.2s ease;
         }
-        .btn-process { background-color: var(--theme-accent); }
-        .btn-process:hover { background-color: var(--theme-accent-hover); }
-        .btn-export { background-color: var(--theme-success); }
-        .btn-export:hover { background-color: var(--theme-success-hover); }
-        .btn-export:disabled { background-color: #9ca3af; cursor: not-allowed; }
-        #output { display: flex; gap: 20px; margin-top: 20px; flex-wrap: wrap; }
-        
-        #drawing {
-            flex: 7; /* 70% 寬度 */
-            min-width: 300px; padding: 20px; max-height: 65vh; overflow: auto;
-            border-radius: 12px; background: #ffffff;
-            border: 1px solid var(--theme-border);
+
+        .btn-process {
+            background-color: var(--theme-accent);
         }
-        #results-table {
-            flex: 3; /* 30% 寬度 */
-            min-width: 250px; padding: 20px; max-height: 65vh; overflow: auto;
-            border-radius: 12px; background: #ffffff;
+
+        .btn-process:hover {
+            background-color: var(--theme-accent-hover);
+        }
+
+        .btn-export {
+            background-color: var(--theme-success);
+        }
+
+        .btn-export:hover {
+            background-color: var(--theme-success-hover);
+        }
+
+        .btn-export:disabled {
+            background-color: #9ca3af;
+            cursor: not-allowed;
+        }
+
+        #output {
+            display: flex;
+            gap: 20px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        #drawing {
+            flex: 7;
+            min-width: 300px;
+            padding: 20px;
+            max-height: 65vh;
+            overflow: auto;
+            border-radius: 12px;
+            background: #ffffff;
             border: 1px solid var(--theme-border);
         }
 
-        #drawing-svg { 
-            width: 100%; height: 400px; border-radius: 8px;
-            background-color: #ffffff; border: 1px solid var(--theme-border);
+        #results-table {
+            flex: 3;
+            min-width: 250px;
+            padding: 20px;
+            max-height: 65vh;
+            overflow: auto;
+            border-radius: 12px;
+            background: #ffffff;
+            border: 1px solid var(--theme-border);
+        }
+
+        #drawing-svg {
+            width: 100%;
+            height: 400px;
+            border-radius: 8px;
+            background-color: #ffffff;
+            border: 1px solid var(--theme-border);
             cursor: grab;
         }
-        #drawing-svg:active { cursor: grabbing; }
-        table { width: 100%; border-collapse: separate; border-spacing: 0; }
-        th, td { border-bottom: 1px solid var(--theme-border); padding: 12px; text-align: left; }
-        th { background-color: var(--theme-bg); color: var(--theme-text-primary); }
-        td { color: var(--theme-text-secondary); }
-        tr:last-child td { border-bottom: none; }
-        .error { color: #ef4444; font-weight: bold; }
+
+        #drawing-svg:active {
+            cursor: grabbing;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: separate;
+            border-spacing: 0;
+        }
+
+        th,
+        td {
+            border-bottom: 1px solid var(--theme-border);
+            padding: 12px;
+            text-align: left;
+        }
+
+        th {
+            background-color: var(--theme-bg);
+            color: var(--theme-text-primary);
+        }
+
+        td {
+            color: var(--theme-text-secondary);
+        }
+
+        tr:last-child td {
+            border-bottom: none;
+        }
+
+        .error {
+            color: #ef4444;
+            font-weight: bold;
+        }
 
         /* --- SVG 樣式 --- */
         .grid-lines line {
-            stroke: #475569; 
+            stroke: #475569;
             stroke-width: 1;
-            stroke-dasharray: 4 4; 
+            stroke-dasharray: 4 4;
         }
-        .grid-bubble { fill: var(--theme-surface); stroke: var(--theme-text-secondary); stroke-width: 1; }
-        .grid-bubble-text { fill: var(--theme-text-primary); font-size: 10px; font-weight: 500; text-anchor: middle; dominant-baseline: middle; }
-        .beam-line { stroke: #d1d5db; stroke-width: 1; }
-        .labeled-beam-line { stroke: #3b82f6; stroke-width: 2.5; }
-        .special-beam-line { stroke: var(--theme-accent); stroke-width: 3; }
+
+        .grid-bubble {
+            fill: var(--theme-surface);
+            stroke: var(--theme-text-secondary);
+            stroke-width: 1;
+        }
+
+        .grid-bubble-text {
+            fill: var(--theme-text-primary);
+            font-size: 10px;
+            font-weight: 500;
+            text-anchor: middle;
+            dominant-baseline: middle;
+        }
+
+        .beam-line {
+            stroke: #d1d5db;
+            stroke-width: 1;
+        }
+
+        .labeled-beam-line {
+            stroke: #3b82f6;
+            stroke-width: 2.5;
+        }
+
+        .special-beam-line {
+            stroke: var(--theme-accent);
+            stroke-width: 3;
+        }
+
         .beam-label {
-            fill: #1e293b; font-size: 9px; font-weight: 600;
-            paint-order: stroke; stroke: #ffffff; stroke-width: 2px; stroke-linejoin: round;
+            fill: #1e293b;
+            font-size: 9px;
+            font-weight: 600;
+            paint-order: stroke;
+            stroke: #ffffff;
+            stroke-width: 2px;
+            stroke-linejoin: round;
         }
     </style>
 </head>
@@ -186,7 +328,7 @@
                 <div class="control-group">
                     <label for="storySelector">顯示樓層:</label>
                     <select id="storySelector" onchange="handleStoryChange()" disabled></select>
-                    
+
                     <label for="beamTypeSelector">顯示類型:</label>
                     <select id="beamTypeSelector" onchange="handleStoryChange()" disabled>
                         <option value="all">顯示全部</option>
@@ -206,880 +348,1204 @@
                 <h3>編號對照表 (<span id="table-story-name">所有樓層</span>)</h3>
                 <table id="beam-table">
                     <thead>
-                        <tr><th>樓層</th><th>原始 ETABS 編號</th><th>新編號</th></tr>
-                        </thead>
+                        <tr>
+                            <th>樓層</th>
+                            <th>原始 ETABS 編號</th>
+                            <th>新編號</th>
+                        </tr>
+                    </thead>
                     <tbody></tbody>
                 </table>
             </div>
         </div>
     </div>
-    
-<script>
-    // --- Global Variables ---
-    let panZoomInstance = null;
-    let fullProcessedBeams = [];
-    let fullDrawableBeams = [];
-    let availableStories = [];
-    let gridData = {};
-    let storyOrderInfo = {};
-    const TOLERANCE = 0.1;
 
-    // --- Main Control Function ---
-    async function processE2k() {
-        const fileInput = document.getElementById('e2kFile');
-        const statusDiv = document.getElementById('status');
-        const storySelector = document.getElementById('storySelector');
-        const beamTypeSelector = document.getElementById('beamTypeSelector');
-        
-        statusDiv.innerHTML = '';
-        document.getElementById('drawing-svg').innerHTML = '';
-        document.querySelector("#beam-table tbody").innerHTML = '';
-        document.getElementById('exportBtn').disabled = true;
-        storySelector.innerHTML = '';
-        storySelector.disabled = true;
-        beamTypeSelector.disabled = true;
+    <script>
+        // --- Global Variables ---
+        let panZoomInstance = null;
+        let fullProcessedBeams = [];
+        let fullDrawableBeams = [];
+        let availableStories = [];
+        let gridData = {};
+        let storyOrderInfo = {};
+        const TOLERANCE = 0.1;
 
-        if (panZoomInstance) {
-            panZoomInstance.destroy();
-            panZoomInstance = null;
-        }
+        // --- Main Control Function ---
+        async function processE2k() {
+            const fileInput = document.getElementById('e2kFile');
+            const statusDiv = document.getElementById('status');
+            const storySelector = document.getElementById('storySelector');
+            const beamTypeSelector = document.getElementById('beamTypeSelector');
 
-        fullProcessedBeams = [];
-        fullDrawableBeams = [];
-        availableStories = [];
-        gridData = {};
+            statusDiv.innerHTML = '';
+            document.getElementById('drawing-svg').innerHTML = '';
+            document.querySelector("#beam-table tbody").innerHTML = '';
+            document.getElementById('exportBtn').disabled = true;
+            storySelector.innerHTML = '';
+            storySelector.disabled = true;
+            beamTypeSelector.disabled = true;
 
-        if (fileInput.files.length === 0) {
-            statusDiv.innerHTML = '<p class="error">Error: Please select an .e2k file first.</p>';
-            return;
-        }
-        const file = fileInput.files[0];
-        statusDiv.innerHTML = `<p>Reading file "${file.name}"...</p>`;
-        let fileContent;
-        try { fileContent = await file.text(); } catch (error) { statusDiv.innerHTML = `<p class="error">Failed to read file: ${error.message}</p>`; return; }
-        
-        try {
-            const storySectionMatch = fileContent.match(/\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i);
-            if (!storySectionMatch) throw new Error("Could not find story definitions ($ STORIES) in the .e2k file.");
-            const allStoryNames = storySectionMatch[1].trim().split('\n').map(line => line.match(/STORY\s+"([^"]+)"/i)?.[1]).filter(Boolean);
-            if (allStoryNames.length === 0) throw new Error("Story definition block is empty.");
-            
-            availableStories = allStoryNames;
-            populateStorySelector();
-            
-            statusDiv.innerHTML += `<p>Found ${availableStories.length} stories, parsing components...</p>`;
-            gridData = parseGrids(fileContent);
-            const joints = parseJoints(fileContent);
-            
-            let allBeamsAcrossStories = [];
-            for (const story of availableStories) {
-                const frames = parseFrames(fileContent, story);
-                if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+            if (panZoomInstance) {
+                panZoomInstance.destroy();
+                panZoomInstance = null;
             }
-            if (allBeamsAcrossStories.length === 0) throw new Error("No qualifying beams found on any story.");
-            
-            fullDrawableBeams = allBeamsAcrossStories.map(f => ({ ...f, j1: joints[f.joint1], j2: joints[f.joint2] }));
-            storyOrderInfo = availableStories.reduce((acc, story, index) => { acc[story] = index; return acc; }, {});
-            
-            const remainingBeams = [...allBeamsAcrossStories];
 
-            const mainBeams = remainingBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
-            const secondaryBeams = remainingBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
+            fullProcessedBeams = [];
+            fullDrawableBeams = [];
+            availableStories = [];
+            gridData = {};
 
-            let allLabeledBeams = [];
+            if (fileInput.files.length === 0) {
+                statusDiv.innerHTML = '<p class="error">Error: Please select an .e2k file first.</p>';
+                return;
+            }
+            const file = fileInput.files[0];
+            statusDiv.innerHTML = `<p>Reading file "${file.name}"...</p>`;
+            let fileContent;
+            try {
+                fileContent = await file.text();
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">Failed to read file: ${error.message}</p>`;
+                return;
+            }
 
-            for (const story of availableStories) {
-                const mainBeamsInStory = mainBeams.filter(b => b.story === story);
-                const secondaryBeamsInStory = secondaryBeams.filter(b => b.story === story);
+            try {
+                const storySectionMatch = fileContent.match(/\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i);
+                if (!storySectionMatch) throw new Error("Could not find story definitions ($ STORIES) in the .e2k file.");
+                const allStoryNames = storySectionMatch[1].trim().split('\n').map(line => line.match(/STORY\s+"([^"]+)"/i)?.[1]).filter(Boolean);
+                if (allStoryNames.length === 0) throw new Error("Story definition block is empty.");
 
-                if (mainBeamsInStory.length > 0) {
-                    const labelComponentMap = generateLabelsForStory(mainBeamsInStory, joints, gridData);
-                    labelComponentMap.forEach((components, beamKey) => {
-                        const [name, joint1, joint2] = beamKey.split('|');
-                        const originalBeam = mainBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
-                        if (!originalBeam) return;
+                availableStories = allStoryNames;
+                populateStorySelector();
 
-                        const propUpper = originalBeam.prop.toUpperCase();
-                        const prefix = components.isVertical
-                            ? (propUpper.startsWith('FB') ? 'FB' : 'B')
-                            : (propUpper.startsWith('FB') ? 'FGB' : 'G');
-                        
-                        const newLabel = `${prefix}${components.primaryGridName}${components.subGridMarker}-${components.serial}`;
-                        allLabeledBeams.push({ ...originalBeam, newLabel });
+                statusDiv.innerHTML += `<p>Found ${availableStories.length} stories, parsing components...</p>`;
+                gridData = parseGrids(fileContent);
+                const joints = parseJoints(fileContent);
+
+                let allBeamsAcrossStories = [];
+                for (const story of availableStories) {
+                    const frames = parseFrames(fileContent, story);
+                    if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+                }
+                if (allBeamsAcrossStories.length === 0) throw new Error("No qualifying beams found on any story.");
+
+                fullDrawableBeams = allBeamsAcrossStories.map(f => ({
+                    ...f,
+                    j1: joints[f.joint1],
+                    j2: joints[f.joint2]
+                }));
+                storyOrderInfo = availableStories.reduce((acc, story, index) => {
+                    acc[story] = index;
+                    return acc;
+                }, {});
+
+                const remainingBeams = [...allBeamsAcrossStories];
+
+                const mainBeams = remainingBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
+                const secondaryBeams = remainingBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
+
+                let allLabeledBeams = [];
+
+                for (const story of availableStories) {
+                    const mainBeamsInStory = mainBeams.filter(b => b.story === story);
+                    const secondaryBeamsInStory = secondaryBeams.filter(b => b.story === story);
+
+                    if (mainBeamsInStory.length > 0) {
+                        const labelComponentMap = generateLabelsForStory(mainBeamsInStory, joints, gridData);
+                        labelComponentMap.forEach((components, beamKey) => {
+                            const [name, joint1, joint2] = beamKey.split('|');
+                            const originalBeam = mainBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
+                            if (!originalBeam) return;
+
+                            const propUpper = originalBeam.prop.toUpperCase();
+                            const prefix = components.isVertical ?
+                                (propUpper.startsWith('FB') ? 'FB' : 'B') :
+                                (propUpper.startsWith('FB') ? 'FG' : 'G');
+
+                            const newLabel = `${prefix}${components.primaryGridName}${components.subGridMarker}-${components.serial}`;
+                            allLabeledBeams.push({ ...originalBeam,
+                                newLabel
+                            });
+                        });
+                    }
+
+                    if (secondaryBeamsInStory.length > 0) {
+                        const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, gridData);
+                        secondaryBeamLabels.forEach((value, key) => {
+                            const [name, joint1, joint2] = key.split('|');
+                            const originalBeam = secondaryBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
+                            if (originalBeam) {
+                                allLabeledBeams.push({ ...originalBeam,
+                                    newLabel: value.newLabel
+                                });
+                            }
+                        });
+                    }
+                }
+
+                let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
+                finalProcessedData = finalProcessedData.filter(beam => beam.newLabel);
+
+                finalProcessedData.sort((a, b) => {
+                    const storyCompare = storyOrderInfo[a.story] - storyOrderInfo[b.story];
+                    if (storyCompare !== 0) return storyCompare;
+
+                    const aIsSecondary = a.newLabel.startsWith('b');
+                    const bIsSecondary = b.newLabel.startsWith('b');
+
+                    if (aIsSecondary && !bIsSecondary) return 1;
+                    if (!aIsSecondary && bIsSecondary) return -1;
+
+                    return (a.newLabel || "").localeCompare(b.newLabel || "", "en", {
+                        numeric: true
                     });
+                });
+
+                fullProcessedBeams = finalProcessedData;
+
+                if (availableStories.includes('2F')) {
+                    storySelector.value = '2F';
+                }
+                handleStoryChange();
+
+                statusDiv.innerHTML = `<p>Processing complete! ${fullProcessedBeams.length} items numbered.</p>`;
+                if (fullProcessedBeams.length > 0) {
+                    exportBtn.disabled = false;
                 }
 
-                if (secondaryBeamsInStory.length > 0) {
-                    const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeamsInStory, joints, gridData);
-                     secondaryBeamLabels.forEach((value, key) => {
-                        const [name, joint1, joint2] = key.split('|');
-                        const originalBeam = secondaryBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
-                        if(originalBeam) {
-                            allLabeledBeams.push({ ...originalBeam, newLabel: value.newLabel });
-                        }
-                    });
-                }
-            }
-            
-            let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
-            finalProcessedData = finalProcessedData.filter(beam => beam.newLabel);
-            
-            finalProcessedData.sort((a, b) => {
-                const storyCompare = storyOrderInfo[a.story] - storyOrderInfo[b.story];
-                if (storyCompare !== 0) return storyCompare;
-                
-                const aIsSecondary = a.newLabel.startsWith('b');
-                const bIsSecondary = b.newLabel.startsWith('b');
-
-                if (aIsSecondary && !bIsSecondary) return 1;
-                if (!aIsSecondary && bIsSecondary) return -1;
-
-                return (a.newLabel || "").localeCompare(b.newLabel || "", "en", { numeric: true });
-            });
-            
-            fullProcessedBeams = finalProcessedData;
-            
-            if (availableStories.includes('2F')) {
-                storySelector.value = '2F';
-            }
-            handleStoryChange();
-
-            statusDiv.innerHTML = `<p>Processing complete! ${fullProcessedBeams.length} items numbered.</p>`;
-            if (fullProcessedBeams.length > 0) { exportBtn.disabled = false; }
-
-        } catch (error) {
-            statusDiv.innerHTML = `<p class="error">Processing failed: ${error.message}</p>`;
-            console.error(error);
-        }
-    }
-    
-    // --- UI Interaction Functions ---
-    function populateStorySelector() {
-        const selector = document.getElementById('storySelector');
-        selector.innerHTML = '<option value="all">All Floors</option>';
-        availableStories.forEach(story => {
-            const option = document.createElement('option');
-            option.value = story;
-            option.textContent = story;
-            selector.appendChild(option);
-        });
-        selector.disabled = false;
-        document.getElementById('beamTypeSelector').disabled = false;
-    }
-
-    function handleStoryChange() {
-        const storySelector = document.getElementById('storySelector');
-        const beamTypeSelector = document.getElementById('beamTypeSelector');
-        const selectedStory = storySelector.value;
-        const selectedBeamType = beamTypeSelector.value;
-        const svg = document.getElementById('drawing-svg');
-        const tableBody = document.querySelector("#beam-table tbody");
-        
-        document.getElementById('plan-story-name').textContent = selectedStory === 'all' ? 'All Floors Combined' : selectedStory;
-        document.getElementById('table-story-name').textContent = selectedStory === 'all' ? 'All Floors' : selectedStory;
-
-        let beamsToDisplay = fullProcessedBeams;
-        let backgroundBeams = fullDrawableBeams;
-
-        // 1. 先依樓層篩選
-        if (selectedStory !== 'all') {
-            beamsToDisplay = beamsToDisplay.filter(b => b.story === selectedStory);
-            backgroundBeams = backgroundBeams.filter(b => b.story === selectedStory);
-        }
-
-        // 2. 再依梁類型篩選
-        if (selectedBeamType === 'main') {
-            beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !b.newLabel.startsWith('b'));
-            backgroundBeams = backgroundBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
-        } else if (selectedBeamType === 'secondary') {
-            beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && b.newLabel.startsWith('b'));
-            backgroundBeams = backgroundBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
-        }
-
-        if (panZoomInstance) {
-            panZoomInstance.destroy();
-            panZoomInstance = null;
-        }
-        
-        const labeledBeamsWithCoords = beamsToDisplay.map(beam => {
-            const originalBeam = fullDrawableBeams.find(b => 
-                b.name === beam.name && 
-                b.story === beam.story &&
-                b.joint1 === beam.joint1 &&
-                b.joint2 === beam.joint2
-            );
-            return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
-        });
-
-        displayResults(labeledBeamsWithCoords, backgroundBeams, svg, tableBody, gridData);
-
-        if (beamsToDisplay.length > 0) {
-            panZoomInstance = svgPanZoom('#drawing-svg', {
-                panEnabled: true, zoomEnabled: true, dblClickZoomEnabled: true,
-                controlIconsEnabled: true, fit: true, center: true,
-                minZoom: 0.5, maxZoom: 20
-            });
-        }
-    }
-    
-    function summarizeFloors(floors, storyOrder) {
-        if (!floors || floors.length === 0) return '';
-        if (floors.length === 1) return floors[0];
-
-        const sortedFloors = [...floors].sort((a, b) => storyOrder[a] - storyOrder[b]);
-        const ranges = [];
-        let rangeStart = sortedFloors[0];
-
-        for (let i = 1; i < sortedFloors.length; i++) {
-            const currentStoryOrder = storyOrder[sortedFloors[i]];
-            const prevStoryOrder = storyOrder[sortedFloors[i-1]];
-
-            if (currentStoryOrder !== prevStoryOrder + 1) {
-                if (rangeStart === sortedFloors[i-1]) {
-                    ranges.push(rangeStart);
-                } else {
-                    ranges.push(`${rangeStart}~${sortedFloors[i-1]}`);
-                }
-                rangeStart = sortedFloors[i];
+            } catch (error) {
+                statusDiv.innerHTML = `<p class="error">Processing failed: ${error.message}</p>`;
+                console.error(error);
             }
         }
 
-        if (rangeStart === sortedFloors[sortedFloors.length - 1]) {
-            ranges.push(rangeStart);
-        } else {
-            ranges.push(`${rangeStart}~${sortedFloors[sortedFloors.length - 1]}`);
+        // --- UI Interaction Functions ---
+        function populateStorySelector() {
+            const selector = document.getElementById('storySelector');
+            selector.innerHTML = '<option value="all">All Floors</option>';
+            availableStories.forEach(story => {
+                const option = document.createElement('option');
+                option.value = story;
+                option.textContent = story;
+                selector.appendChild(option);
+            });
+            selector.disabled = false;
+            document.getElementById('beamTypeSelector').disabled = false;
         }
-        return ranges.join(', ');
-    }
 
-    function summarizeProperties(floorProps, storyOrder) {
-        if (!floorProps || floorProps.length === 0) return '';
+        function handleStoryChange() {
+            const storySelector = document.getElementById('storySelector');
+            const beamTypeSelector = document.getElementById('beamTypeSelector');
+            const selectedStory = storySelector.value;
+            const selectedBeamType = beamTypeSelector.value;
+            const svg = document.getElementById('drawing-svg');
+            const tableBody = document.querySelector("#beam-table tbody");
 
-        const propsToFloorsMap = new Map();
-        for (const { story, prop } of floorProps) {
-            if (!propsToFloorsMap.has(prop)) {
-                propsToFloorsMap.set(prop, []);
+            document.getElementById('plan-story-name').textContent = selectedStory === 'all' ? 'All Floors Combined' : selectedStory;
+            document.getElementById('table-story-name').textContent = selectedStory === 'all' ? 'All Floors' : selectedStory;
+
+            let beamsToDisplay = fullProcessedBeams;
+            let backgroundBeams = fullDrawableBeams;
+
+            // 1. 先依樓層篩選
+            if (selectedStory !== 'all') {
+                beamsToDisplay = beamsToDisplay.filter(b => b.story === selectedStory);
+                backgroundBeams = backgroundBeams.filter(b => b.story === selectedStory);
             }
-            propsToFloorsMap.get(prop).push(story);
+
+            // 2. 再依梁類型篩選
+            if (selectedBeamType === 'main') {
+                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !b.newLabel.startsWith('b'));
+                backgroundBeams = backgroundBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
+            } else if (selectedBeamType === 'secondary') {
+                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && b.newLabel.startsWith('b'));
+                backgroundBeams = backgroundBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
+            }
+
+            if (panZoomInstance) {
+                panZoomInstance.destroy();
+                panZoomInstance = null;
+            }
+
+            const labeledBeamsWithCoords = beamsToDisplay.map(beam => {
+                const originalBeam = fullDrawableBeams.find(b =>
+                    b.name === beam.name &&
+                    b.story === beam.story &&
+                    b.joint1 === beam.joint1 &&
+                    b.joint2 === beam.joint2
+                );
+                return { ...beam,
+                    j1: originalBeam?.j1,
+                    j2: originalBeam?.j2
+                };
+            });
+
+            displayResults(labeledBeamsWithCoords, backgroundBeams, svg, tableBody, gridData);
+
+            if (beamsToDisplay.length > 0) {
+                panZoomInstance = svgPanZoom('#drawing-svg', {
+                    panEnabled: true,
+                    zoomEnabled: true,
+                    dblClickZoomEnabled: true,
+                    controlIconsEnabled: true,
+                    fit: true,
+                    center: true,
+                    minZoom: 0.5,
+                    maxZoom: 20
+                });
+            }
         }
 
-        const summaryParts = [];
-        propsToFloorsMap.forEach((floors, prop) => {
-            const floorRange = summarizeFloors(floors, storyOrder);
-            summaryParts.push(`${floorRange}: ${prop}`);
-        });
+        function summarizeFloors(floors, storyOrder) {
+            if (!floors || floors.length === 0) return '';
+            if (floors.length === 1) return floors[0];
 
-        summaryParts.sort((a, b) => {
-            const firstStoryA = a.split(':')[0].trim().split('~')[0];
-            const firstStoryB = b.split(':')[0].trim().split('~')[0];
-            return storyOrder[firstStoryA] - storyOrder[firstStoryB];
-        });
+            const sortedFloors = [...floors].sort((a, b) => storyOrder[a] - storyOrder[b]);
+            const ranges = [];
+            let rangeStart = sortedFloors[0];
 
-        return summaryParts.join('; ');
-    }
+            for (let i = 1; i < sortedFloors.length; i++) {
+                const currentStoryOrder = storyOrder[sortedFloors[i]];
+                const prevStoryOrder = storyOrder[sortedFloors[i - 1]];
 
-    // --- Drawing and Display Functions ---
-    function displayResults(labeledBeams, allBeams, svg, tableBody, grids) {
-        tableBody.innerHTML = '';
-        labeledBeams.forEach(beam => {
-            const row = tableBody.insertRow();
-            row.insertCell(0).textContent = beam.story;
-            row.insertCell(1).textContent = beam.name;
-            row.insertCell(2).textContent = beam.newLabel;
-        });
-
-        const beamCoords = allBeams.flatMap(b => [b.j1, b.j2]).filter(Boolean);
-        if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
-            svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
-            return;
-        }
-
-        const gridCoordsX = grids.x ? grids.x.map(g => g.ordinate) : [];
-        const gridCoordsY = grids.y ? grids.y.map(g => g.ordinate) : [];
-        const allX = beamCoords.map(p => p.x).concat(gridCoordsX);
-        const allY = beamCoords.map(p => p.y).concat(gridCoordsY);
-        const minX = Math.min(...allX);
-        const maxX = Math.max(...allX);
-        const minY = Math.min(...allY);
-        const maxY = Math.max(...allY);
-        
-        const padding = 60;
-        const svgWidth = svg.clientWidth;
-        const svgHeight = svg.clientHeight;
-        const contentWidth = maxX - minX;
-        const contentHeight = maxY - minY;
-        
-        let scale = Math.min((svgWidth - 2 * padding) / (contentWidth || 1), (svgHeight - 2 * padding) / (contentHeight || 1)) * 0.9;
-        if (!isFinite(scale) || scale === 0) scale = 1;
-
-        const transformX = (x) => padding + (x - minX) * scale;
-        const transformY = (y) => svgHeight - padding - (y - minY) * scale;
-
-        svg.innerHTML = '';
-
-        const allDrawableBeams = allBeams.filter(b => b.j1 && b.j2);
-        allDrawableBeams.forEach(beam => {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', transformX(beam.j1.x));
-            line.setAttribute('y1', transformY(beam.j1.y));
-            line.setAttribute('x2', transformX(beam.j2.x));
-            line.setAttribute('y2', transformY(beam.j2.y));
-            line.setAttribute('class', 'beam-line');
-            svg.appendChild(line);
-        });
-        
-        if (grids && grids.x && grids.y) {
-            const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            gridGroup.setAttribute('class', 'grid-lines');
-            grids.x.forEach(gridLine => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', transformX(gridLine.ordinate));
-                line.setAttribute('y1', padding);
-                line.setAttribute('x2', transformX(gridLine.ordinate));
-                line.setAttribute('y2', svgHeight - padding);
-                gridGroup.appendChild(line);
-            });
-            grids.y.forEach(gridLine => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', padding);
-                line.setAttribute('y1', transformY(gridLine.ordinate));
-                line.setAttribute('x2', svgWidth - padding);
-                line.setAttribute('y2', transformY(gridLine.ordinate));
-                gridGroup.appendChild(line);
-            });
-            svg.appendChild(gridGroup);
-            
-            const bubbleRadius = 12;
-            const gridLabelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-            
-            grids.x.forEach(gridLine => {
-                const cx = transformX(gridLine.ordinate);
-                const loc = gridLine.bubbleLoc;
-
-                if (loc === 'End' || loc === 'Both' || !loc) {
-                    const cyTop = padding / 2;
-                    const topBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    topBubble.setAttribute('cx', cx); topBubble.setAttribute('cy', cyTop); topBubble.setAttribute('r', bubbleRadius); topBubble.setAttribute('class', 'grid-bubble');
-                    const topText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    topText.setAttribute('x', cx); topText.setAttribute('y', cyTop); topText.setAttribute('class', 'grid-bubble-text'); topText.textContent = gridLine.name;
-                    gridLabelsGroup.appendChild(topBubble); gridLabelsGroup.appendChild(topText);
+                if (currentStoryOrder !== prevStoryOrder + 1) {
+                    if (rangeStart === sortedFloors[i - 1]) {
+                        ranges.push(rangeStart);
+                    } else {
+                        ranges.push(`${rangeStart}~${sortedFloors[i-1]}`);
+                    }
+                    rangeStart = sortedFloors[i];
                 }
+            }
 
-                if (loc === 'Start' || loc === 'Both') {
-                    const cyBottom = svgHeight - padding / 2;
-                    const bottomBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    bottomBubble.setAttribute('cx', cx); bottomBubble.setAttribute('cy', cyBottom); bottomBubble.setAttribute('r', bubbleRadius); bottomBubble.setAttribute('class', 'grid-bubble');
-                    const bottomText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    bottomText.setAttribute('x', cx); bottomText.setAttribute('y', cyBottom); bottomText.setAttribute('class', 'grid-bubble-text'); bottomText.textContent = gridLine.name;
-                    gridLabelsGroup.appendChild(bottomBubble); gridLabelsGroup.appendChild(bottomText);
-                }
-            });
-
-            grids.y.forEach(gridLine => {
-                const cy = transformY(gridLine.ordinate);
-                const loc = gridLine.bubbleLoc;
-
-                if (loc === 'Start' || loc === 'Both' || !loc) {
-                    const cxLeft = padding / 2;
-                    const leftBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    leftBubble.setAttribute('cx', cxLeft); leftBubble.setAttribute('cy', cy); leftBubble.setAttribute('r', bubbleRadius); leftBubble.setAttribute('class', 'grid-bubble');
-                    const leftText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    leftText.setAttribute('x', cxLeft); leftText.setAttribute('y', cy); leftText.setAttribute('class', 'grid-bubble-text'); leftText.textContent = gridLine.name;
-                    gridLabelsGroup.appendChild(leftBubble); gridLabelsGroup.appendChild(leftText);
-                }
-                
-                if (loc === 'End' || loc === 'Both') {
-                    const cxRight = svgWidth - padding / 2;
-                    const rightBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                    rightBubble.setAttribute('cx', cxRight); rightBubble.setAttribute('cy', cy); rightBubble.setAttribute('r', bubbleRadius); rightBubble.setAttribute('class', 'grid-bubble');
-                    const rightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                    rightText.setAttribute('x', cxRight); rightText.setAttribute('y', cy); rightText.setAttribute('class', 'grid-bubble-text'); rightText.textContent = gridLine.name;
-                    gridLabelsGroup.appendChild(rightBubble); gridLabelsGroup.appendChild(rightText);
-                }
-            });
-            svg.appendChild(gridLabelsGroup);
-        }
-        
-        const labeledDrawableBeams = labeledBeams.filter(b => b.j1 && b.j2);
-        labeledDrawableBeams.forEach(beam => {
-            const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-            line.setAttribute('x1', transformX(beam.j1.x));
-            line.setAttribute('y1', transformY(beam.j1.y));
-            line.setAttribute('x2', transformX(beam.j2.x));
-            line.setAttribute('y2', transformY(beam.j2.y));
-            
-            let className = 'labeled-beam-line';
-              if (beam.newLabel.startsWith('b') || beam.newLabel === 'g1') {
-                  className = 'special-beam-line';
-              } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
-                  className = 'special-beam-line';
-              }
-
-            line.setAttribute('class', className);
-            svg.appendChild(line);
-
-            const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-            
-            let textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
-            let textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
-            const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
-
-            if (isHorizontal) {
-                textY += 12;
-                text.setAttribute('text-anchor', 'middle');
+            if (rangeStart === sortedFloors[sortedFloors.length - 1]) {
+                ranges.push(rangeStart);
             } else {
-                textX -= 8;
-                text.setAttribute('text-anchor', 'middle');
-                text.setAttribute('dominant-baseline', 'middle');
-                text.setAttribute('transform', `rotate(-90, ${textX}, ${textY})`);
+                ranges.push(`${rangeStart}~${sortedFloors[sortedFloors.length - 1]}`);
             }
-            
-            text.setAttribute('x', textX);
-            text.setAttribute('y', textY);
-            text.setAttribute('class', 'beam-label');
-            text.setAttribute('vector-effect', 'non-scaling-stroke'); 
-            text.textContent = beam.newLabel;
-            svg.appendChild(text);
-        });
-    }
-    
-    // --- Core Parsing Functions ---
-    function parseGrids(content) {
-        const grids = { x: [], y: [] };
-        const gridTableSection = content.match(/TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/);
-        if (gridTableSection) {
-            let currentGrid = {};
-            const lines = gridTableSection[1].trim().split('\n');
-            lines.forEach(line => {
-                const trimmedLine = line.trim();
-                if (trimmedLine === "") {
-                    if (currentGrid.name && currentGrid.type && currentGrid.ordinate !== undefined) {
-                        if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid); else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid);
+            return ranges.join(', ');
+        }
+
+        function summarizeProperties(floorProps, storyOrder) {
+            if (!floorProps || floorProps.length === 0) return '';
+
+            const propsToFloorsMap = new Map();
+            for (const {
+                    story,
+                    prop
+                } of floorProps) {
+                if (!propsToFloorsMap.has(prop)) {
+                    propsToFloorsMap.set(prop, []);
+                }
+                propsToFloorsMap.get(prop).push(story);
+            }
+
+            const summaryParts = [];
+            propsToFloorsMap.forEach((floors, prop) => {
+                const floorRange = summarizeFloors(floors, storyOrder);
+                summaryParts.push(`${floorRange}: ${prop}`);
+            });
+
+            summaryParts.sort((a, b) => {
+                const firstStoryA = a.split(':')[0].trim().split('~')[0];
+                const firstStoryB = b.split(':')[0].trim().split('~')[0];
+                return storyOrder[firstStoryA] - storyOrder[firstStoryB];
+            });
+
+            return summaryParts.join('; ');
+        }
+
+        // --- Drawing and Display Functions ---
+        function displayResults(labeledBeams, allBeams, svg, tableBody, grids) {
+            tableBody.innerHTML = '';
+            labeledBeams.forEach(beam => {
+                const row = tableBody.insertRow();
+                row.insertCell(0).textContent = beam.story;
+                row.insertCell(1).textContent = beam.name;
+                row.insertCell(2).textContent = beam.newLabel;
+            });
+
+            const beamCoords = allBeams.flatMap(b => [b.j1, b.j2]).filter(Boolean);
+            if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
+                svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
+                return;
+            }
+
+            const gridCoordsX = grids.x ? grids.x.map(g => g.ordinate) : [];
+            const gridCoordsY = grids.y ? grids.y.map(g => g.ordinate) : [];
+            const allX = beamCoords.map(p => p.x).concat(gridCoordsX);
+            const allY = beamCoords.map(p => p.y).concat(gridCoordsY);
+            const minX = Math.min(...allX);
+            const maxX = Math.max(...allX);
+            const minY = Math.min(...allY);
+            const maxY = Math.max(...allY);
+
+            const padding = 60;
+            const svgWidth = svg.clientWidth;
+            const svgHeight = svg.clientHeight;
+            const contentWidth = maxX - minX;
+            const contentHeight = maxY - minY;
+
+            let scale = Math.min((svgWidth - 2 * padding) / (contentWidth || 1), (svgHeight - 2 * padding) / (contentHeight || 1)) * 0.9;
+            if (!isFinite(scale) || scale === 0) scale = 1;
+
+            const transformX = (x) => padding + (x - minX) * scale;
+            const transformY = (y) => svgHeight - padding - (y - minY) * scale;
+
+            svg.innerHTML = '';
+
+            const allDrawableBeams = allBeams.filter(b => b.j1 && b.j2);
+            allDrawableBeams.forEach(beam => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', transformX(beam.j1.x));
+                line.setAttribute('y1', transformY(beam.j1.y));
+                line.setAttribute('x2', transformX(beam.j2.x));
+                line.setAttribute('y2', transformY(beam.j2.y));
+                line.setAttribute('class', 'beam-line');
+                svg.appendChild(line);
+            });
+
+            if (grids && grids.x && grids.y) {
+                const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                gridGroup.setAttribute('class', 'grid-lines');
+                grids.x.forEach(gridLine => {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', transformX(gridLine.ordinate));
+                    line.setAttribute('y1', padding);
+                    line.setAttribute('x2', transformX(gridLine.ordinate));
+                    line.setAttribute('y2', svgHeight - padding);
+                    gridGroup.appendChild(line);
+                });
+                grids.y.forEach(gridLine => {
+                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                    line.setAttribute('x1', padding);
+                    line.setAttribute('y1', transformY(gridLine.ordinate));
+                    line.setAttribute('x2', svgWidth - padding);
+                    line.setAttribute('y2', transformY(gridLine.ordinate));
+                    gridGroup.appendChild(line);
+                });
+                svg.appendChild(gridGroup);
+
+                const bubbleRadius = 12;
+                const gridLabelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+
+                grids.x.forEach(gridLine => {
+                    const cx = transformX(gridLine.ordinate);
+                    const loc = gridLine.bubbleLoc;
+
+                    if (loc === 'End' || loc === 'Both' || !loc) {
+                        const cyTop = padding / 2;
+                        const topBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        topBubble.setAttribute('cx', cx);
+                        topBubble.setAttribute('cy', cyTop);
+                        topBubble.setAttribute('r', bubbleRadius);
+                        topBubble.setAttribute('class', 'grid-bubble');
+                        const topText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        topText.setAttribute('x', cx);
+                        topText.setAttribute('y', cyTop);
+                        topText.setAttribute('class', 'grid-bubble-text');
+                        topText.textContent = gridLine.name;
+                        gridLabelsGroup.appendChild(topBubble);
+                        gridLabelsGroup.appendChild(topText);
                     }
-                    currentGrid = {};
+
+                    if (loc === 'Start' || loc === 'Both') {
+                        const cyBottom = svgHeight - padding / 2;
+                        const bottomBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        bottomBubble.setAttribute('cx', cx);
+                        bottomBubble.setAttribute('cy', cyBottom);
+                        bottomBubble.setAttribute('r', bubbleRadius);
+                        bottomBubble.setAttribute('class', 'grid-bubble');
+                        const bottomText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        bottomText.setAttribute('x', cx);
+                        bottomText.setAttribute('y', cyBottom);
+                        bottomText.setAttribute('class', 'grid-bubble-text');
+                        bottomText.textContent = gridLine.name;
+                        gridLabelsGroup.appendChild(bottomBubble);
+                        gridLabelsGroup.appendChild(bottomText);
+                    }
+                });
+
+                grids.y.forEach(gridLine => {
+                    const cy = transformY(gridLine.ordinate);
+                    const loc = gridLine.bubbleLoc;
+
+                    if (loc === 'Start' || loc === 'Both' || !loc) {
+                        const cxLeft = padding / 2;
+                        const leftBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        leftBubble.setAttribute('cx', cxLeft);
+                        leftBubble.setAttribute('cy', cy);
+                        leftBubble.setAttribute('r', bubbleRadius);
+                        leftBubble.setAttribute('class', 'grid-bubble');
+                        const leftText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        leftText.setAttribute('x', cxLeft);
+                        leftText.setAttribute('y', cy);
+                        leftText.setAttribute('class', 'grid-bubble-text');
+                        leftText.textContent = gridLine.name;
+                        gridLabelsGroup.appendChild(leftBubble);
+                        gridLabelsGroup.appendChild(leftText);
+                    }
+
+                    if (loc === 'End' || loc === 'Both') {
+                        const cxRight = svgWidth - padding / 2;
+                        const rightBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                        rightBubble.setAttribute('cx', cxRight);
+                        rightBubble.setAttribute('cy', cy);
+                        rightBubble.setAttribute('r', bubbleRadius);
+                        rightBubble.setAttribute('class', 'grid-bubble');
+                        const rightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                        rightText.setAttribute('x', cxRight);
+                        rightText.setAttribute('y', cy);
+                        rightText.setAttribute('class', 'grid-bubble-text');
+                        rightText.textContent = gridLine.name;
+                        gridLabelsGroup.appendChild(rightBubble);
+                        gridLabelsGroup.appendChild(rightText);
+                    }
+                });
+                svg.appendChild(gridLabelsGroup);
+            }
+
+            const labeledDrawableBeams = labeledBeams.filter(b => b.j1 && b.j2);
+            labeledDrawableBeams.forEach(beam => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', transformX(beam.j1.x));
+                line.setAttribute('y1', transformY(beam.j1.y));
+                line.setAttribute('x2', transformX(beam.j2.x));
+                line.setAttribute('y2', transformY(beam.j2.y));
+
+                let className = 'labeled-beam-line';
+                if (beam.newLabel.startsWith('b') || beam.newLabel === 'g1') {
+                    className = 'special-beam-line';
+                } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
+                    className = 'special-beam-line';
+                }
+
+                line.setAttribute('class', className);
+                svg.appendChild(line);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+
+                let textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
+                let textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
+                const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
+
+                if (isHorizontal) {
+                    textY += 12;
+                    text.setAttribute('text-anchor', 'middle');
                 } else {
-                    const match = trimmedLine.match(/(\S+)\s*=\s*"?([^"]*)"?/);
-                    if (match) { 
-                        const [, key, value] = match; 
-                        if (key === 'GridID') currentGrid.name = value; 
-                        if (key === 'GridType') currentGrid.type = value; 
-                        if (key === 'Ordinate') currentGrid.ordinate = parseFloat(value);
-                        if (key === 'BubbleLoc') currentGrid.bubbleLoc = value;
-                    }
+                    textX -= 8;
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'middle');
+                    text.setAttribute('transform', `rotate(-90, ${textX}, ${textY})`);
                 }
-            });
-            if (currentGrid.name) { if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid); else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid); }
-        }
-        if (grids.x.length === 0 && grids.y.length === 0) {
-            const gridDollarSection = content.match(/\$ GRIDS([\s\S]*?)(?=\$|$)/);
-            if (gridDollarSection) {
-                const lines = gridDollarSection[1].trim().split('\n');
-                lines.forEach(line => {
-                    const match = line.match(/LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i);
-                    if (match) { const [, name, type, ordinate] = match; const gridInfo = { name, type, ordinate: parseFloat(ordinate) }; if (type.toUpperCase() === 'X') grids.x.push(gridInfo); else if (type.toUpperCase() === 'Y') grids.y.push(gridInfo); }
-                });
-            }
-        }
-        if (grids.x.length === 0 && grids.y.length === 0) { throw new Error("Could not find grid definitions."); }
-        grids.x = [...new Map(grids.x.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
-        grids.y = [...new Map(grids.y.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
-        return grids;
-    }
 
-    function parseJoints(content) {
-        const joints = {};
-        const sciNotationRegex = /"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
-        const pointRegex = /^POINT\s+"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
-        const nameRegex = /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
-
-        const jointTableSection = content.match(/TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/);
-        if (jointTableSection) {
-            const lines = jointTableSection[1].trim().split('\n');
-            lines.forEach(line => {
-                if (line.trim().startsWith('JOINT')) return;
-                const match = line.trim().match(sciNotationRegex);
-                if (match) {
-                    joints[match[1]] = { x: parseFloat(match[2]), y: parseFloat(match[3]) };
-                }
+                text.setAttribute('x', textX);
+                text.setAttribute('y', textY);
+                text.setAttribute('class', 'beam-label');
+                text.setAttribute('vector-effect', 'non-scaling-stroke');
+                text.textContent = beam.newLabel;
+                svg.appendChild(text);
             });
         }
-        if (Object.keys(joints).length === 0) {
-            const lines = content.split('\n');
-            lines.forEach(line => {
-                const match = line.trim().match(pointRegex);
-                if (match) {
-                    joints[match[1]] = { x: parseFloat(match[2]), y: parseFloat(match[3]) };
-                }
-            });
-        }
-        if (Object.keys(joints).length === 0) {
-            const jointDollarSection = content.match(/\$ JOINTS([\s\S]*?)(?=\$|$)/s);
-            if (jointDollarSection) {
-                const lines = jointDollarSection[1].trim().split('\n');
-                lines.forEach(line => {
-                    const match = line.match(nameRegex);
-                    if (match) {
-                        joints[match[1]] = { x: parseFloat(match[2]), y: parseFloat(match[3]) };
-                    }
-                });
-            }
-        }
-        if (Object.keys(joints).length === 0) { throw new Error("Could not find joint coordinate definitions."); }
-        return joints;
-    }
 
-    function parseFrames(content, story) {
-        const frames = [];
-        const isBeamProp = (propName) => {
-            if (!propName) return false;
-            const p = propName.toUpperCase();
-            const isMainBeam = /^\d*B/.test(p);
-            const isSecondaryBeam = /^\d*SB/.test(p);
-            return isMainBeam || isSecondaryBeam || p.startsWith('FB') || p.startsWith('WB') || p.startsWith('FWB');
-        };
-
-        const frameTableSection = content.match(/TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/);
-        const frameAssignSection = content.match(/TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/);
-        if (frameTableSection && frameAssignSection) {
-            const connectivityLines = frameTableSection[1].trim().split('\n'); const assignLines = frameAssignSection[1].trim().split('\n'); const frameProperties = new Map();
-            assignLines.forEach(line => { const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/); if (match && match[2] === story) { frameProperties.set(match[1], match[3]); } });
-            connectivityLines.forEach(line => { const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/); if (match) { const [, name, joint1, joint2] = match; const propName = frameProperties.get(name); if (isBeamProp(propName)) { frames.push({ name, prop: propName, joint1, joint2, story }); } } });
-        }
-        if (frames.length === 0) {
-            const lineConnectivitySection = content.match(/\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i); const lineAssignsSection = content.match(/\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i);
-            if (lineConnectivitySection && lineAssignsSection) {
-                const connectLines = lineConnectivitySection[1].trim().split('\n'); const assignLines = lineAssignsSection[1].trim().split('\n'); const beamAssigns = new Map();
-                assignLines.forEach(line => { const assignMatch = line.match(new RegExp(`LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`, 'i')); if (assignMatch) { const [, name, propName] = assignMatch; if (isBeamProp(propName)) { beamAssigns.set(name, propName); } } });
-                connectLines.forEach(line => { const connMatch = line.match(/LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i); if (connMatch) { const [, name, joint1, joint2] = connMatch; if (beamAssigns.has(name)) { frames.push({ name, prop: beamAssigns.get(name), joint1, joint2, story }); } } });
-            }
-        }
-        return frames;
-    }
-
-    // --- Core Numbering Logic Functions ---
-    function findClosestGrid(coordinate, grids) {
-        if (!grids || grids.length === 0) return null;
-        return grids.reduce((closest, current) => {
-            const closestDiff = Math.abs(coordinate - closest.ordinate);
-            const currentDiff = Math.abs(coordinate - current.ordinate);
-            return currentDiff < closestDiff ? current : closest;
-        });
-    }
-    
-    function generateLabelsForStory(beamsInStory, joints, grids) {
-        const labelComponentMap = new Map();
-        const beamsWithCoords = beamsInStory.map(b => {
-            const j1 = joints[b.joint1], j2 = joints[b.joint2];
-            if (!j1 || !j2) return null;
-            return { ...b, j1, j2,
-                centerX: (j1.x + j2.x) / 2, centerY: (j1.y + j2.y) / 2,
-                minX: Math.min(j1.x, j2.x), maxX: Math.max(j1.x, j2.x),
-                minY: Math.min(j1.y, j2.y), maxY: Math.max(j1.y, j2.y),
-                isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
-                isVertical: Math.abs(j1.x - j2.x) < TOLERANCE
+        // --- Core Parsing Functions ---
+        function parseGrids(content) {
+            const grids = {
+                x: [],
+                y: []
             };
-        }).filter(Boolean);
-
-        const processedSegments = new Set();
-        beamsWithCoords.forEach(startSegment => {
-            const segmentKey = `${startSegment.name}|${startSegment.joint1}|${startSegment.joint2}`;
-            if (processedSegments.has(segmentKey) || (!startSegment.isHorizontal && !startSegment.isVertical)) return;
-
-            const chain = beamsWithCoords.filter(otherSegment => otherSegment.name === startSegment.name);
-            chain.forEach(s => processedSegments.add(`${s.name}|${s.joint1}|${s.joint2}`));
-            
-            if (startSegment.isHorizontal) { chain.sort((a, b) => a.minX - b.minX); } 
-            else { chain.sort((a, b) => a.minY - b.minY); }
-
-            const firstInChain = chain[0];
-            if (firstInChain.isVertical) {
-                const onGrid = findClosestGrid(firstInChain.centerX, grids.x);
-                const prevGridX = grids.x.slice().reverse().find(g => g.ordinate < firstInChain.centerX);
-                if (Math.abs(firstInChain.centerX - onGrid.ordinate) < TOLERANCE) { // On grid
-                    chain.forEach(segment => {
-                        const endGridY = findClosestGrid(segment.maxY, grids.y);
-                        const serial = grids.y.findIndex(g => g.name === endGridY.name);
-                        if (serial !== -1) {
-                            labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, { isVertical: true, primaryGridName: onGrid.name, subGridMarker: '', serial });
+            const gridTableSection = content.match(/TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/);
+            if (gridTableSection) {
+                let currentGrid = {};
+                const lines = gridTableSection[1].trim().split('\n');
+                lines.forEach(line => {
+                    const trimmedLine = line.trim();
+                    if (trimmedLine === "") {
+                        if (currentGrid.name && currentGrid.type && currentGrid.ordinate !== undefined) {
+                            if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid);
+                            else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid);
                         }
-                    });
-                } else if (prevGridX) { // Off grid
-                    const nextGridX = findClosestGrid(firstInChain.centerX, grids.x);
-                    const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a,b) => parseFloat(a) - parseFloat(b));
-                    const rank = uniqueXCoords.indexOf(firstInChain.centerX.toFixed(2));
-                    const subGridMarker = "'".repeat(rank + 1);
-                    chain.forEach(segment => {
-                        const endGridY = findClosestGrid(segment.maxY, grids.y);
-                        const serial = grids.y.findIndex(g => g.name === endGridY.name);
-                        if (serial !== -1) {
-                            labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, { isVertical: true, primaryGridName: prevGridX.name, subGridMarker, serial });
+                        currentGrid = {};
+                    } else {
+                        const match = trimmedLine.match(/(\S+)\s*=\s*"?([^"]*)"?/);
+                        if (match) {
+                            const [, key, value] = match;
+                            if (key === 'GridID') currentGrid.name = value;
+                            if (key === 'GridType') currentGrid.type = value;
+                            if (key === 'Ordinate') currentGrid.ordinate = parseFloat(value);
+                            if (key === 'BubbleLoc') currentGrid.bubbleLoc = value;
                         }
-                    });
-                }
-            } else if (firstInChain.isHorizontal) {
-                const onGrid = findClosestGrid(firstInChain.centerY, grids.y);
-                const prevGridY = grids.y.slice().reverse().find(g => g.ordinate < firstInChain.centerY);
-                if (Math.abs(firstInChain.centerY - onGrid.ordinate) < TOLERANCE) { // On grid
-                    chain.forEach(segment => {
-                        const startGridX = findClosestGrid(segment.minX, grids.x);
-                        if (!startGridX) return;
-                        const serial = parseInt(startGridX.name, 10);
-                        if (!isNaN(serial)) {
-                            labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, { isVertical: false, primaryGridName: onGrid.name, subGridMarker: '', serial });
-                        }
-                    });
-                } else if (prevGridY) { // Off grid
-                    const nextGridY = findClosestGrid(firstInChain.centerY, grids.y);
-                    const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a,b) => parseFloat(a) - parseFloat(b));
-                    const rank = uniqueYCoords.indexOf(firstInChain.centerY.toFixed(2));
-                    const subGridMarker = "'".repeat(rank + 1);
-                    chain.forEach(segment => {
-                        const startGridX = findClosestGrid(segment.minX, grids.x);
-                        if (!startGridX) return;
-                        const serial = parseInt(startGridX.name, 10);
-                        if (!isNaN(serial)) {
-                            labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, { isVertical: false, primaryGridName: prevGridY.name, subGridMarker, serial });
-                        }
-                    });
-                }
-            }
-        });
-        return labelComponentMap;
-    }
-
-    function generateSecondaryBeamLabels(beamsInStory, joints, grids) {
-        const sbLabels = new Map();
-        const beamsWithData = beamsInStory.map(b => {
-            const j1_coords = joints[b.joint1], j2_coords = joints[b.joint2];
-            if (!j1_coords || !j2_coords) return null;
-            const isHorizontal = Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
-            const isVertical = Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
-            let startJointName = b.joint1, endJointName = b.joint2;
-            if (isHorizontal && j1_coords.x > j2_coords.x) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
-            if (isVertical && j1_coords.y > j2_coords.y) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
-            return { ...b, startJointName, endJointName, isHorizontal, isVertical };
-        }).filter(Boolean);
-
-        const processed = new Set();
-        let counter = 1;
-        const beamGroups = [
-            beamsWithData.filter(b => b.isHorizontal).sort((a,b) => joints[a.startJointName].y - joints[b.startJointName].y || joints[a.startJointName].x - joints[b.startJointName].x),
-            beamsWithData.filter(b => b.isVertical).sort((a,b) => joints[a.startJointName].x - joints[b.startJointName].x || joints[a.startJointName].y - joints[b.startJointName].y)
-        ];
-
-        let isVerticalRun = false;
-        beamGroups.forEach(group => {
-            if (isVerticalRun && counter > 1) {
-                const lastNum = counter - 1;
-                counter = (lastNum % 10 === 0) ? lastNum + 1 : Math.ceil(lastNum / 10) * 10 + 1;
-            }
-            for (const startBeam of group) {
-                const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
-                if (processed.has(startKey)) continue;
-
-                let chain = [startBeam];
-                processed.add(startKey);
-                let currentLink = startBeam;
-
-                while (true) {
-                    const nextLink = group.find(b => {
-                        const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
-                        return !processed.has(nextKey) && b.startJointName === currentLink.endJointName;
-                    });
-                    if (nextLink) {
-                        chain.push(nextLink);
-                        processed.add(`${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`);
-                        currentLink = nextLink;
-                    } else { break; }
-                }
-                if (chain.length > 1) {
-                    chain.forEach((beam, index) => {
-                        sbLabels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, { newLabel: `b${counter}-${index + 1}` });
-                    });
-                } else {
-                    sbLabels.set(`${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`, { newLabel: `b${counter}` });
-                }
-                counter++;
-            }
-            isVerticalRun = true;
-        });
-        return sbLabels;
-    }
-
-    function applySpecialPrefixRules(allBeams) {
-        const processPrefix = (prefix) => {
-            const targetBeams = allBeams.filter(b => b.prop && b.prop.toUpperCase().startsWith(prefix)); if (targetBeams.length === 0) return null;
-            const uniqueProps = [...new Set(targetBeams.map(b => b.prop))];
-            const propRanks = uniqueProps.map(prop => { const match = prop.match(/(\d+)[xX](\d+)/); if (match) { return { propName: prop, area: parseInt(match[1], 10) * parseInt(match[2], 10) }; } return { propName: prop, area: Infinity }; }).sort((a, b) => a.area - b.area);
-            const propToLabelMap = new Map(); propRanks.forEach((propInfo, index) => { propToLabelMap.set(propInfo.propName, `${prefix}${index + 1}`); }); return propToLabelMap;
-        };
-        const wbLabelMap = processPrefix('WB'); const fwbLabelMap = processPrefix('FWB');
-        return allBeams.map(beam => {
-            if (wbLabelMap && wbLabelMap.has(beam.prop)) { return { ...beam, newLabel: wbLabelMap.get(beam.prop) }; }
-            if (fwbLabelMap && fwbLabelMap.has(beam.prop)) { return { ...beam, newLabel: fwbLabelMap.get(beam.prop) }; }
-            return beam;
-        });
-    }
-    
-    function generateFloorFingerprint(story, allBeams, precision = 2) {
-        const beamsOnStory = allBeams.filter(b => b.story === story);
-        if (beamsOnStory.length === 0) {
-            return '';
-        }
-
-        const beamSignatures = beamsOnStory.map(beam => {
-            if (!beam.j1 || !beam.j2) return '';
-
-            const x1 = beam.j1.x.toFixed(precision);
-            const y1 = beam.j1.y.toFixed(precision);
-            const x2 = beam.j2.x.toFixed(precision);
-            const y2 = beam.j2.y.toFixed(precision);
-
-            const point1Str = `${x1},${y1}`;
-            const point2Str = `${x2},${y2}`;
-
-            return point1Str < point2Str ? `${point1Str}|${point2Str}` : `${point2Str}|${point1Str}`;
-        }).filter(Boolean);
-
-        return beamSignatures.sort().join(';');
-    }
-    
-    function createStandardFloorGroups() {
-        if (availableStories.length === 0) return [];
-
-        const sortedStories = [...availableStories].sort((a, b) => storyOrderInfo[a] - storyOrderInfo[b]);
-
-        const fingerprints = sortedStories.map(story => ({
-            story,
-            fingerprint: generateFloorFingerprint(story, fullDrawableBeams, 2)
-        }));
-
-        if (fingerprints.length === 0) return [];
-
-        const groups = [];
-        let currentGroup = [fingerprints[0].story];
-
-        for (let i = 1; i < fingerprints.length; i++) {
-            if (fingerprints[i].fingerprint === fingerprints[i-1].fingerprint && fingerprints[i].fingerprint !== '') {
-                currentGroup.push(fingerprints[i].story);
-            } else {
-                groups.push(currentGroup);
-                currentGroup = [fingerprints[i].story];
-            }
-        }
-        groups.push(currentGroup);
-
-        return groups;
-    }
-
-    function exportToExcel() {
-        if (fullProcessedBeams.length === 0) {
-            alert("沒有可匯出的資料。");
-            return;
-        }
-
-        const standardFloorGroups = createStandardFloorGroups();
-        const preppedData = [];
-
-        for (const group of standardFloorGroups) {
-            const beamsInGroup = fullProcessedBeams.filter(b => group.includes(b.story));
-
-            if (group.length === 1) {
-                beamsInGroup.forEach(beam => {
-                    preppedData.push({
-                        floor: beam.story,
-                        etabsLabel: beam.name,
-                        newLabel: beam.newLabel,
-                    });
-                });
-            } else {
-                const mergedBeamsInGroup = new Map();
-                beamsInGroup.forEach(beam => {
-                    const key = beam.newLabel;
-                    if (!mergedBeamsInGroup.has(key)) {
-                        mergedBeamsInGroup.set(key, { name: beam.name, newLabel: beam.newLabel, floorProps: [] });
                     }
-                    mergedBeamsInGroup.get(key).floorProps.push({ story: beam.story, prop: beam.prop });
                 });
-
-                mergedBeamsInGroup.forEach(mergedBeam => {
-                    const floorString = summarizeFloors(group, storyOrderInfo);
-                    preppedData.push({
-                        floor: floorString,
-                        etabsLabel: mergedBeam.name,
-                        newLabel: mergedBeam.newLabel,
+                if (currentGrid.name) {
+                    if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid);
+                    else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid);
+                }
+            }
+            if (grids.x.length === 0 && grids.y.length === 0) {
+                const gridDollarSection = content.match(/\$ GRIDS([\s\S]*?)(?=\$|$)/);
+                if (gridDollarSection) {
+                    const lines = gridDollarSection[1].trim().split('\n');
+                    lines.forEach(line => {
+                        const match = line.match(/LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i);
+                        if (match) {
+                            const [, name, type, ordinate] = match;
+                            const gridInfo = {
+                                name,
+                                type,
+                                ordinate: parseFloat(ordinate)
+                            };
+                            if (type.toUpperCase() === 'X') grids.x.push(gridInfo);
+                            else if (type.toUpperCase() === 'Y') grids.y.push(gridInfo);
+                        }
                     });
-                });
+                }
             }
+            if (grids.x.length === 0 && grids.y.length === 0) {
+                throw new Error("Could not find grid definitions.");
+            }
+            grids.x = [...new Map(grids.x.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
+            grids.y = [...new Map(grids.y.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
+            return grids;
         }
-        
-        const mainBeamsData = [];
-        const secondaryBeamsData = [];
 
-        preppedData.forEach(item => {
-            if (item.newLabel && item.newLabel.startsWith('b')) {
-                secondaryBeamsData.push({
-                    'ETABS編號': item.etabsLabel,
-                    '編號': item.newLabel,
-                    '樓層': item.floor
-                });
-            } else {
-                 mainBeamsData.push({
-                    'ETABS編號': item.etabsLabel,
-                    '編號': item.newLabel,
-                    '樓層': item.floor
+        function parseJoints(content) {
+            const joints = {};
+            const sciNotationRegex = /"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+            const pointRegex = /^POINT\s+"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+            const nameRegex = /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
+
+            const jointTableSection = content.match(/TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/);
+            if (jointTableSection) {
+                const lines = jointTableSection[1].trim().split('\n');
+                lines.forEach(line => {
+                    if (line.trim().startsWith('JOINT')) return;
+                    const match = line.trim().match(sciNotationRegex);
+                    if (match) {
+                        joints[match[1]] = {
+                            x: parseFloat(match[2]),
+                            y: parseFloat(match[3])
+                        };
+                    }
                 });
             }
-        });
+            if (Object.keys(joints).length === 0) {
+                const lines = content.split('\n');
+                lines.forEach(line => {
+                    const match = line.trim().match(pointRegex);
+                    if (match) {
+                        joints[match[1]] = {
+                            x: parseFloat(match[2]),
+                            y: parseFloat(match[3])
+                        };
+                    }
+                });
+            }
+            if (Object.keys(joints).length === 0) {
+                const jointDollarSection = content.match(/\$ JOINTS([\s\S]*?)(?=\$|$)/s);
+                if (jointDollarSection) {
+                    const lines = jointDollarSection[1].trim().split('\n');
+                    lines.forEach(line => {
+                        const match = line.match(nameRegex);
+                        if (match) {
+                            joints[match[1]] = {
+                                x: parseFloat(match[2]),
+                                y: parseFloat(match[3])
+                            };
+                        }
+                    });
+                }
+            }
+            if (Object.keys(joints).length === 0) {
+                throw new Error("Could not find joint coordinate definitions.");
+            }
+            return joints;
+        }
 
-        const workbook = XLSX.utils.book_new();
+        function parseFrames(content, story) {
+            const frames = [];
+            const isBeamProp = (propName) => {
+                if (!propName) return false;
+                const p = propName.toUpperCase();
+                const isMainBeam = /^\d*B/.test(p);
+                const isSecondaryBeam = /^\d*SB/.test(p);
+                return isMainBeam || isSecondaryBeam || p.startsWith('FB') || p.startsWith('WB') || p.startsWith('FWB');
+            };
 
-        const mainWs = XLSX.utils.json_to_sheet(mainBeamsData);
-        XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
+            const frameTableSection = content.match(/TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/);
+            const frameAssignSection = content.match(/TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/);
+            if (frameTableSection && frameAssignSection) {
+                const connectivityLines = frameTableSection[1].trim().split('\n');
+                const assignLines = frameAssignSection[1].trim().split('\n');
+                const frameProperties = new Map();
+                assignLines.forEach(line => {
+                    const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+                    if (match && match[2] === story) {
+                        frameProperties.set(match[1], match[3]);
+                    }
+                });
+                connectivityLines.forEach(line => {
+                    const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+                    if (match) {
+                        const [, name, joint1, joint2] = match;
+                        const propName = frameProperties.get(name);
+                        if (isBeamProp(propName)) {
+                            frames.push({
+                                name,
+                                prop: propName,
+                                joint1,
+                                joint2,
+                                story
+                            });
+                        }
+                    }
+                });
+            }
+            if (frames.length === 0) {
+                const lineConnectivitySection = content.match(/\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i);
+                const lineAssignsSection = content.match(/\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i);
+                if (lineConnectivitySection && lineAssignsSection) {
+                    const connectLines = lineConnectivitySection[1].trim().split('\n');
+                    const assignLines = lineAssignsSection[1].trim().split('\n');
+                    const beamAssigns = new Map();
+                    assignLines.forEach(line => {
+                        const assignMatch = line.match(new RegExp(`LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`, 'i'));
+                        if (assignMatch) {
+                            const [, name, propName] = assignMatch;
+                            if (isBeamProp(propName)) {
+                                beamAssigns.set(name, propName);
+                            }
+                        }
+                    });
+                    connectLines.forEach(line => {
+                        const connMatch = line.match(/LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i);
+                        if (connMatch) {
+                            const [, name, joint1, joint2] = connMatch;
+                            if (beamAssigns.has(name)) {
+                                frames.push({
+                                    name,
+                                    prop: beamAssigns.get(name),
+                                    joint1,
+                                    joint2,
+                                    story
+                                });
+                            }
+                        }
+                    });
+                }
+            }
+            return frames;
+        }
 
-        const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
-        XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁");
-        
-        XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
-    }
+        // --- Core Numbering Logic Functions ---
+        function findClosestGrid(coordinate, grids) {
+            if (!grids || grids.length === 0) return null;
+            return grids.reduce((closest, current) => {
+                const closestDiff = Math.abs(coordinate - closest.ordinate);
+                const currentDiff = Math.abs(coordinate - current.ordinate);
+                return currentDiff < closestDiff ? current : closest;
+            });
+        }
 
-    // --- 啟用滑鼠滾輪控制下拉選單 ---
-    function setupSelectWheelListeners() {
-        const selectors = document.querySelectorAll('#storySelector, #beamTypeSelector');
+        function generateLabelsForStory(beamsInStory, joints, grids) {
+            const labelComponentMap = new Map();
+            const beamsWithCoords = beamsInStory.map(b => {
+                const j1 = joints[b.joint1],
+                    j2 = joints[b.joint2];
+                if (!j1 || !j2) return null;
+                return {
+                    ...b,
+                    j1,
+                    j2,
+                    centerX: (j1.x + j2.x) / 2,
+                    centerY: (j1.y + j2.y) / 2,
+                    minX: Math.min(j1.x, j2.x),
+                    maxX: Math.max(j1.x, j2.x),
+                    minY: Math.min(j1.y, j2.y),
+                    maxY: Math.max(j1.y, j2.y),
+                    isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
+                    isVertical: Math.abs(j1.x - j2.x) < TOLERANCE
+                };
+            }).filter(Boolean);
 
-        selectors.forEach(select => {
-            select.addEventListener('wheel', (event) => {
-                // 如果下拉選單沒有選項，或已禁用，則不執行
-                if (select.options.length === 0 || select.disabled) {
-                    return;
+            const processedSegments = new Set();
+            beamsWithCoords.forEach(startSegment => {
+                const segmentKey = `${startSegment.name}|${startSegment.joint1}|${startSegment.joint2}`;
+                if (processedSegments.has(segmentKey) || (!startSegment.isHorizontal && !startSegment.isVertical)) return;
+
+                const chain = beamsWithCoords.filter(otherSegment => otherSegment.name === startSegment.name);
+                chain.forEach(s => processedSegments.add(`${s.name}|${s.joint1}|${s.joint2}`));
+
+                if (startSegment.isHorizontal) {
+                    chain.sort((a, b) => a.minX - b.minX);
+                } else {
+                    chain.sort((a, b) => a.minY - b.minY);
                 }
 
-                // 防止頁面滾動
-                event.preventDefault();
-
-                const currentIndex = select.selectedIndex;
-                let newIndex = currentIndex;
-
-                // 根據滾輪方向調整索引
-                if (event.deltaY < 0) { // 向上滾動
-                    newIndex = Math.max(0, currentIndex - 1);
-                } else { // 向下滾動
-                    newIndex = Math.min(select.options.length - 1, currentIndex + 1);
-                }
-
-                // 如果索引有變化，則更新並觸發 change 事件
-                if (newIndex !== currentIndex) {
-                    select.selectedIndex = newIndex;
-                    // 手動觸發 change 事件，以便執行 onchange="handleStoryChange()"
-                    select.dispatchEvent(new Event('change'));
+                const firstInChain = chain[0];
+                if (firstInChain.isVertical) {
+                    const onGrid = findClosestGrid(firstInChain.centerX, grids.x);
+                    const prevGridX = grids.x.slice().reverse().find(g => g.ordinate < firstInChain.centerX);
+                    if (Math.abs(firstInChain.centerX - onGrid.ordinate) < TOLERANCE) { // On grid
+                        chain.forEach(segment => {
+                            const endGridY = findClosestGrid(segment.maxY, grids.y);
+                            const serial = grids.y.findIndex(g => g.name === endGridY.name);
+                            if (serial !== -1) {
+                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
+                                    isVertical: true,
+                                    primaryGridName: onGrid.name,
+                                    subGridMarker: '',
+                                    serial
+                                });
+                            }
+                        });
+                    } else if (prevGridX) { // Off grid
+                        const nextGridX = findClosestGrid(firstInChain.centerX, grids.x);
+                        const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
+                        const rank = uniqueXCoords.indexOf(firstInChain.centerX.toFixed(2));
+                        const subGridMarker = "'".repeat(rank + 1);
+                        chain.forEach(segment => {
+                            const endGridY = findClosestGrid(segment.maxY, grids.y);
+                            const serial = grids.y.findIndex(g => g.name === endGridY.name);
+                            if (serial !== -1) {
+                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
+                                    isVertical: true,
+                                    primaryGridName: prevGridX.name,
+                                    subGridMarker,
+                                    serial
+                                });
+                            }
+                        });
+                    }
+                } else if (firstInChain.isHorizontal) {
+                    const onGrid = findClosestGrid(firstInChain.centerY, grids.y);
+                    const prevGridY = grids.y.slice().reverse().find(g => g.ordinate < firstInChain.centerY);
+                    if (Math.abs(firstInChain.centerY - onGrid.ordinate) < TOLERANCE) { // On grid
+                        chain.forEach(segment => {
+                            const startGridX = findClosestGrid(segment.minX, grids.x);
+                            if (!startGridX) return;
+                            const serial = parseInt(startGridX.name, 10);
+                            if (!isNaN(serial)) {
+                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
+                                    isVertical: false,
+                                    primaryGridName: onGrid.name,
+                                    subGridMarker: '',
+                                    serial
+                                });
+                            }
+                        });
+                    } else if (prevGridY) { // Off grid
+                        const nextGridY = findClosestGrid(firstInChain.centerY, grids.y);
+                        const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
+                        const rank = uniqueYCoords.indexOf(firstInChain.centerY.toFixed(2));
+                        const subGridMarker = "'".repeat(rank + 1);
+                        chain.forEach(segment => {
+                            const startGridX = findClosestGrid(segment.minX, grids.x);
+                            if (!startGridX) return;
+                            const serial = parseInt(startGridX.name, 10);
+                            if (!isNaN(serial)) {
+                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
+                                    isVertical: false,
+                                    primaryGridName: prevGridY.name,
+                                    subGridMarker,
+                                    serial
+                                });
+                            }
+                        });
+                    }
                 }
             });
-        });
-    }
+            return labelComponentMap;
+        }
 
-    // 在頁面載入後直接呼叫函式來綁定事件
-    setupSelectWheelListeners();
 
-</script>
+        // --- [修改開始] 新增幾何運算輔助函式與新版分棟邏輯 ---
+        /**
+         * 計算兩個座標點之間的直線距離
+         */
+        function distance(p1, p2) {
+            if (!p1 || !p2) return Infinity;
+            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        }
+
+        /**
+         * 判斷一個點是否在一個線段上 (在容許誤差範圍內)
+         */
+        function isPointOnSegment(point, segP1, segP2, tolerance) {
+            if (!point || !segP1 || !segP2) return false;
+            const segLength = distance(segP1, segP2);
+            if (segLength < tolerance) {
+                return distance(point, segP1) < tolerance;
+            }
+            const distSum = distance(point, segP1) + distance(point, segP2);
+            return Math.abs(distSum - segLength) < tolerance;
+        }
+
+        /**
+         * [新版分棟邏輯] 透過幾何運算找出所有獨立的結構群
+         */
+        function findBuildingComponents(allBeamsOnStory, joints) {
+            if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
+
+            const GEOMETRIC_TOLERANCE = 0.01; // 設定幾何容許誤差為 0.01 公尺
+            const components = [];
+            const processedBeams = new Set();
+
+            const beamsWithCoords = allBeamsOnStory.map(b => ({
+                ...b,
+                p1: joints[b.joint1],
+                p2: joints[b.joint2]
+            })).filter(b => b.p1 && b.p2);
+
+            function areBeamsConnected(beamA, beamB) {
+                if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+                if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+                if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+                if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+                if (isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)) return true;
+                if (isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)) return true;
+                if (isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)) return true;
+                if (isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)) return true;
+                return false;
+            }
+
+            for (const startBeam of beamsWithCoords) {
+                if (processedBeams.has(startBeam.name)) {
+                    continue;
+                }
+
+                const currentComponent = [];
+                const q = [startBeam];
+                processedBeams.add(startBeam.name);
+
+                while (q.length > 0) {
+                    const currentBeam = q.shift();
+                    currentComponent.push(currentBeam);
+
+                    for (const otherBeam of beamsWithCoords) {
+                        if (processedBeams.has(otherBeam.name)) {
+                            continue;
+                        }
+                        if (areBeamsConnected(currentBeam, otherBeam)) {
+                            processedBeams.add(otherBeam.name);
+                            q.push(otherBeam);
+                        }
+                    }
+                }
+
+                if (currentComponent.length > 0) {
+                    components.push(currentComponent);
+                }
+            }
+            return components;
+        }
+
+        /**
+         * [新版] 為小梁編號，整合了分棟邏輯，且每棟獨立編號
+         */
+        function generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, grids) {
+            const allLabels = new Map();
+            const allBeamsOnStory = [...secondaryBeamsInStory, ...mainBeamsInStory];
+
+            // 1. 執行新的分棟邏輯
+            const buildingComponents = findBuildingComponents(allBeamsOnStory, joints);
+
+            // 2. 為了讓編號順序固定，將結構群由左至右排序
+            buildingComponents.sort((a, b) => {
+                const getMinX = (beams) => Math.min(...beams.map(beam => Math.min(joints[beam.joint1].x, joints[beam.joint2].x)));
+                return getMinX(a) - getMinX(b);
+            });
+            
+            // 3. 依序處理每個結構群
+            buildingComponents.forEach(component => {
+                // --- [修改] 將計數器移至迴圈內部，使其每棟都重新從 1 開始 ---
+                let counter = 1;
+
+                const secondaryBeamsInComponent = component.filter(b => /^\d*SB/.test(b.prop.toUpperCase()));
+                if (secondaryBeamsInComponent.length === 0) return;
+
+                const beamsWithData = secondaryBeamsInComponent.map(b => {
+                    const j1_coords = joints[b.joint1],
+                        j2_coords = joints[b.joint2];
+                    if (!j1_coords || !j2_coords) return null;
+                    const isHorizontal = Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
+                    const isVertical = Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
+                    let startJointName = b.joint1,
+                        endJointName = b.joint2;
+                    if (isHorizontal && j1_coords.x > j2_coords.x) {
+                        [startJointName, endJointName] = [b.joint2, b.joint1];
+                    }
+                    if (isVertical && j1_coords.y > j2_coords.y) {
+                        [startJointName, endJointName] = [b.joint2, b.joint1];
+                    }
+                    return { ...b,
+                        startJointName,
+                        endJointName,
+                        isHorizontal,
+                        isVertical
+                    };
+                }).filter(Boolean);
+
+                const processed = new Set();
+                const beamGroups = [
+                    beamsWithData.filter(b => b.isHorizontal).sort((a, b) => joints[a.startJointName].y - joints[b.startJointName].y || joints[a.startJointName].x - joints[b.startJointName].x),
+                    beamsWithData.filter(b => b.isVertical).sort((a, b) => joints[a.startJointName].x - joints[b.startJointName].x || joints[a.startJointName].y - joints[b.startJointName].y)
+                ];
+
+                let isVerticalRun = false;
+                beamGroups.forEach(group => {
+                    if (isVerticalRun && counter > 1) {
+                        const lastNum = counter - 1;
+                        counter = (lastNum % 10 === 0) ? lastNum + 1 : Math.ceil(lastNum / 10) * 10 + 1;
+                    }
+                    for (const startBeam of group) {
+                        const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
+                        if (processed.has(startKey)) continue;
+
+                        let chain = [startBeam];
+                        processed.add(startKey);
+                        let currentLink = startBeam;
+
+                        while (true) {
+                            const nextLink = group.find(b => {
+                                const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
+                                return !processed.has(nextKey) && b.startJointName === currentLink.endJointName;
+                            });
+                            if (nextLink) {
+                                chain.push(nextLink);
+                                processed.add(`${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`);
+                                currentLink = nextLink;
+                            } else {
+                                break;
+                            }
+                        }
+                        if (chain.length > 1) {
+                            chain.forEach((beam, index) => {
+                                allLabels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, {
+                                    newLabel: `b${counter}-${index + 1}`
+                                });
+                            });
+                        } else {
+                            allLabels.set(`${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`, {
+                                newLabel: `b${counter}`
+                            });
+                        }
+                        counter++;
+                    }
+                    isVerticalRun = true;
+                });
+            });
+
+            return allLabels;
+        }
+        // --- [修改結束] ---
+
+        function applySpecialPrefixRules(allBeams) {
+            const processPrefix = (prefix) => {
+                const targetBeams = allBeams.filter(b => b.prop && b.prop.toUpperCase().startsWith(prefix));
+                if (targetBeams.length === 0) return null;
+                const uniqueProps = [...new Set(targetBeams.map(b => b.prop))];
+                const propRanks = uniqueProps.map(prop => {
+                    const match = prop.match(/(\d+)[xX](\d+)/);
+                    if (match) {
+                        return {
+                            propName: prop,
+                            area: parseInt(match[1], 10) * parseInt(match[2], 10)
+                        };
+                    }
+                    return {
+                        propName: prop,
+                        area: Infinity
+                    };
+                }).sort((a, b) => a.area - b.area);
+                const propToLabelMap = new Map();
+                propRanks.forEach((propInfo, index) => {
+                    propToLabelMap.set(propInfo.propName, `${prefix}${index + 1}`);
+                });
+                return propToLabelMap;
+            };
+            const wbLabelMap = processPrefix('WB');
+            const fwbLabelMap = processPrefix('FWB');
+            return allBeams.map(beam => {
+                if (wbLabelMap && wbLabelMap.has(beam.prop)) {
+                    return { ...beam,
+                        newLabel: wbLabelMap.get(beam.prop)
+                    };
+                }
+                if (fwbLabelMap && fwbLabelMap.has(beam.prop)) {
+                    return { ...beam,
+                        newLabel: fwbLabelMap.get(beam.prop)
+                    };
+                }
+                return beam;
+            });
+        }
+
+        function generateFloorFingerprint(story, allBeams, precision = 2) {
+            const beamsOnStory = allBeams.filter(b => b.story === story);
+            if (beamsOnStory.length === 0) {
+                return '';
+            }
+
+            const beamSignatures = beamsOnStory.map(beam => {
+                if (!beam.j1 || !beam.j2) return '';
+
+                const x1 = beam.j1.x.toFixed(precision);
+                const y1 = beam.j1.y.toFixed(precision);
+                const x2 = beam.j2.x.toFixed(precision);
+                const y2 = beam.j2.y.toFixed(precision);
+
+                const point1Str = `${x1},${y1}`;
+                const point2Str = `${x2},${y2}`;
+
+                return point1Str < point2Str ? `${point1Str}|${point2Str}` : `${point2Str}|${point1Str}`;
+            }).filter(Boolean);
+
+            return beamSignatures.sort().join(';');
+        }
+
+        function createStandardFloorGroups() {
+            if (availableStories.length === 0) return [];
+
+            const sortedStories = [...availableStories].sort((a, b) => storyOrderInfo[a] - storyOrderInfo[b]);
+
+            const fingerprints = sortedStories.map(story => ({
+                story,
+                fingerprint: generateFloorFingerprint(story, fullDrawableBeams, 2)
+            }));
+
+            if (fingerprints.length === 0) return [];
+
+            const groups = [];
+            let currentGroup = [fingerprints[0].story];
+
+            for (let i = 1; i < fingerprints.length; i++) {
+                if (fingerprints[i].fingerprint === fingerprints[i - 1].fingerprint && fingerprints[i].fingerprint !== '') {
+                    currentGroup.push(fingerprints[i].story);
+                } else {
+                    groups.push(currentGroup);
+                    currentGroup = [fingerprints[i].story];
+                }
+            }
+            groups.push(currentGroup);
+
+            return groups;
+        }
+
+        function exportToExcel() {
+            if (fullProcessedBeams.length === 0) {
+                alert("沒有可匯出的資料。");
+                return;
+            }
+
+            const standardFloorGroups = createStandardFloorGroups();
+            const preppedData = [];
+
+            for (const group of standardFloorGroups) {
+                const beamsInGroup = fullProcessedBeams.filter(b => group.includes(b.story));
+
+                if (group.length === 1) {
+                    beamsInGroup.forEach(beam => {
+                        preppedData.push({
+                            floor: beam.story,
+                            etabsLabel: beam.name,
+                            newLabel: beam.newLabel,
+                        });
+                    });
+                } else {
+                    const mergedBeamsInGroup = new Map();
+                    beamsInGroup.forEach(beam => {
+                        const key = beam.newLabel;
+                        if (!mergedBeamsInGroup.has(key)) {
+                            mergedBeamsInGroup.set(key, {
+                                name: beam.name,
+                                newLabel: beam.newLabel,
+                                floorProps: []
+                            });
+                        }
+                        mergedBeamsInGroup.get(key).floorProps.push({
+                            story: beam.story,
+                            prop: beam.prop
+                        });
+                    });
+
+                    mergedBeamsInGroup.forEach(mergedBeam => {
+                        const floorString = summarizeFloors(group, storyOrderInfo);
+                        preppedData.push({
+                            floor: floorString,
+                            etabsLabel: mergedBeam.name,
+                            newLabel: mergedBeam.newLabel,
+                        });
+                    });
+                }
+            }
+
+            const mainBeamsData = [];
+            const secondaryBeamsData = [];
+
+            preppedData.forEach(item => {
+                if (item.newLabel && item.newLabel.startsWith('b')) {
+                    secondaryBeamsData.push({
+                        'ETABS編號': item.etabsLabel,
+                        '編號': item.newLabel,
+                        '樓層': item.floor
+                    });
+                } else {
+                    mainBeamsData.push({
+                        'ETABS編號': item.etabsLabel,
+                        '編號': item.newLabel,
+                        '樓層': item.floor
+                    });
+                }
+            });
+
+            const workbook = XLSX.utils.book_new();
+
+            const mainWs = XLSX.utils.json_to_sheet(mainBeamsData);
+            XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
+
+            const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
+            XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁");
+
+            XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
+        }
+
+        // --- 啟用滑鼠滾輪控制下拉選單 ---
+        function setupSelectWheelListeners() {
+            const selectors = document.querySelectorAll('#storySelector, #beamTypeSelector');
+
+            selectors.forEach(select => {
+                select.addEventListener('wheel', (event) => {
+                    // 如果下拉選單沒有選項，或已禁用，則不執行
+                    if (select.options.length === 0 || select.disabled) {
+                        return;
+                    }
+
+                    // 防止頁面滾動
+                    event.preventDefault();
+
+                    const currentIndex = select.selectedIndex;
+                    let newIndex = currentIndex;
+
+                    // 根據滾輪方向調整索引
+                    if (event.deltaY < 0) { // 向上滾動
+                        newIndex = Math.max(0, currentIndex - 1);
+                    } else { // 向下滾動
+                        newIndex = Math.min(select.options.length - 1, currentIndex + 1);
+                    }
+
+                    // 如果索引有變化，則更新並觸發 change 事件
+                    if (newIndex !== currentIndex) {
+                        select.selectedIndex = newIndex;
+                        // 手動觸發 change 事件，以便執行 onchange="handleStoryChange()"
+                        select.dispatchEvent(new Event('change'));
+                    }
+                });
+            });
+        }
+
+        // 在頁面載入後直接呼叫函式來綁定事件
+        setupSelectWheelListeners();
+    </script>
 </body>
 </html>
