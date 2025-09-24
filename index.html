@@ -333,7 +333,7 @@
                     <select id="beamTypeSelector" onchange="handleStoryChange()" disabled>
                         <option value="all">顯示全部</option>
                         <option value="main">只顯示大梁</option>
-                        <option value="secondary">只顯示小梁</option>
+                        <option value="secondary">只顯示小梁/小地梁</option>
                     </select>
                 </div>
             </div>
@@ -439,16 +439,22 @@
                     return acc;
                 }, {});
 
-                const remainingBeams = [...allBeamsAcrossStories];
-
-                const mainBeams = remainingBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
-                const secondaryBeams = remainingBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
-
-                let allLabeledBeams = [];
+                // --- 梁的分類邏輯 ---
+                const mainBeams = allBeamsAcrossStories.filter(b => {
+                    const prop = b.prop.toUpperCase();
+                    const isNumericBeam = /^\d+(\.\d+)?B/.test(prop);
+                    return (isNumericBeam || prop.startsWith('B') || prop.startsWith('G') || prop.startsWith('FB') || prop.startsWith('FGB')) && !prop.startsWith('SB') && !prop.startsWith('FSB');
+                });
+                const secondaryBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('SB') && !b.prop.toUpperCase().startsWith('FSB'));
+                const secondaryFoundationBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('FSB'));
+                const specialBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('WB') || b.prop.toUpperCase().startsWith('FWB'));
+                
+                let allLabeledBeams = [...specialBeams]; 
 
                 for (const story of availableStories) {
                     const mainBeamsInStory = mainBeams.filter(b => b.story === story);
                     const secondaryBeamsInStory = secondaryBeams.filter(b => b.story === story);
+                    const secondaryFoundationBeamsInStory = secondaryFoundationBeams.filter(b => b.story === story);
 
                     if (mainBeamsInStory.length > 0) {
                         const labelComponentMap = generateLabelsForStory(mainBeamsInStory, joints, gridData);
@@ -458,9 +464,10 @@
                             if (!originalBeam) return;
 
                             const propUpper = originalBeam.prop.toUpperCase();
-                            const prefix = components.isVertical ?
-                                (propUpper.startsWith('FB') ? 'FB' : 'B') :
-                                (propUpper.startsWith('FB') ? 'FG' : 'G');
+                               const prefix = components.isVertical ?
+                                 (propUpper.startsWith('FB') ? 'FB' : 'B') :
+                                 (propUpper.startsWith('FB') ? 'FG' : 'G');
+
 
                             const newLabel = `${prefix}${components.primaryGridName}${components.subGridMarker}-${components.serial}`;
                             allLabeledBeams.push({ ...originalBeam,
@@ -470,10 +477,23 @@
                     }
 
                     if (secondaryBeamsInStory.length > 0) {
-                        const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, gridData);
+                        const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, gridData, 'b');
                         secondaryBeamLabels.forEach((value, key) => {
                             const [name, joint1, joint2] = key.split('|');
                             const originalBeam = secondaryBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
+                            if (originalBeam) {
+                                allLabeledBeams.push({ ...originalBeam,
+                                    newLabel: value.newLabel
+                                });
+                            }
+                        });
+                    }
+                    
+                    if (secondaryFoundationBeamsInStory.length > 0) {
+                        const foundationBeamLabels = generateSecondaryBeamLabels(secondaryFoundationBeamsInStory, mainBeamsInStory, joints, gridData, 'fb');
+                        foundationBeamLabels.forEach((value, key) => {
+                            const [name, joint1, joint2] = key.split('|');
+                            const originalBeam = secondaryFoundationBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
                             if (originalBeam) {
                                 allLabeledBeams.push({ ...originalBeam,
                                     newLabel: value.newLabel
@@ -490,8 +510,9 @@
                     const storyCompare = storyOrderInfo[a.story] - storyOrderInfo[b.story];
                     if (storyCompare !== 0) return storyCompare;
 
-                    const aIsSecondary = a.newLabel.startsWith('b');
-                    const bIsSecondary = b.newLabel.startsWith('b');
+                    const aIsSecondary = a.newLabel.toLowerCase().startsWith('b') || a.newLabel.toLowerCase().startsWith('fb');
+                    const bIsSecondary = b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb');
+
 
                     if (aIsSecondary && !bIsSecondary) return 1;
                     if (!aIsSecondary && bIsSecondary) return -1;
@@ -555,12 +576,14 @@
 
             // 2. 再依梁類型篩選
             if (selectedBeamType === 'main') {
-                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !b.newLabel.startsWith('b'));
-                backgroundBeams = backgroundBeams.filter(b => b.prop && !/^\d*SB/.test(b.prop.toUpperCase()));
+                // --- [修改] 移除 .toLowerCase()，避免 FB 被錯誤過濾 ---
+                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !(b.newLabel.startsWith('b') || b.newLabel.startsWith('fb')));
+                backgroundBeams = backgroundBeams.filter(b => b.prop && !/SB/.test(b.prop.toUpperCase()));
             } else if (selectedBeamType === 'secondary') {
-                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && b.newLabel.startsWith('b'));
-                backgroundBeams = backgroundBeams.filter(b => b.prop && /^\d*SB/.test(b.prop.toUpperCase()));
+                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && (b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb')));
+                 backgroundBeams = backgroundBeams.filter(b => b.prop && /SB/.test(b.prop.toUpperCase()));
             }
+
 
             if (panZoomInstance) {
                 panZoomInstance.destroy();
@@ -814,33 +837,55 @@
                 line.setAttribute('y2', transformY(beam.j2.y));
 
                 let className = 'labeled-beam-line';
-                if (beam.newLabel.startsWith('b') || beam.newLabel === 'g1') {
+                if (beam.newLabel.startsWith('b') || beam.newLabel.startsWith('fb') || beam.newLabel === 'g1') {
                     className = 'special-beam-line';
                 } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
                     className = 'special-beam-line';
                 }
+
 
                 line.setAttribute('class', className);
                 svg.appendChild(line);
 
                 const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
 
-                let textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
-                let textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
+                const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
+                const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
+                
+                // --- [修改] 將標籤位置邏輯分為水平、垂直、斜向三種 ---
                 const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
+                const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
 
                 if (isHorizontal) {
-                    textY += 12;
+                    text.setAttribute('x', textX);
+                    text.setAttribute('y', textY + 12);
                     text.setAttribute('text-anchor', 'middle');
-                } else {
-                    textX -= 8;
+                } else if (isVertical) {
+                    text.setAttribute('x', textX - 8);
+                    text.setAttribute('y', textY);
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('dominant-baseline', 'middle');
-                    text.setAttribute('transform', `rotate(-90, ${textX}, ${textY})`);
+                    text.setAttribute('transform', `rotate(-90, ${textX-8}, ${textY})`);
+                } else { // 斜向梁的處理邏輯
+                    const x1_svg = transformX(beam.j1.x);
+                    const y1_svg = transformY(beam.j1.y);
+                    const x2_svg = transformX(beam.j2.x);
+                    const y2_svg = transformY(beam.j2.y);
+                    let angle = Math.atan2(y2_svg - y1_svg, x2_svg - x1_svg) * 180 / Math.PI;
+
+                    // 確保文字不會上下顛倒，永遠保持正向
+                    if (angle > 90 || angle < -90) {
+                        angle += 180;
+                    }
+                    
+                    text.setAttribute('x', textX);
+                    text.setAttribute('y', textY);
+                    text.setAttribute('text-anchor', 'middle');
+                    text.setAttribute('dominant-baseline', 'alphabetic');
+                    text.setAttribute('transform', `rotate(${angle}, ${textX}, ${textY})`);
+                    text.setAttribute('dy', -6); // 在梁的法線方向上做一點偏移，避免壓線
                 }
 
-                text.setAttribute('x', textX);
-                text.setAttribute('y', textY);
                 text.setAttribute('class', 'beam-label');
                 text.setAttribute('vector-effect', 'non-scaling-stroke');
                 text.textContent = beam.newLabel;
@@ -967,9 +1012,8 @@
             const isBeamProp = (propName) => {
                 if (!propName) return false;
                 const p = propName.toUpperCase();
-                const isMainBeam = /^\d*B/.test(p);
-                const isSecondaryBeam = /^\d*SB/.test(p);
-                return isMainBeam || isSecondaryBeam || p.startsWith('FB') || p.startsWith('WB') || p.startsWith('FWB');
+                const isNumericBeam = /^\d+(\.\d+)?B/.test(p);
+                return isNumericBeam || p.startsWith('B') || p.startsWith('G') || p.startsWith('SB') || p.startsWith('WB') || p.startsWith('FB') || p.startsWith('FGB') || p.startsWith('FSB') || p.startsWith('FWB');
             };
 
             const frameTableSection = content.match(/TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/);
@@ -1159,18 +1203,12 @@
         }
 
 
-        // --- [修改開始] 新增幾何運算輔助函式與新版分棟邏輯 ---
-        /**
-         * 計算兩個座標點之間的直線距離
-         */
+        // --- [新增] 幾何運算輔助函式與新版分棟邏輯 ---
         function distance(p1, p2) {
             if (!p1 || !p2) return Infinity;
             return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
         }
 
-        /**
-         * 判斷一個點是否在一個線段上 (在容許誤差範圍內)
-         */
         function isPointOnSegment(point, segP1, segP2, tolerance) {
             if (!point || !segP1 || !segP2) return false;
             const segLength = distance(segP1, segP2);
@@ -1181,13 +1219,10 @@
             return Math.abs(distSum - segLength) < tolerance;
         }
 
-        /**
-         * [新版分棟邏輯] 透過幾何運算找出所有獨立的結構群
-         */
         function findBuildingComponents(allBeamsOnStory, joints) {
             if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
 
-            const GEOMETRIC_TOLERANCE = 0.01; // 設定幾何容許誤差為 0.01 公尺
+            const GEOMETRIC_TOLERANCE = 0.01; 
             const components = [];
             const processedBeams = new Set();
 
@@ -1240,50 +1275,32 @@
             return components;
         }
 
-        /**
-         * [新版] 為小梁編號，整合了分棟邏輯，且每棟獨立編號
-         */
-        function generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, grids) {
+        function generateSecondaryBeamLabels(secondaryBeamsToNumber, mainBeamsInStory, joints, grids, prefix) {
             const allLabels = new Map();
-            const allBeamsOnStory = [...secondaryBeamsInStory, ...mainBeamsInStory];
+            const allBeamsOnStory = [...secondaryBeamsToNumber, ...mainBeamsInStory];
 
-            // 1. 執行新的分棟邏輯
             const buildingComponents = findBuildingComponents(allBeamsOnStory, joints);
 
-            // 2. 為了讓編號順序固定，將結構群由左至右排序
             buildingComponents.sort((a, b) => {
-                const getMinX = (beams) => Math.min(...beams.map(beam => Math.min(joints[beam.joint1].x, joints[beam.joint2].x)));
+                const getMinX = (beams) => Math.min(...beams.map(beam => joints[beam.joint1] ? Math.min(joints[beam.joint1].x, joints[beam.joint2].x) : Infinity));
                 return getMinX(a) - getMinX(b);
             });
             
-            // 3. 依序處理每個結構群
             buildingComponents.forEach(component => {
-                // --- [修改] 將計數器移至迴圈內部，使其每棟都重新從 1 開始 ---
                 let counter = 1;
-
-                const secondaryBeamsInComponent = component.filter(b => /^\d*SB/.test(b.prop.toUpperCase()));
+                const secondaryBeamsInComponent = component.filter(b => secondaryBeamsToNumber.some(sb => sb.name === b.name));
+                
                 if (secondaryBeamsInComponent.length === 0) return;
 
                 const beamsWithData = secondaryBeamsInComponent.map(b => {
-                    const j1_coords = joints[b.joint1],
-                        j2_coords = joints[b.joint2];
+                    const j1_coords = joints[b.joint1], j2_coords = joints[b.joint2];
                     if (!j1_coords || !j2_coords) return null;
                     const isHorizontal = Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
                     const isVertical = Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
-                    let startJointName = b.joint1,
-                        endJointName = b.joint2;
-                    if (isHorizontal && j1_coords.x > j2_coords.x) {
-                        [startJointName, endJointName] = [b.joint2, b.joint1];
-                    }
-                    if (isVertical && j1_coords.y > j2_coords.y) {
-                        [startJointName, endJointName] = [b.joint2, b.joint1];
-                    }
-                    return { ...b,
-                        startJointName,
-                        endJointName,
-                        isHorizontal,
-                        isVertical
-                    };
+                    let startJointName = b.joint1, endJointName = b.joint2;
+                    if (isHorizontal && j1_coords.x > j2_coords.x) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
+                    if (isVertical && j1_coords.y > j2_coords.y) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
+                    return { ...b, startJointName, endJointName, isHorizontal, isVertical };
                 }).filter(Boolean);
 
                 const processed = new Set();
@@ -1315,19 +1332,17 @@
                                 chain.push(nextLink);
                                 processed.add(`${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`);
                                 currentLink = nextLink;
-                            } else {
-                                break;
-                            }
+                            } else { break; }
                         }
                         if (chain.length > 1) {
                             chain.forEach((beam, index) => {
                                 allLabels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, {
-                                    newLabel: `b${counter}-${index + 1}`
+                                    newLabel: `${prefix}${counter}-${index + 1}`
                                 });
                             });
                         } else {
                             allLabels.set(`${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`, {
-                                newLabel: `b${counter}`
+                                newLabel: `${prefix}${counter}`
                             });
                         }
                         counter++;
@@ -1338,7 +1353,6 @@
 
             return allLabels;
         }
-        // --- [修改結束] ---
 
         function applySpecialPrefixRules(allBeams) {
             const processPrefix = (prefix) => {
@@ -1484,7 +1498,7 @@
             const secondaryBeamsData = [];
 
             preppedData.forEach(item => {
-                if (item.newLabel && item.newLabel.startsWith('b')) {
+                if (item.newLabel && (item.newLabel.toLowerCase().startsWith('b') || item.newLabel.toLowerCase().startsWith('fb'))) {
                     secondaryBeamsData.push({
                         'ETABS編號': item.etabsLabel,
                         '編號': item.newLabel,
@@ -1505,7 +1519,7 @@
             XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
 
             const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
-            XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁");
+            XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁與小地梁");
 
             XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
         }
@@ -1516,35 +1530,25 @@
 
             selectors.forEach(select => {
                 select.addEventListener('wheel', (event) => {
-                    // 如果下拉選單沒有選項，或已禁用，則不執行
                     if (select.options.length === 0 || select.disabled) {
                         return;
                     }
-
-                    // 防止頁面滾動
                     event.preventDefault();
-
                     const currentIndex = select.selectedIndex;
                     let newIndex = currentIndex;
-
-                    // 根據滾輪方向調整索引
-                    if (event.deltaY < 0) { // 向上滾動
+                    if (event.deltaY < 0) {
                         newIndex = Math.max(0, currentIndex - 1);
-                    } else { // 向下滾動
+                    } else {
                         newIndex = Math.min(select.options.length - 1, currentIndex + 1);
                     }
-
-                    // 如果索引有變化，則更新並觸發 change 事件
                     if (newIndex !== currentIndex) {
                         select.selectedIndex = newIndex;
-                        // 手動觸發 change 事件，以便執行 onchange="handleStoryChange()"
                         select.dispatchEvent(new Event('change'));
                     }
                 });
             });
         }
-
-        // 在頁面載入後直接呼叫函式來綁定事件
+        
         setupSelectWheelListeners();
     </script>
 </body>
