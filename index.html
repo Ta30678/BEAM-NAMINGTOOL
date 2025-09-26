@@ -1085,26 +1085,55 @@
         function generateLabelsForStory(beamsInStory, joints, grids) {
             const labelComponentMap = new Map();
 
-            function getBeamSerial(segment, grids, isHorizontal) {
-                const ON_GRID_TOLERANCE = 0.01;
-                
-                if (isHorizontal) {
-                    const endGrid = findClosestGrid(segment.maxX, grids.x);
-                    if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-                        const serial = parseInt(endGrid.name.replace(/^\D+/g, ''), 10);
-                        if (!isNaN(serial)) return serial;
-                    }
-                    const startGrid = findClosestGrid(segment.minX, grids.x);
-                    return parseInt(startGrid.name.replace(/^\D+/g, ''), 10);
-                } else {
-                    const endGrid = findClosestGrid(segment.maxY, grids.y);
-                    if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-                        return grids.y.findIndex(g => g.name === endGrid.name);
-                    }
-                    const startGrid = findClosestGrid(segment.minY, grids.y);
-                    return grids.y.findIndex(g => g.name === startGrid.name);
-                }
+            // 【新的程式碼 - 請完整複製並替換】
+        function getBeamSerial(segment, grids, isHorizontal) {
+            const ON_GRID_TOLERANCE = 0.01;
+
+            // isHorizontal 對應的是 G 梁 (水平梁)
+            if (isHorizontal) {
+                const endGrid = findClosestGrid(segment.maxX, grids.x);
+            // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
+                if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+                    const n = parseInt(endGrid.name.replace(/^\D+/g, ''), 10);
+                    if (!isNaN(n)) {
+                        return n - 1;
             }
+        }
+        
+            // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
+                const startGrid = findClosestGrid(segment.minX, grids.x);
+                const n = parseInt(startGrid.name.replace(/^\D+/g, ''), 10);
+                if (!isNaN(n)) {
+                    return n;
+        }
+
+        // else 對應的是 B 梁 (垂直梁)
+            } else { 
+                const endGrid = findClosestGrid(segment.maxY, grids.y);
+                // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
+                if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+                    // findIndex 會得到 0, 1, 2... 的索引值
+                    const index = grids.y.findIndex(g => g.name === endGrid.name);
+                    if (index !== -1) {
+                    // 你的要求 n 從 1 開始，所以 n = index + 1
+                    // 流水號要 n-1，所以就是 (index + 1) - 1 = index
+                        return index; 
+            }
+        }
+        
+        // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
+                const startGrid = findClosestGrid(segment.minY, grids.y);
+                const index = grids.y.findIndex(g => g.name === startGrid.name);
+                if (index !== -1) {
+                    // 你的要求 n 從 1 開始，所以 n = index + 1
+                    // 流水號直接用 n，所以就是 index + 1
+                    return index + 1;
+        }
+    }
+    
+            // 如果發生意外情況，回傳一個無效值
+            return NaN; 
+}   
 
             function parseGridName(gridName) {
                 if (!gridName) return '';
@@ -1152,7 +1181,9 @@
                         const nextGridX = onGrid;
                         const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
                         const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
-                        subGridMarker = "'".repeat(rank + 1);
+                        // 【新的程式碼】
+                        // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
+                        subGridMarker = String.fromCharCode(97 + rank);
                     }
                     serial = getBeamSerial(beam, grids, false);
 
@@ -1168,7 +1199,9 @@
                         const nextGridY = onGrid;
                         const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
                         const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
-                        subGridMarker = "'".repeat(rank + 1);
+                        // 【新的程式碼】
+                        // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
+                        subGridMarker = String.fromCharCode(97 + rank);
                     }
                     serial = getBeamSerial(beam, grids, true);
                 }
