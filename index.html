@@ -44,7 +44,7 @@
             justify-content: center;
             align-items: center;
             min-height: 100vh;
-            padding: 40px 20px;
+            padding: 26px 14px;
             color: var(--theme-text-primary);
             background-color: var(--theme-bg);
             position: relative;
@@ -54,7 +54,7 @@
             width: 90%;
             max-width: 1200px;
             background: var(--theme-surface);
-            padding: 30px;
+            padding: 20px;
             border-radius: 18px;
             border: 1px solid var(--theme-border);
             box-shadow: 0 10px 25px -5px var(--theme-shadow), 0 8px 10px -6px var(--theme-shadow);
@@ -190,26 +190,11 @@
         }
 
         #output {
-            display: flex;
-            gap: 20px;
             margin-top: 20px;
-            flex-wrap: wrap;
         }
 
         #drawing {
-            flex: 7;
-            min-width: 300px;
-            padding: 20px;
-            max-height: 65vh;
-            overflow: auto;
-            border-radius: 12px;
-            background: #ffffff;
-            border: 1px solid var(--theme-border);
-        }
-
-        #results-table {
-            flex: 3;
-            min-width: 250px;
+            width: 100%;
             padding: 20px;
             max-height: 65vh;
             overflow: auto;
@@ -220,7 +205,7 @@
 
         #drawing-svg {
             width: 100%;
-            height: 400px;
+            height: 60vh; 
             border-radius: 8px;
             background-color: #ffffff;
             border: 1px solid var(--theme-border);
@@ -231,32 +216,6 @@
             cursor: grabbing;
         }
 
-        table {
-            width: 100%;
-            border-collapse: separate;
-            border-spacing: 0;
-        }
-
-        th,
-        td {
-            border-bottom: 1px solid var(--theme-border);
-            padding: 12px;
-            text-align: left;
-        }
-
-        th {
-            background-color: var(--theme-bg);
-            color: var(--theme-text-primary);
-        }
-
-        td {
-            color: var(--theme-text-secondary);
-        }
-
-        tr:last-child td {
-            border-bottom: none;
-        }
-
         .error {
             color: #ef4444;
             font-weight: bold;
@@ -265,47 +224,50 @@
         /* --- SVG 樣式 --- */
         .grid-lines line {
             stroke: #475569;
-            stroke-width: 1;
+            stroke-width: 0.5px;
             stroke-dasharray: 4 4;
+            vector-effect: non-scaling-stroke;
         }
 
         .grid-bubble {
             fill: var(--theme-surface);
             stroke: var(--theme-text-secondary);
-            stroke-width: 1;
+            /* stroke-width is now controlled by JS */
         }
 
         .grid-bubble-text {
             fill: var(--theme-text-primary);
-            font-size: 10px;
             font-weight: 500;
             text-anchor: middle;
             dominant-baseline: middle;
+            /* font-size is now controlled by JS */
         }
 
         .beam-line {
             stroke: #d1d5db;
-            stroke-width: 1;
+            stroke-width: 1px;
+            vector-effect: non-scaling-stroke; /* 讓所有梁寬度固定 */
         }
 
         .labeled-beam-line {
             stroke: #3b82f6;
-            stroke-width: 2.5;
+            stroke-width: 1.5px; /* 加粗一點以示區別 */
+            vector-effect: non-scaling-stroke;
         }
 
         .special-beam-line {
             stroke: var(--theme-accent);
-            stroke-width: 3;
+            stroke-width: 1.5px; /* 加粗一點以示區別 */
+            vector-effect: non-scaling-stroke;
         }
-
+        
         .beam-label {
             fill: #1e293b;
-            font-size: 9px;
-            font-weight: 600;
+            font-weight: 500;
             paint-order: stroke;
             stroke: #ffffff;
-            stroke-width: 2px;
             stroke-linejoin: round;
+            /* font-size and stroke-width are now controlled by JS */
         }
     </style>
 </head>
@@ -344,24 +306,21 @@
                 <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
                 <svg id="drawing-svg"></svg>
             </div>
-            <div id="results-table">
-                <h3>編號對照表 (<span id="table-story-name">所有樓層</span>)</h3>
-                <table id="beam-table">
-                    <thead>
-                        <tr>
-                            <th>樓層</th>
-                            <th>原始 ETABS 編號</th>
-                            <th>新編號</th>
-                        </tr>
-                    </thead>
-                    <tbody></tbody>
-                </table>
-            </div>
         </div>
     </div>
 
     <script>
-        // --- Global Variables ---
+        // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
+        const INITIAL_BEAM_FONT_SIZE = 12;
+        const INITIAL_GRID_FONT_SIZE = 10;
+        const INITIAL_GRID_BUBBLE_RADIUS = 12;
+        const INITIAL_BEAM_LABEL_STROKE = 1.5;
+        const INITIAL_GRID_BUBBLE_STROKE = 1;
+        // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
+        const INITIAL_HORIZONTAL_OFFSET = 12;
+        const INITIAL_VERTICAL_OFFSET = 8;
+        const INITIAL_ANGLED_OFFSET = 6;
+
         let panZoomInstance = null;
         let fullProcessedBeams = [];
         let fullDrawableBeams = [];
@@ -370,7 +329,6 @@
         let storyOrderInfo = {};
         const TOLERANCE = 0.1;
 
-        // --- Main Control Function ---
         async function processE2k() {
             const fileInput = document.getElementById('e2kFile');
             const statusDiv = document.getElementById('status');
@@ -379,7 +337,6 @@
 
             statusDiv.innerHTML = '';
             document.getElementById('drawing-svg').innerHTML = '';
-            document.querySelector("#beam-table tbody").innerHTML = '';
             document.getElementById('exportBtn').disabled = true;
             storySelector.innerHTML = '';
             storySelector.disabled = true;
@@ -439,7 +396,6 @@
                     return acc;
                 }, {});
 
-                // --- 梁的分類邏輯 ---
                 const mainBeams = allBeamsAcrossStories.filter(b => {
                     const prop = b.prop.toUpperCase();
                     const isNumericBeam = /^\d+(\.\d+)?B/.test(prop);
@@ -464,12 +420,13 @@
                             if (!originalBeam) return;
 
                             const propUpper = originalBeam.prop.toUpperCase();
-                               const prefix = components.isVertical ?
-                                 (propUpper.startsWith('FB') ? 'FB' : 'B') :
-                                 (propUpper.startsWith('FB') ? 'FG' : 'G');
+                                const prefix = components.isVertical ?
+                                    (propUpper.startsWith('FB') ? 'FB' : 'B') :
+                                    (propUpper.startsWith('FB') ? 'FG' : 'G');
 
-
-                            const newLabel = `${prefix}${components.primaryGridName}${components.subGridMarker}-${components.serial}`;
+                            const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
+                            const newLabel = `${finalPrefix}-${components.serial}`;
+                            
                             allLabeledBeams.push({ ...originalBeam,
                                 newLabel
                             });
@@ -513,7 +470,6 @@
                     const aIsSecondary = a.newLabel.toLowerCase().startsWith('b') || a.newLabel.toLowerCase().startsWith('fb');
                     const bIsSecondary = b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb');
 
-
                     if (aIsSecondary && !bIsSecondary) return 1;
                     if (!aIsSecondary && bIsSecondary) return -1;
 
@@ -540,7 +496,6 @@
             }
         }
 
-        // --- UI Interaction Functions ---
         function populateStorySelector() {
             const selector = document.getElementById('storySelector');
             selector.innerHTML = '<option value="all">All Floors</option>';
@@ -560,30 +515,24 @@
             const selectedStory = storySelector.value;
             const selectedBeamType = beamTypeSelector.value;
             const svg = document.getElementById('drawing-svg');
-            const tableBody = document.querySelector("#beam-table tbody");
 
             document.getElementById('plan-story-name').textContent = selectedStory === 'all' ? 'All Floors Combined' : selectedStory;
-            document.getElementById('table-story-name').textContent = selectedStory === 'all' ? 'All Floors' : selectedStory;
 
             let beamsToDisplay = fullProcessedBeams;
             let backgroundBeams = fullDrawableBeams;
 
-            // 1. 先依樓層篩選
             if (selectedStory !== 'all') {
                 beamsToDisplay = beamsToDisplay.filter(b => b.story === selectedStory);
                 backgroundBeams = backgroundBeams.filter(b => b.story === selectedStory);
             }
 
-            // 2. 再依梁類型篩選
             if (selectedBeamType === 'main') {
-                // --- [修改] 移除 .toLowerCase()，避免 FB 被錯誤過濾 ---
                 beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !(b.newLabel.startsWith('b') || b.newLabel.startsWith('fb')));
                 backgroundBeams = backgroundBeams.filter(b => b.prop && !/SB/.test(b.prop.toUpperCase()));
             } else if (selectedBeamType === 'secondary') {
                 beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && (b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb')));
-                 backgroundBeams = backgroundBeams.filter(b => b.prop && /SB/.test(b.prop.toUpperCase()));
+                backgroundBeams = backgroundBeams.filter(b => b.prop && /SB/.test(b.prop.toUpperCase()));
             }
-
 
             if (panZoomInstance) {
                 panZoomInstance.destroy();
@@ -603,9 +552,9 @@
                 };
             });
 
-            displayResults(labeledBeamsWithCoords, backgroundBeams, svg, tableBody, gridData);
+            displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData);
 
-            if (beamsToDisplay.length > 0) {
+            if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
                 panZoomInstance = svgPanZoom('#drawing-svg', {
                     panEnabled: true,
                     zoomEnabled: true,
@@ -613,8 +562,49 @@
                     controlIconsEnabled: true,
                     fit: true,
                     center: true,
-                    minZoom: 0.5,
-                    maxZoom: 20
+                    minZoom: 0.1,
+                    maxZoom: 50,
+                    // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
+                    onZoom: function(newZoom) {
+                        // --- 更新梁標籤 ---
+                        const beamLabels = document.querySelectorAll('#drawing-svg .beam-label');
+                        beamLabels.forEach(label => {
+                            // 1. 反向縮放字體大小和外框
+                            label.style.fontSize = `${INITIAL_BEAM_FONT_SIZE / newZoom}px`;
+                            label.style.strokeWidth = `${INITIAL_BEAM_LABEL_STROKE / newZoom}px`;
+
+                            // 2. 反向縮放位置偏移
+                            const baseX = parseFloat(label.dataset.baseX);
+                            const baseY = parseFloat(label.dataset.baseY);
+                            const orientation = label.dataset.orientation;
+
+                            if (orientation === 'horizontal') {
+                                const newOffsetY = INITIAL_HORIZONTAL_OFFSET / newZoom;
+                                label.setAttribute('y', baseY + newOffsetY);
+                            } else if (orientation === 'vertical') {
+                                const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
+                                const newRotatedX = baseX - newOffsetX;
+                                label.setAttribute('x', newRotatedX);
+                                // 更新旋轉變換，確保旋轉中心正確
+                                label.setAttribute('transform', `rotate(-90, ${newRotatedX}, ${baseY})`);
+                            } else if (orientation === 'angled') {
+                                const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
+                                label.setAttribute('dy', -newOffsetY);
+                            }
+                        });
+
+                        // --- 更新網格氣泡 ---
+                        const gridBubbles = document.querySelectorAll('#drawing-svg .grid-bubble');
+                        gridBubbles.forEach(bubble => {
+                            bubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS / newZoom);
+                            bubble.style.strokeWidth = `${INITIAL_GRID_BUBBLE_STROKE / newZoom}px`;
+                        });
+
+                        const gridBubbleTexts = document.querySelectorAll('#drawing-svg .grid-bubble-text');
+                        gridBubbleTexts.forEach(text => {
+                            text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
+                        });
+                    }
                 });
             }
         }
@@ -677,17 +667,8 @@
 
             return summaryParts.join('; ');
         }
-
-        // --- Drawing and Display Functions ---
-        function displayResults(labeledBeams, allBeams, svg, tableBody, grids) {
-            tableBody.innerHTML = '';
-            labeledBeams.forEach(beam => {
-                const row = tableBody.insertRow();
-                row.insertCell(0).textContent = beam.story;
-                row.insertCell(1).textContent = beam.name;
-                row.insertCell(2).textContent = beam.newLabel;
-            });
-
+        
+        function displayResults(labeledBeams, allBeams, svg, grids) {
             const beamCoords = allBeams.flatMap(b => [b.j1, b.j2]).filter(Boolean);
             if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
                 svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
@@ -748,8 +729,7 @@
                     gridGroup.appendChild(line);
                 });
                 svg.appendChild(gridGroup);
-
-                const bubbleRadius = 12;
+                
                 const gridLabelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
 
                 grids.x.forEach(gridLine => {
@@ -761,7 +741,7 @@
                         const topBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                         topBubble.setAttribute('cx', cx);
                         topBubble.setAttribute('cy', cyTop);
-                        topBubble.setAttribute('r', bubbleRadius);
+                        topBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
                         topBubble.setAttribute('class', 'grid-bubble');
                         const topText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         topText.setAttribute('x', cx);
@@ -777,7 +757,7 @@
                         const bottomBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                         bottomBubble.setAttribute('cx', cx);
                         bottomBubble.setAttribute('cy', cyBottom);
-                        bottomBubble.setAttribute('r', bubbleRadius);
+                        bottomBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
                         bottomBubble.setAttribute('class', 'grid-bubble');
                         const bottomText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         bottomText.setAttribute('x', cx);
@@ -798,7 +778,7 @@
                         const leftBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                         leftBubble.setAttribute('cx', cxLeft);
                         leftBubble.setAttribute('cy', cy);
-                        leftBubble.setAttribute('r', bubbleRadius);
+                        leftBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
                         leftBubble.setAttribute('class', 'grid-bubble');
                         const leftText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         leftText.setAttribute('x', cxLeft);
@@ -814,7 +794,7 @@
                         const rightBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                         rightBubble.setAttribute('cx', cxRight);
                         rightBubble.setAttribute('cy', cy);
-                        rightBubble.setAttribute('r', bubbleRadius);
+                        rightBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
                         rightBubble.setAttribute('class', 'grid-bubble');
                         const rightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
                         rightText.setAttribute('x', cxRight);
@@ -843,7 +823,6 @@
                     className = 'special-beam-line';
                 }
 
-
                 line.setAttribute('class', className);
                 svg.appendChild(line);
 
@@ -852,28 +831,41 @@
                 const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
                 const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
                 
-                // --- [修改] 將標籤位置邏輯分為水平、垂直、斜向三種 ---
+                // [新增] 將基準點座標存入 data-* 屬性
+                text.dataset.baseX = textX;
+                text.dataset.baseY = textY;
+
                 const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
                 const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
 
                 if (isHorizontal) {
+                    // [新增] 標記方向
+                    text.dataset.orientation = 'horizontal';
                     text.setAttribute('x', textX);
-                    text.setAttribute('y', textY + 12);
+                    // [修改] 使用初始常數設定位置
+                    text.setAttribute('y', textY + INITIAL_HORIZONTAL_OFFSET);
                     text.setAttribute('text-anchor', 'middle');
+
                 } else if (isVertical) {
-                    text.setAttribute('x', textX - 8);
+                    // [新增] 標記方向
+                    text.dataset.orientation = 'vertical';
+                    // [修改] 使用初始常數設定位置
+                    const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
+                    text.setAttribute('x', rotatedX);
                     text.setAttribute('y', textY);
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('dominant-baseline', 'middle');
-                    text.setAttribute('transform', `rotate(-90, ${textX-8}, ${textY})`);
-                } else { // 斜向梁的處理邏輯
+                    // [修改] 更新旋轉中心點
+                    text.setAttribute('transform', `rotate(-90, ${rotatedX}, ${textY})`);
+                } else {
+                    // [新增] 標記方向
+                    text.dataset.orientation = 'angled';
                     const x1_svg = transformX(beam.j1.x);
                     const y1_svg = transformY(beam.j1.y);
                     const x2_svg = transformX(beam.j2.x);
                     const y2_svg = transformY(beam.j2.y);
                     let angle = Math.atan2(y2_svg - y1_svg, x2_svg - x1_svg) * 180 / Math.PI;
 
-                    // 確保文字不會上下顛倒，永遠保持正向
                     if (angle > 90 || angle < -90) {
                         angle += 180;
                     }
@@ -883,17 +875,17 @@
                     text.setAttribute('text-anchor', 'middle');
                     text.setAttribute('dominant-baseline', 'alphabetic');
                     text.setAttribute('transform', `rotate(${angle}, ${textX}, ${textY})`);
-                    text.setAttribute('dy', -6); // 在梁的法線方向上做一點偏移，避免壓線
+                    // [修改] 使用初始常數設定位置
+                    text.setAttribute('dy', -INITIAL_ANGLED_OFFSET);
                 }
 
                 text.setAttribute('class', 'beam-label');
-                text.setAttribute('vector-effect', 'non-scaling-stroke');
                 text.textContent = beam.newLabel;
                 svg.appendChild(text);
             });
         }
 
-        // --- Core Parsing Functions ---
+        // --- Core Parsing & Labeling Functions (No changes below this line) ---
         function parseGrids(content) {
             const grids = {
                 x: [],
@@ -1081,7 +1073,6 @@
             return frames;
         }
 
-        // --- Core Numbering Logic Functions ---
         function findClosestGrid(coordinate, grids) {
             if (!grids || grids.length === 0) return null;
             return grids.reduce((closest, current) => {
@@ -1090,120 +1081,110 @@
                 return currentDiff < closestDiff ? current : closest;
             });
         }
-
+        
         function generateLabelsForStory(beamsInStory, joints, grids) {
             const labelComponentMap = new Map();
+
+            function getBeamSerial(segment, grids, isHorizontal) {
+                const ON_GRID_TOLERANCE = 0.01;
+                
+                if (isHorizontal) {
+                    const endGrid = findClosestGrid(segment.maxX, grids.x);
+                    if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+                        const serial = parseInt(endGrid.name.replace(/^\D+/g, ''), 10);
+                        if (!isNaN(serial)) return serial;
+                    }
+                    const startGrid = findClosestGrid(segment.minX, grids.x);
+                    return parseInt(startGrid.name.replace(/^\D+/g, ''), 10);
+                } else {
+                    const endGrid = findClosestGrid(segment.maxY, grids.y);
+                    if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+                        return grids.y.findIndex(g => g.name === endGrid.name);
+                    }
+                    const startGrid = findClosestGrid(segment.minY, grids.y);
+                    return grids.y.findIndex(g => g.name === startGrid.name);
+                }
+            }
+
+            function parseGridName(gridName) {
+                if (!gridName) return '';
+                const upperGridName = gridName.toUpperCase();
+                if (upperGridName.startsWith('X') || upperGridName.startsWith('Y')) {
+                    const match = gridName.match(/^[XY](.*)/i);
+                    return match ? match[1] : gridName;
+                }
+                return gridName;
+            }
+            
             const beamsWithCoords = beamsInStory.map(b => {
-                const j1 = joints[b.joint1],
-                    j2 = joints[b.joint2];
+                const j1 = joints[b.joint1], j2 = joints[b.joint2];
                 if (!j1 || !j2) return null;
                 return {
-                    ...b,
-                    j1,
-                    j2,
-                    centerX: (j1.x + j2.x) / 2,
-                    centerY: (j1.y + j2.y) / 2,
-                    minX: Math.min(j1.x, j2.x),
-                    maxX: Math.max(j1.x, j2.x),
-                    minY: Math.min(j1.y, j2.y),
-                    maxY: Math.max(j1.y, j2.y),
+                    ...b, j1, j2,
+                    minX: Math.min(j1.x, j2.x), maxX: Math.max(j1.x, j2.x),
+                    minY: Math.min(j1.y, j2.y), maxY: Math.max(j1.y, j2.y),
+                    centerX: (j1.x + j2.x) / 2, centerY: (j1.y + j2.y) / 2,
                     isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
                     isVertical: Math.abs(j1.x - j2.x) < TOLERANCE
                 };
             }).filter(Boolean);
 
-            const processedSegments = new Set();
-            beamsWithCoords.forEach(startSegment => {
-                const segmentKey = `${startSegment.name}|${startSegment.joint1}|${startSegment.joint2}`;
-                if (processedSegments.has(segmentKey) || (!startSegment.isHorizontal && !startSegment.isVertical)) return;
+            const processedBeams = new Set();
+            beamsWithCoords.forEach(beam => {
+                const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+                if (processedBeams.has(beamKey) || (!beam.isHorizontal && !beam.isVertical)) return;
 
-                const chain = beamsWithCoords.filter(otherSegment => otherSegment.name === startSegment.name);
-                chain.forEach(s => processedSegments.add(`${s.name}|${s.joint1}|${s.joint2}`));
+                processedBeams.add(beamKey);
+                
+                let serial;
+                let primaryGridName;
+                let subGridMarker = '';
 
-                if (startSegment.isHorizontal) {
-                    chain.sort((a, b) => a.minX - b.minX);
-                } else {
-                    chain.sort((a, b) => a.minY - b.minY);
+                if (beam.isVertical) {
+                    const onGrid = findClosestGrid(beam.centerX, grids.x);
+                    primaryGridName = parseGridName(onGrid.name);
+                    
+                    if (Math.abs(beam.centerX - onGrid.ordinate) >= TOLERANCE) {
+                        const prevGridX = grids.x.slice().reverse().find(g => g.ordinate < beam.centerX);
+                        if (!prevGridX) return; 
+                        primaryGridName = parseGridName(prevGridX.name);
+                        
+                        const nextGridX = onGrid;
+                        const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
+                        const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+                        subGridMarker = "'".repeat(rank + 1);
+                    }
+                    serial = getBeamSerial(beam, grids, false);
+
+                } else { 
+                    const onGrid = findClosestGrid(beam.centerY, grids.y);
+                    primaryGridName = parseGridName(onGrid.name);
+                    
+                    if (Math.abs(beam.centerY - onGrid.ordinate) >= TOLERANCE) {
+                        const prevGridY = grids.y.slice().reverse().find(g => g.ordinate < beam.centerY);
+                        if (!prevGridY) return;
+                        primaryGridName = parseGridName(prevGridY.name);
+
+                        const nextGridY = onGrid;
+                        const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
+                        const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+                        subGridMarker = "'".repeat(rank + 1);
+                    }
+                    serial = getBeamSerial(beam, grids, true);
                 }
 
-                const firstInChain = chain[0];
-                if (firstInChain.isVertical) {
-                    const onGrid = findClosestGrid(firstInChain.centerX, grids.x);
-                    const prevGridX = grids.x.slice().reverse().find(g => g.ordinate < firstInChain.centerX);
-                    if (Math.abs(firstInChain.centerX - onGrid.ordinate) < TOLERANCE) { // On grid
-                        chain.forEach(segment => {
-                            const endGridY = findClosestGrid(segment.maxY, grids.y);
-                            const serial = grids.y.findIndex(g => g.name === endGridY.name);
-                            if (serial !== -1) {
-                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
-                                    isVertical: true,
-                                    primaryGridName: onGrid.name,
-                                    subGridMarker: '',
-                                    serial
-                                });
-                            }
-                        });
-                    } else if (prevGridX) { // Off grid
-                        const nextGridX = findClosestGrid(firstInChain.centerX, grids.x);
-                        const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
-                        const rank = uniqueXCoords.indexOf(firstInChain.centerX.toFixed(2));
-                        const subGridMarker = "'".repeat(rank + 1);
-                        chain.forEach(segment => {
-                            const endGridY = findClosestGrid(segment.maxY, grids.y);
-                            const serial = grids.y.findIndex(g => g.name === endGridY.name);
-                            if (serial !== -1) {
-                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
-                                    isVertical: true,
-                                    primaryGridName: prevGridX.name,
-                                    subGridMarker,
-                                    serial
-                                });
-                            }
-                        });
-                    }
-                } else if (firstInChain.isHorizontal) {
-                    const onGrid = findClosestGrid(firstInChain.centerY, grids.y);
-                    const prevGridY = grids.y.slice().reverse().find(g => g.ordinate < firstInChain.centerY);
-                    if (Math.abs(firstInChain.centerY - onGrid.ordinate) < TOLERANCE) { // On grid
-                        chain.forEach(segment => {
-                            const startGridX = findClosestGrid(segment.minX, grids.x);
-                            if (!startGridX) return;
-                            const serial = parseInt(startGridX.name, 10);
-                            if (!isNaN(serial)) {
-                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
-                                    isVertical: false,
-                                    primaryGridName: onGrid.name,
-                                    subGridMarker: '',
-                                    serial
-                                });
-                            }
-                        });
-                    } else if (prevGridY) { // Off grid
-                        const nextGridY = findClosestGrid(firstInChain.centerY, grids.y);
-                        const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
-                        const rank = uniqueYCoords.indexOf(firstInChain.centerY.toFixed(2));
-                        const subGridMarker = "'".repeat(rank + 1);
-                        chain.forEach(segment => {
-                            const startGridX = findClosestGrid(segment.minX, grids.x);
-                            if (!startGridX) return;
-                            const serial = parseInt(startGridX.name, 10);
-                            if (!isNaN(serial)) {
-                                labelComponentMap.set(`${segment.name}|${segment.joint1}|${segment.joint2}`, {
-                                    isVertical: false,
-                                    primaryGridName: prevGridY.name,
-                                    subGridMarker,
-                                    serial
-                                });
-                            }
-                        });
-                    }
+                if (serial !== undefined && serial !== -1 && !isNaN(serial)) {
+                    labelComponentMap.set(beamKey, {
+                        isVertical: beam.isVertical,
+                        primaryGridName,
+                        subGridMarker,
+                        serial
+                    });
                 }
             });
             return labelComponentMap;
         }
 
-
-        // --- [新增] 幾何運算輔助函式與新版分棟邏輯 ---
         function distance(p1, p2) {
             if (!p1 || !p2) return Infinity;
             return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
@@ -1524,7 +1505,6 @@
             XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
         }
 
-        // --- 啟用滑鼠滾輪控制下拉選單 ---
         function setupSelectWheelListeners() {
             const selectors = document.querySelectorAll('#storySelector, #beamTypeSelector');
 
