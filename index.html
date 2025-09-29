@@ -324,8 +324,8 @@
               disabled
             >
               <option value="all">顯示全部</option>
-              <option value="main">只顯示大梁</option>
-              <option value="secondary">只顯示小梁</option>
+              <option value="main">大梁</option>
+              <option value="secondary">小梁</option>
             </select>
           </div>
         </div>
@@ -1879,6 +1879,7 @@
       }
 
       // 【新的程式碼 - 請完整複製並替換】
+      // 【請用這段完整的程式碼，替換掉您檔案中舊的 generateSecondaryBeamLabels 函式】
       function generateSecondaryBeamLabels(
         secondaryBeamsToNumber,
         mainBeamsInStory,
@@ -1890,6 +1891,7 @@
           document.getElementById("mirrorModeToggle").checked;
 
         // 「核心編號引擎」：這是原本的編號邏輯，現在被封裝成一個內部函式
+        // 這個函式本身維持不變，因為它的功能很純粹：為一組給定的梁進行排序和編號。
         const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
           const labels = new Map();
           let counter = startCounter;
@@ -1994,64 +1996,139 @@
           return { labels, nextCounter: counter };
         };
 
-        // 如果不使用鏡像模式，或小梁數量太少，直接使用舊方法
-        if (!useMirrorMode || secondaryBeamsToNumber.length < 2) {
-          const { labels } = coreNumberingEngine(secondaryBeamsToNumber);
-          return labels;
-        }
-
-        // --- 開始執行鏡像模式的總指揮邏輯 ---
+        // --- ★★★ 邏輯起點：無論如何都先執行分棟 ★★★ ---
         const allBeamsOnStory = [
           ...secondaryBeamsToNumber,
           ...mainBeamsInStory,
         ];
+        // 1. 找出所有獨立的建築組件
         const components = findBuildingComponents(allBeamsOnStory, joints)
           .map((comp) =>
+            // 過濾掉只包含大梁的組件，只留下有小梁的組件
             comp.filter((b) =>
               secondaryBeamsToNumber.some((sb) => sb.name === b.name)
             )
           )
           .filter((comp) => comp.length > 0);
 
-        let processedComponents = new Set();
-        let globalCounter = 1;
+        // 如果找不到任何包含小梁的組件，就直接返回
+        if (components.length === 0) {
+          return allLabels;
+        }
 
-        // 階段一：棟間對稱
-        for (let i = 0; i < components.length; i++) {
-          if (processedComponents.has(i)) continue;
-          for (let j = i + 1; j < components.length; j++) {
-            if (processedComponents.has(j)) continue;
+        // --- ★★★ 邏輯分流：根據鏡像模式決定如何處理這些組件 ★★★ ---
 
-            const compA = components[i];
-            const compB = components[j];
-            const symmetryAxis = checkInterComponentSymmetry(
-              compA,
-              compB,
-              joints
-            );
+        if (useMirrorMode) {
+          // --- 【分支 A】如果啟用鏡像模式，執行原本的對稱判斷邏輯 ---
+          let processedComponents = new Set();
+          let globalCounter = 1;
+
+          // 階段一：棟間對稱
+          for (let i = 0; i < components.length; i++) {
+            if (processedComponents.has(i)) continue;
+            for (let j = i + 1; j < components.length; j++) {
+              if (processedComponents.has(j)) continue;
+
+              const compA = components[i];
+              const compB = components[j];
+              const symmetryAxis = checkInterComponentSymmetry(
+                compA,
+                compB,
+                joints
+              );
+
+              if (symmetryAxis) {
+                const masterComp =
+                  calculateCentroid(compA, joints).x <=
+                  calculateCentroid(compB, joints).x
+                    ? compA
+                    : compB;
+                const slaveComp = masterComp === compA ? compB : compA;
+
+                const { labels: masterLabels, nextCounter } =
+                  coreNumberingEngine(masterComp, globalCounter);
+                masterLabels.forEach((value, key) => allLabels.set(key, value));
+
+                const masterBeamsWithLabels = Array.from(
+                  masterLabels.keys()
+                ).map((key) =>
+                  masterComp.find(
+                    (b) => `${b.name}|${b.joint1}|${b.joint2}` === key
+                  )
+                );
+
+                masterBeamsWithLabels.forEach((masterBeam) => {
+                  const masterLabelInfo = masterLabels.get(
+                    `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`
+                  );
+                  const mirrored_p1 = mirrorPoint(
+                    joints[masterBeam.joint1],
+                    symmetryAxis
+                  );
+
+                  const slaveBeam = slaveComp.find(
+                    (b) =>
+                      distance(joints[b.joint1], mirrored_p1) <
+                        SYMMETRY_TOLERANCE ||
+                      distance(joints[b.joint2], mirrored_p1) <
+                        SYMMETRY_TOLERANCE
+                  );
+
+                  if (slaveBeam) {
+                    allLabels.set(
+                      `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`,
+                      { newLabel: masterLabelInfo.newLabel }
+                    );
+                  }
+                });
+
+                processedComponents.add(i);
+                processedComponents.add(j);
+                globalCounter = nextCounter;
+                break;
+              }
+            }
+          }
+
+          // 階段二：內部對稱
+          for (let i = 0; i < components.length; i++) {
+            if (processedComponents.has(i)) continue;
+            const component = components[i];
+            const symmetryAxis = checkIntraComponentSymmetry(component, joints);
 
             if (symmetryAxis) {
-              const masterComp =
-                calculateCentroid(compA, joints).x <=
-                calculateCentroid(compB, joints).x
-                  ? compA
-                  : compB;
-              const slaveComp = masterComp === compA ? compB : compA;
+              let masterHalf = [],
+                slaveHalf = [];
+              if (symmetryAxis.type === "vertical") {
+                component.forEach((beam) => {
+                  const centerX =
+                    (joints[beam.joint1].x + joints[beam.joint2].x) / 2;
+                  if (centerX <= symmetryAxis.p1.x + SYMMETRY_TOLERANCE)
+                    masterHalf.push(beam);
+                  else slaveHalf.push(beam);
+                });
+              } else {
+                component.forEach((beam) => {
+                  const centerY =
+                    (joints[beam.joint1].y + joints[beam.joint2].y) / 2;
+                  if (centerY <= symmetryAxis.p1.y + SYMMETRY_TOLERANCE)
+                    masterHalf.push(beam);
+                  else slaveHalf.push(beam);
+                });
+              }
 
               const { labels: masterLabels, nextCounter } = coreNumberingEngine(
-                masterComp,
+                masterHalf,
                 globalCounter
               );
               masterLabels.forEach((value, key) => allLabels.set(key, value));
 
-              // 映射編號
               const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(
                 (key) =>
-                  masterComp.find(
+                  masterHalf.find(
                     (b) => `${b.name}|${b.joint1}|${b.joint2}` === key
                   )
               );
-
               masterBeamsWithLabels.forEach((masterBeam) => {
                 const masterLabelInfo = masterLabels.get(
                   `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`
@@ -2061,7 +2138,7 @@
                   symmetryAxis
                 );
 
-                const slaveBeam = slaveComp.find(
+                const slaveBeam = slaveHalf.find(
                   (b) =>
                     distance(joints[b.joint1], mirrored_p1) <
                       SYMMETRY_TOLERANCE ||
@@ -2077,96 +2154,54 @@
               });
 
               processedComponents.add(i);
-              processedComponents.add(j);
               globalCounter = nextCounter;
-              break; // CompA 找到配對，跳出內層迴圈
             }
           }
-        }
 
-        // 階段二：內部對稱
-        for (let i = 0; i < components.length; i++) {
-          if (processedComponents.has(i)) continue;
-          const component = components[i];
-          const symmetryAxis = checkIntraComponentSymmetry(component, joints);
-
-          if (symmetryAxis) {
-            let masterHalf = [],
-              slaveHalf = [];
-            // 分割
-            if (symmetryAxis.type === "vertical") {
-              component.forEach((beam) => {
-                const centerX =
-                  (joints[beam.joint1].x + joints[beam.joint2].x) / 2;
-                if (centerX <= symmetryAxis.p1.x + SYMMETRY_TOLERANCE)
-                  masterHalf.push(beam);
-                else slaveHalf.push(beam);
-              });
-            } else {
-              // horizontal
-              component.forEach((beam) => {
-                const centerY =
-                  (joints[beam.joint1].y + joints[beam.joint2].y) / 2;
-                if (centerY <= symmetryAxis.p1.y + SYMMETRY_TOLERANCE)
-                  masterHalf.push(beam);
-                else slaveHalf.push(beam);
-              });
-            }
-
-            const { labels: masterLabels, nextCounter } = coreNumberingEngine(
-              masterHalf,
+          // 階段三：常規編號 (處理剩下的)
+          for (let i = 0; i < components.length; i++) {
+            if (processedComponents.has(i)) continue;
+            const { labels, nextCounter } = coreNumberingEngine(
+              components[i],
               globalCounter
             );
-            masterLabels.forEach((value, key) => allLabels.set(key, value));
-
-            // 映射編號
-            const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(
-              (key) =>
-                masterHalf.find(
-                  (b) => `${b.name}|${b.joint1}|${b.joint2}` === key
-                )
-            );
-            masterBeamsWithLabels.forEach((masterBeam) => {
-              const masterLabelInfo = masterLabels.get(
-                `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`
-              );
-              const mirrored_p1 = mirrorPoint(
-                joints[masterBeam.joint1],
-                symmetryAxis
-              );
-
-              const slaveBeam = slaveHalf.find(
-                (b) =>
-                  distance(joints[b.joint1], mirrored_p1) <
-                    SYMMETRY_TOLERANCE ||
-                  distance(joints[b.joint2], mirrored_p1) < SYMMETRY_TOLERANCE
-              );
-
-              if (slaveBeam) {
-                allLabels.set(
-                  `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`,
-                  { newLabel: masterLabelInfo.newLabel }
-                );
-              }
-            });
-
+            labels.forEach((value, key) => allLabels.set(key, value));
+            globalCounter = nextCounter;
             processedComponents.add(i);
+          }
+        } else {
+          // --- 【分支 B】如果鏡像模式關閉，則對所有組件進行循序編號 ---
+          let globalCounter = 1;
+
+          // 為了確保每次編號的順序都一樣，我們先對組件進行排序
+          // 排序規則：根據每個組件的幾何中心點，由下到上、由左到右
+          const sortedComponents = components.sort((compA, compB) => {
+            const centroidA = calculateCentroid(compA, joints);
+            const centroidB = calculateCentroid(compB, joints);
+            if (!centroidA || !centroidB) return 0;
+
+            // 優先比較 Y 座標 (由下到上)，若相同再比較 X 座標 (由左到右)
+            return centroidA.y - centroidB.y || centroidA.x - centroidB.x;
+          });
+
+          // 遍歷排好序的每一個獨立組件
+          for (const component of sortedComponents) {
+            // 呼叫核心編號引擎，為當前這棟建築的梁進行編號
+            // 注意：我們將上一個組件編完後的計數器 `globalCounter` 傳入
+            const { labels, nextCounter } = coreNumberingEngine(
+              component,
+              globalCounter
+            );
+
+            // 將編好的標籤合併到最終結果中
+            labels.forEach((value, key) => allLabels.set(key, value));
+
+            // 更新全域計數器，為下一個組件做準備
             globalCounter = nextCounter;
           }
         }
 
-        // 階段三：常規編號
-        for (let i = 0; i < components.length; i++) {
-          if (processedComponents.has(i)) continue;
-          const { labels, nextCounter } = coreNumberingEngine(
-            components[i],
-            globalCounter
-          );
-          labels.forEach((value, key) => allLabels.set(key, value));
-          globalCounter = nextCounter;
-          processedComponents.add(i);
-        }
-
+        // 返回所有已經編好號的梁的標籤
         return allLabels;
       }
 
