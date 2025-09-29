@@ -862,9 +862,11 @@
               "line"
             );
             line.setAttribute("x1", transformX(gridLine.ordinate));
-            line.setAttribute("y1", padding);
+            // [修改] 讓垂直線的起點和終點對齊內容邊界
+            line.setAttribute("y1", transformY(maxY));
             line.setAttribute("x2", transformX(gridLine.ordinate));
-            line.setAttribute("y2", svgHeight - padding);
+            // [修改] 讓垂直線的起點和終點對齊內容邊界
+            line.setAttribute("y2", transformY(minY));
             gridGroup.appendChild(line);
           });
           grids.y.forEach((gridLine) => {
@@ -872,14 +874,17 @@
               "http://www.w3.org/2000/svg",
               "line"
             );
-            line.setAttribute("x1", padding);
+            // [修改] 讓水平線的起點和終點對齊內容邊界
+            line.setAttribute("x1", transformX(minX));
             line.setAttribute("y1", transformY(gridLine.ordinate));
-            line.setAttribute("x2", svgWidth - padding);
+            // [修改] 讓水平線的起點和終點對齊內容邊界
+            line.setAttribute("x2", transformX(maxX));
             line.setAttribute("y2", transformY(gridLine.ordinate));
             gridGroup.appendChild(line);
           });
           svg.appendChild(gridGroup);
 
+          // ... 之後繪製網格氣泡 (grid bubble) 的程式碼維持不變 ...
           const gridLabelsGroup = document.createElementNS(
             "http://www.w3.org/2000/svg",
             "g"
@@ -889,14 +894,17 @@
             const cx = transformX(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
 
+            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
+            const bubbleYTop = transformY(maxY) - padding / 2;
+            const bubbleYBottom = transformY(minY) + padding / 2;
+
             if (loc === "End" || loc === "Both" || !loc) {
-              const cyTop = padding / 2;
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle"
               );
               topBubble.setAttribute("cx", cx);
-              topBubble.setAttribute("cy", cyTop);
+              topBubble.setAttribute("cy", bubbleYTop); // 使用新座標
               topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               topBubble.setAttribute("class", "grid-bubble");
               const topText = document.createElementNS(
@@ -904,7 +912,7 @@
                 "text"
               );
               topText.setAttribute("x", cx);
-              topText.setAttribute("y", cyTop);
+              topText.setAttribute("y", bubbleYTop); // 使用新座標
               topText.setAttribute("class", "grid-bubble-text");
               topText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(topBubble);
@@ -912,13 +920,12 @@
             }
 
             if (loc === "Start" || loc === "Both") {
-              const cyBottom = svgHeight - padding / 2;
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle"
               );
               bottomBubble.setAttribute("cx", cx);
-              bottomBubble.setAttribute("cy", cyBottom);
+              bottomBubble.setAttribute("cy", bubbleYBottom); // 使用新座標
               bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               bottomBubble.setAttribute("class", "grid-bubble");
               const bottomText = document.createElementNS(
@@ -926,7 +933,7 @@
                 "text"
               );
               bottomText.setAttribute("x", cx);
-              bottomText.setAttribute("y", cyBottom);
+              bottomText.setAttribute("y", bubbleYBottom); // 使用新座標
               bottomText.setAttribute("class", "grid-bubble-text");
               bottomText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(bottomBubble);
@@ -938,13 +945,16 @@
             const cy = transformY(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
 
+            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
+            const bubbleXLeft = transformX(minX) - padding / 2;
+            const bubbleXRight = transformX(maxX) + padding / 2;
+
             if (loc === "Start" || loc === "Both" || !loc) {
-              const cxLeft = padding / 2;
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle"
               );
-              leftBubble.setAttribute("cx", cxLeft);
+              leftBubble.setAttribute("cx", bubbleXLeft); // 使用新座標
               leftBubble.setAttribute("cy", cy);
               leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               leftBubble.setAttribute("class", "grid-bubble");
@@ -952,7 +962,7 @@
                 "http://www.w3.org/2000/svg",
                 "text"
               );
-              leftText.setAttribute("x", cxLeft);
+              leftText.setAttribute("x", bubbleXLeft); // 使用新座標
               leftText.setAttribute("y", cy);
               leftText.setAttribute("class", "grid-bubble-text");
               leftText.textContent = gridLine.name;
@@ -961,12 +971,11 @@
             }
 
             if (loc === "End" || loc === "Both") {
-              const cxRight = svgWidth - padding / 2;
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle"
               );
-              rightBubble.setAttribute("cx", cxRight);
+              rightBubble.setAttribute("cx", bubbleXRight); // 使用新座標
               rightBubble.setAttribute("cy", cy);
               rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               rightBubble.setAttribute("class", "grid-bubble");
@@ -974,7 +983,7 @@
                 "http://www.w3.org/2000/svg",
                 "text"
               );
-              rightText.setAttribute("x", cxRight);
+              rightText.setAttribute("x", bubbleXRight); // 使用新座標
               rightText.setAttribute("y", cy);
               rightText.setAttribute("class", "grid-bubble-text");
               rightText.textContent = gridLine.name;
@@ -984,7 +993,7 @@
           });
           svg.appendChild(gridLabelsGroup);
         }
-
+        // ... 之後繪製梁 (beam) 和標籤 (label) 的程式碼維持不變 ...
         const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
         labeledDrawableBeams.forEach((beam) => {
           const line = document.createElementNS(
@@ -1021,7 +1030,6 @@
           const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
           const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
 
-          // [新增] 將基準點座標存入 data-* 屬性
           text.dataset.baseX = textX;
           text.dataset.baseY = textY;
 
@@ -1029,28 +1037,22 @@
           const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
 
           if (isHorizontal) {
-            // [新增] 標記方向
             text.dataset.orientation = "horizontal";
             text.setAttribute("x", textX);
-            // [修改] 使用初始常數設定位置
             text.setAttribute("y", textY + INITIAL_HORIZONTAL_OFFSET);
             text.setAttribute("text-anchor", "middle");
           } else if (isVertical) {
-            // [新增] 標記方向
             text.dataset.orientation = "vertical";
-            // [修改] 使用初始常數設定位置
             const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
             text.setAttribute("x", rotatedX);
             text.setAttribute("y", textY);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "middle");
-            // [修改] 更新旋轉中心點
             text.setAttribute(
               "transform",
               `rotate(-90, ${rotatedX}, ${textY})`
             );
           } else {
-            // [新增] 標記方向
             text.dataset.orientation = "angled";
             const x1_svg = transformX(beam.j1.x);
             const y1_svg = transformY(beam.j1.y);
@@ -1071,7 +1073,6 @@
               "transform",
               `rotate(${angle}, ${textX}, ${textY})`
             );
-            // [修改] 使用初始常數設定位置
             text.setAttribute("dy", -INITIAL_ANGLED_OFFSET);
           }
 
@@ -1080,7 +1081,6 @@
           svg.appendChild(text);
         });
       }
-
       // --- Core Parsing & Labeling Functions (No changes below this line) ---
       function parseGrids(content) {
         const grids = {
