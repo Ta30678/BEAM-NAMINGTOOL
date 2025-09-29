@@ -1325,23 +1325,28 @@
       function generateLabelsForStory(beamsInStory, joints, grids) {
         const labelComponentMap = new Map();
 
+        // --- 開始：這是修改後的 getBeamSerial 函式 ---
         function getBeamSerial(segment, grids, isHorizontal) {
-          const ON_GRID_TOLERANCE = 0.01;
+          const ON_GRID_TOLERANCE = 0.1;
 
           if (isHorizontal) {
+            // **【修改重點】** 水平梁的流水號計算方式，從解析數字改成尋找 index
             const endGrid = findClosestGrid(segment.maxX, grids.x);
             if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-              const n = parseInt(endGrid.name.replace(/^\D+/g, ""), 10);
-              if (!isNaN(n)) {
-                return n - 1;
+              const index = grids.x.findIndex((g) => g.name === endGrid.name);
+              if (index !== -1) {
+                // 流水號 n-1 等同於 0-based 的索引值
+                return index;
               }
             }
             const startGrid = findClosestGrid(segment.minX, grids.x);
-            const n = parseInt(startGrid.name.replace(/^\D+/g, ""), 10);
-            if (!isNaN(n)) {
-              return n;
+            const index = grids.x.findIndex((g) => g.name === startGrid.name);
+            if (index !== -1) {
+              // 流水號 n 等同於 1-based 的索引值 (index + 1)
+              return index + 1;
             }
           } else {
+            // 垂直梁邏輯 (維持不變，本身就是使用 index)
             const endGrid = findClosestGrid(segment.maxY, grids.y);
             if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               const index = grids.y.findIndex((g) => g.name === endGrid.name);
@@ -1357,6 +1362,7 @@
           }
           return NaN;
         }
+        // --- 結束：getBeamSerial 函式修改完畢 ---
 
         function parseGridName(gridName) {
           if (!gridName) return "";
@@ -1404,20 +1410,16 @@
           let primaryGridName;
           let subGridMarker = "";
 
-          // --- 開始：這是我們修正好的新邏輯 ---
-
+          // 我們上次修正的「找區間」邏輯
           if (beam.isVertical) {
-            // 步驟 1: 優先判斷梁是否剛好在格線上
             let onGridLine = grids.x.find(
               (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE
             );
 
             if (onGridLine) {
-              // 情況 A: 梁在格線上
               primaryGridName = parseGridName(onGridLine.name);
               subGridMarker = "";
             } else {
-              // 情況 B: 梁在格線之間，執行「找區間」邏輯
               const gridBelow = grids.x
                 .slice()
                 .reverse()
@@ -1425,8 +1427,7 @@
               const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
 
               if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name); // 以左側(下方)格線為名
-
+                primaryGridName = parseGridName(gridBelow.name);
                 const uniqueXCoords = [
                   ...new Set(
                     beamsWithCoords
@@ -1442,26 +1443,22 @@
 
                 const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
                 if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank); // a, b, c...
+                  subGridMarker = String.fromCharCode(97 + rank);
                 }
               } else {
-                // 如果找不到區間 (例如梁在所有格線之外)，則不進行編號
                 return;
               }
             }
             serial = getBeamSerial(beam, grids, false);
           } else {
-            // 水平梁邏輯 (套用相同的「找區間」概念)
             let onGridLine = grids.y.find(
               (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE
             );
 
             if (onGridLine) {
-              // 情況 A: 梁在格線上
               primaryGridName = parseGridName(onGridLine.name);
               subGridMarker = "";
             } else {
-              // 情況 B: 梁在格線之間
               const gridBelow = grids.y
                 .slice()
                 .reverse()
@@ -1469,8 +1466,7 @@
               const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
 
               if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name); // 以下方格線為名
-
+                primaryGridName = parseGridName(gridBelow.name);
                 const uniqueYCoords = [
                   ...new Set(
                     beamsWithCoords
@@ -1486,7 +1482,7 @@
 
                 const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
                 if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank); // a, b, c...
+                  subGridMarker = String.fromCharCode(97 + rank);
                 }
               } else {
                 return;
@@ -1494,8 +1490,6 @@
             }
             serial = getBeamSerial(beam, grids, true);
           }
-
-          // --- 結束：新邏輯到此為止 ---
 
           if (serial !== undefined && serial !== -1 && !isNaN(serial)) {
             labelComponentMap.set(beamKey, {
