@@ -1,1899 +1,2374 @@
 <!DOCTYPE html>
 <html lang="zh-TW">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>ETABS 梁自動編號工具</title>
 
     <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap" rel="stylesheet">
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
 
     <style>
-        /* --- 淺色主題 --- */
-        :root {
-            --theme-bg: #f1f5f9;
-            --theme-surface: #ffffff;
-            --theme-border: #e2e8f0;
-            --theme-shadow: rgba(0, 0, 0, 0.05);
-            --theme-text-primary: #1e293b;
-            --theme-text-secondary: #64748b;
-            --theme-accent: #f97316;
-            --theme-accent-hover: #ea580c;
-            --theme-success: #22c55e;
-            --theme-success-hover: #16a34a;
-        }
+      /* --- 淺色主題 --- */
+      :root {
+        --theme-bg: #f1f5f9;
+        --theme-surface: #ffffff;
+        --theme-border: #e2e8f0;
+        --theme-shadow: rgba(0, 0, 0, 0.05);
+        --theme-text-primary: #1e293b;
+        --theme-text-secondary: #64748b;
+        --theme-accent: #f97316;
+        --theme-accent-hover: #ea580c;
+        --theme-success: #22c55e;
+        --theme-success-hover: #16a34a;
+      }
 
-        @keyframes fadeIn {
-            from {
-                opacity: 0;
-                transform: translateY(-10px);
-            }
-            to {
-                opacity: 1;
-                transform: translateY(0);
-            }
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
         }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
 
-        body {
-            font-family: 'Inter', 'Microsoft JhengHei', sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-            padding: 26px 14px;
-            color: var(--theme-text-primary);
-            background-color: var(--theme-bg);
-            position: relative;
-        }
+      body {
+        font-family: "Inter", "Microsoft JhengHei", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 26px 14px;
+        color: var(--theme-text-primary);
+        background-color: var(--theme-bg);
+        position: relative;
+      }
 
-        #container {
-            width: 90%;
-            max-width: 1200px;
-            background: var(--theme-surface);
-            padding: 20px;
-            border-radius: 18px;
-            border: 1px solid var(--theme-border);
-            box-shadow: 0 10px 25px -5px var(--theme-shadow), 0 8px 10px -6px var(--theme-shadow);
-            animation: fadeIn 0.8s ease-out forwards;
-            position: relative;
-            z-index: 1;
-        }
+      #container {
+        width: 90%;
+        max-width: 1200px;
+        background: var(--theme-surface);
+        padding: 20px;
+        border-radius: 18px;
+        border: 1px solid var(--theme-border);
+        box-shadow: 0 10px 25px -5px var(--theme-shadow),
+          0 8px 10px -6px var(--theme-shadow);
+        animation: fadeIn 0.8s ease-out forwards;
+        position: relative;
+        z-index: 1;
+      }
 
-        h1 {
-            font-size: 2.25rem;
-            font-weight: 700;
-            color: var(--theme-text-primary);
-            text-align: center;
-            margin-bottom: 2.5rem;
-            position: relative;
-        }
+      h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--theme-text-primary);
+        text-align: center;
+        margin-bottom: 2.5rem;
+        position: relative;
+      }
 
-        h1::after {
-            content: '';
-            position: absolute;
-            bottom: -10px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 80px;
-            height: 3px;
-            background: var(--theme-accent);
-            border-radius: 2px;
-        }
+      h1::after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background: var(--theme-accent);
+        border-radius: 2px;
+      }
 
-        h3 {
-            color: var(--theme-text-primary);
-            font-weight: 500;
-            border-bottom: 1px solid var(--theme-border);
-            padding-bottom: 0.5rem;
-            margin-bottom: 1rem;
-            opacity: 0.9;
-        }
+      h3 {
+        color: var(--theme-text-primary);
+        font-weight: 500;
+        border-bottom: 1px solid var(--theme-border);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+      }
 
-        .control-area {
-            margin-bottom: 25px;
-            padding: 20px;
-            border-radius: 12px;
-            background: var(--theme-bg);
-            border: 1px solid var(--theme-border);
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-        }
+      .control-area {
+        margin-bottom: 25px;
+        padding: 20px;
+        border-radius: 12px;
+        background: var(--theme-bg);
+        border: 1px solid var(--theme-border);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
 
-        .control-row {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            width: 100%;
-        }
+      .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+      }
 
-        .control-group {
-            display: flex;
-            gap: 15px;
-            align-items: center;
-        }
+      .control-group {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
 
-        label {
-            font-weight: 500;
-            color: var(--theme-text-secondary);
-        }
+      label {
+        font-weight: 500;
+        color: var(--theme-text-secondary);
+      }
 
-        input[type="file"]::file-selector-button {
-            background-color: #ffffff;
-            color: var(--theme-text-secondary);
-            border: 1px solid var(--theme-border);
-            padding: 8px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+      input[type="file"]::file-selector-button {
+        background-color: #ffffff;
+        color: var(--theme-text-secondary);
+        border: 1px solid var(--theme-border);
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
 
-        input[type="file"]::file-selector-button:hover {
-            background-color: var(--theme-bg);
-            border-color: var(--theme-accent);
-            color: var(--theme-accent);
-        }
+      input[type="file"]::file-selector-button:hover {
+        background-color: var(--theme-bg);
+        border-color: var(--theme-accent);
+        color: var(--theme-accent);
+      }
 
-        select {
-            background-color: #ffffff;
-            color: var(--theme-text-primary);
-            border: 1px solid var(--theme-border);
-            padding: 8px 15px;
-            border-radius: 8px;
-            cursor: pointer;
-            transition: all 0.2s ease;
-        }
+      select {
+        background-color: #ffffff;
+        color: var(--theme-text-primary);
+        border: 1px solid var(--theme-border);
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
 
-        select:hover {
-            border-color: var(--theme-accent);
-        }
+      select:hover {
+        border-color: var(--theme-accent);
+      }
 
-        select option {
-            background-color: #ffffff;
-            color: #000000;
-        }
+      select option {
+        background-color: #ffffff;
+        color: #000000;
+      }
 
-        button {
-            padding: 12px 24px;
-            color: white;
-            border: none;
-            border-radius: 10px;
-            cursor: pointer;
-            font-size: 16px;
-            font-weight: 500;
-            transition: all 0.2s ease;
-        }
+      button {
+        padding: 12px 24px;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
 
-        .btn-process {
-            background-color: var(--theme-accent);
-        }
+      .btn-process {
+        background-color: var(--theme-accent);
+      }
 
-        .btn-process:hover {
-            background-color: var(--theme-accent-hover);
-        }
+      .btn-process:hover {
+        background-color: var(--theme-accent-hover);
+      }
 
-        .btn-export {
-            background-color: var(--theme-success);
-        }
+      .btn-export {
+        background-color: var(--theme-success);
+      }
 
-        .btn-export:hover {
-            background-color: var(--theme-success-hover);
-        }
+      .btn-export:hover {
+        background-color: var(--theme-success-hover);
+      }
 
-        .btn-export:disabled {
-            background-color: #9ca3af;
-            cursor: not-allowed;
-        }
+      .btn-export:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+      }
 
-        #output {
-            margin-top: 20px;
-        }
+      #output {
+        margin-top: 20px;
+      }
 
-        #drawing {
-            width: 100%;
-            padding: 20px;
-            max-height: 65vh;
-            overflow: auto;
-            border-radius: 12px;
-            background: #ffffff;
-            border: 1px solid var(--theme-border);
-        }
+      #drawing {
+        width: 100%;
+        padding: 20px;
+        max-height: 65vh;
+        overflow: auto;
+        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid var(--theme-border);
+      }
 
-        #drawing-svg {
-            width: 100%;
-            height: 60vh; 
-            border-radius: 8px;
-            background-color: #ffffff;
-            border: 1px solid var(--theme-border);
-            cursor: grab;
-        }
+      #drawing-svg {
+        width: 100%;
+        height: 60vh;
+        border-radius: 8px;
+        background-color: #ffffff;
+        border: 1px solid var(--theme-border);
+        cursor: grab;
+      }
 
-        #drawing-svg:active {
-            cursor: grabbing;
-        }
+      #drawing-svg:active {
+        cursor: grabbing;
+      }
 
-        .error {
-            color: #ef4444;
-            font-weight: bold;
-        }
+      .error {
+        color: #ef4444;
+        font-weight: bold;
+      }
 
-        /* --- SVG 樣式 --- */
-        .grid-lines line {
-            stroke: #475569;
-            stroke-width: 0.5px;
-            stroke-dasharray: 4 4;
-            vector-effect: non-scaling-stroke;
-        }
+      /* --- SVG 樣式 --- */
+      .grid-lines line {
+        stroke: #475569;
+        stroke-width: 0.5px;
+        stroke-dasharray: 4 4;
+        vector-effect: non-scaling-stroke;
+      }
 
-        .grid-bubble {
-            fill: var(--theme-surface);
-            stroke: var(--theme-text-secondary);
-            /* stroke-width is now controlled by JS */
-        }
+      .grid-bubble {
+        fill: var(--theme-surface);
+        stroke: var(--theme-text-secondary);
+        /* stroke-width is now controlled by JS */
+      }
 
-        .grid-bubble-text {
-            fill: var(--theme-text-primary);
-            font-weight: 500;
-            text-anchor: middle;
-            dominant-baseline: middle;
-            /* font-size is now controlled by JS */
-        }
+      .grid-bubble-text {
+        fill: var(--theme-text-primary);
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        /* font-size is now controlled by JS */
+      }
 
-        .beam-line {
-            stroke: #d1d5db;
-            stroke-width: 1px;
-            vector-effect: non-scaling-stroke; /* 讓所有梁寬度固定 */
-        }
+      .beam-line {
+        stroke: #d1d5db;
+        stroke-width: 1px;
+        vector-effect: non-scaling-stroke; /* 讓所有梁寬度固定 */
+      }
 
-        .labeled-beam-line {
-            stroke: #3b82f6;
-            stroke-width: 1.5px; /* 加粗一點以示區別 */
-            vector-effect: non-scaling-stroke;
-        }
+      .labeled-beam-line {
+        stroke: #3b82f6;
+        stroke-width: 1.5px; /* 加粗一點以示區別 */
+        vector-effect: non-scaling-stroke;
+      }
 
-        .special-beam-line {
-            stroke: var(--theme-accent);
-            stroke-width: 1.5px; /* 加粗一點以示區別 */
-            vector-effect: non-scaling-stroke;
-        }
-        
-        .beam-label {
-            fill: #1e293b;
-            font-weight: 500;
-            paint-order: stroke;
-            stroke: #ffffff;
-            stroke-linejoin: round;
-            /* font-size and stroke-width are now controlled by JS */
-        }
+      .special-beam-line {
+        stroke: var(--theme-accent);
+        stroke-width: 1.5px; /* 加粗一點以示區別 */
+        vector-effect: non-scaling-stroke;
+      }
+
+      .beam-label {
+        fill: #1e293b;
+        font-weight: 500;
+        paint-order: stroke;
+        stroke: #ffffff;
+        stroke-linejoin: round;
+        /* font-size and stroke-width are now controlled by JS */
+      }
     </style>
-</head>
-<body>
+  </head>
+  <body>
     <div id="container">
-        <h1>ETABS 梁自動編號工具</h1>
+      <h1>ETABS 梁自動編號工具</h1>
 
-        <div class="control-area">
-            <div class="control-row">
-                <div class="control-group">
-                    <label for="e2kFile">請選擇 ETABS .e2k 檔案:</label>
-                    <input type="file" id="e2kFile" accept=".e2k">
-                </div>
-                <div class="control-group">
-                    <button class="btn-process" onclick="processE2k()">開始編號</button>
-                    <button class="btn-export" id="exportBtn" onclick="exportToExcel()" disabled>匯出成 Excel</button>
-                </div>
-            </div>
-            <div class="control-row">
-                <div class="control-group">
-                    <label for="storySelector">顯示樓層:</label>
-                    <select id="storySelector" onchange="handleStoryChange()" disabled></select>
-
-                    <label for="beamTypeSelector">顯示類型:</label>
-                    <select id="beamTypeSelector" onchange="handleStoryChange()" disabled>
-                        <option value="all">顯示全部</option>
-                        <option value="main">只顯示大梁</option>
-                        <option value="secondary">只顯示小梁/小地梁</option>
-                    </select>
-
-                    <div class="control-group" style="margin-left: 20px;">
-                        <input type="checkbox" id="mirrorModeToggle" disabled>
-                        <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
-                        </div>
-                </div>
-            </div>
+      <div class="control-area">
+        <div class="control-row">
+          <div class="control-group">
+            <label for="e2kFile">請選擇 ETABS .e2k 檔案:</label>
+            <input type="file" id="e2kFile" accept=".e2k" />
+          </div>
+          <div class="control-group">
+            <button class="btn-process" onclick="processE2k()">開始編號</button>
+            <button
+              class="btn-export"
+              id="exportBtn"
+              onclick="exportToExcel()"
+              disabled
+            >
+              匯出成 Excel
+            </button>
+          </div>
         </div>
-        <div id="status"></div>
-        <div id="output">
-            <div id="drawing">
-                <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
-                <svg id="drawing-svg"></svg>
+        <div class="control-row">
+          <div class="control-group">
+            <label for="storySelector">顯示樓層:</label>
+            <select
+              id="storySelector"
+              onchange="handleStoryChange()"
+              disabled
+            ></select>
+
+            <label for="beamTypeSelector">顯示類型:</label>
+            <select
+              id="beamTypeSelector"
+              onchange="handleStoryChange()"
+              disabled
+            >
+              <option value="all">顯示全部</option>
+              <option value="main">只顯示大梁</option>
+              <option value="secondary">只顯示小梁/小地梁</option>
+            </select>
+
+            <div class="control-group" style="margin-left: 20px">
+              <input type="checkbox" id="mirrorModeToggle" disabled />
+              <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
             </div>
+          </div>
         </div>
+      </div>
+      <div id="status"></div>
+      <div id="output">
+        <div id="drawing">
+          <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
+          <svg id="drawing-svg"></svg>
+        </div>
+      </div>
     </div>
 
     <script>
-        // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
-        const INITIAL_BEAM_FONT_SIZE = 12;
-        const INITIAL_GRID_FONT_SIZE = 10;
-        const INITIAL_GRID_BUBBLE_RADIUS = 12;
-        const INITIAL_BEAM_LABEL_STROKE = 1.5;
-        const INITIAL_GRID_BUBBLE_STROKE = 1;
-        // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
-        const INITIAL_HORIZONTAL_OFFSET = 12;
-        const INITIAL_VERTICAL_OFFSET = 8;
-        const INITIAL_ANGLED_OFFSET = 6;
+      // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
+      const INITIAL_BEAM_FONT_SIZE = 12;
+      const INITIAL_GRID_FONT_SIZE = 10;
+      const INITIAL_GRID_BUBBLE_RADIUS = 12;
+      const INITIAL_BEAM_LABEL_STROKE = 1.5;
+      const INITIAL_GRID_BUBBLE_STROKE = 1;
+      // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
+      const INITIAL_HORIZONTAL_OFFSET = 12;
+      const INITIAL_VERTICAL_OFFSET = 8;
+      const INITIAL_ANGLED_OFFSET = 6;
 
-        let panZoomInstance = null;
-        let fullProcessedBeams = [];
-        let fullDrawableBeams = [];
-        let availableStories = [];
-        let gridData = {};
-        let storyOrderInfo = {};
-        const TOLERANCE = 0.1;
+      let panZoomInstance = null;
+      let fullProcessedBeams = [];
+      let fullDrawableBeams = [];
+      let availableStories = [];
+      let gridData = {};
+      let storyOrderInfo = {};
+      const TOLERANCE = 0.1;
 
-        async function processE2k() {
-            const fileInput = document.getElementById('e2kFile');
-            const statusDiv = document.getElementById('status');
-            const storySelector = document.getElementById('storySelector');
-            const beamTypeSelector = document.getElementById('beamTypeSelector');
-            // 【在它後面加上這行】
-            const mirrorModeToggle = document.getElementById('mirrorModeToggle');
+      async function processE2k() {
+        const fileInput = document.getElementById("e2kFile");
+        const statusDiv = document.getElementById("status");
+        const storySelector = document.getElementById("storySelector");
+        const beamTypeSelector = document.getElementById("beamTypeSelector");
+        // 【在它後面加上這行】
+        const mirrorModeToggle = document.getElementById("mirrorModeToggle");
 
-            statusDiv.innerHTML = '';
-            document.getElementById('drawing-svg').innerHTML = '';
-            document.getElementById('exportBtn').disabled = true;
-            storySelector.innerHTML = '';
-            storySelector.disabled = true;
-            beamTypeSelector.disabled = true;
+        statusDiv.innerHTML = "";
+        document.getElementById("drawing-svg").innerHTML = "";
+        document.getElementById("exportBtn").disabled = true;
+        storySelector.innerHTML = "";
+        storySelector.disabled = true;
+        beamTypeSelector.disabled = true;
 
-            if (panZoomInstance) {
-                panZoomInstance.destroy();
-                panZoomInstance = null;
-            }
-
-            fullProcessedBeams = [];
-            fullDrawableBeams = [];
-            availableStories = [];
-            gridData = {};
-
-            if (fileInput.files.length === 0) {
-                statusDiv.innerHTML = '<p class="error">Error: Please select an .e2k file first.</p>';
-                return;
-            }
-            const file = fileInput.files[0];
-            statusDiv.innerHTML = `<p>Reading file "${file.name}"...</p>`;
-            let fileContent;
-            try {
-                fileContent = await file.text();
-            } catch (error) {
-                statusDiv.innerHTML = `<p class="error">Failed to read file: ${error.message}</p>`;
-                return;
-            }
-
-            try {
-                const storySectionMatch = fileContent.match(/\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i);
-                if (!storySectionMatch) throw new Error("Could not find story definitions ($ STORIES) in the .e2k file.");
-                const allStoryNames = storySectionMatch[1].trim().split('\n').map(line => line.match(/STORY\s+"([^"]+)"/i)?.[1]).filter(Boolean);
-                if (allStoryNames.length === 0) throw new Error("Story definition block is empty.");
-
-                availableStories = allStoryNames;
-                populateStorySelector();
-
-                statusDiv.innerHTML += `<p>Found ${availableStories.length} stories, parsing components...</p>`;
-                gridData = parseGrids(fileContent);
-                const joints = parseJoints(fileContent);
-
-                let allBeamsAcrossStories = [];
-                for (const story of availableStories) {
-                    const frames = parseFrames(fileContent, story);
-                    if (frames.length > 0) allBeamsAcrossStories.push(...frames);
-                }
-                if (allBeamsAcrossStories.length === 0) throw new Error("No qualifying beams found on any story.");
-
-                fullDrawableBeams = allBeamsAcrossStories.map(f => ({
-                    ...f,
-                    j1: joints[f.joint1],
-                    j2: joints[f.joint2]
-                }));
-                storyOrderInfo = availableStories.reduce((acc, story, index) => {
-                    acc[story] = index;
-                    return acc;
-                }, {});
-
-                const mainBeams = allBeamsAcrossStories.filter(b => {
-                    const prop = b.prop.toUpperCase();
-                    const isNumericBeam = /^\d+(\.\d+)?B/.test(prop);
-                    return (isNumericBeam || prop.startsWith('B') || prop.startsWith('G') || prop.startsWith('FB') || prop.startsWith('FGB')) && !prop.startsWith('SB') && !prop.startsWith('FSB');
-                });
-                const secondaryBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('SB') && !b.prop.toUpperCase().startsWith('FSB'));
-                const secondaryFoundationBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('FSB'));
-                const specialBeams = allBeamsAcrossStories.filter(b => b.prop.toUpperCase().startsWith('WB') || b.prop.toUpperCase().startsWith('FWB'));
-                
-                let allLabeledBeams = [...specialBeams]; 
-
-                for (const story of availableStories) {
-                    const mainBeamsInStory = mainBeams.filter(b => b.story === story);
-                    const secondaryBeamsInStory = secondaryBeams.filter(b => b.story === story);
-                    const secondaryFoundationBeamsInStory = secondaryFoundationBeams.filter(b => b.story === story);
-
-                    if (mainBeamsInStory.length > 0) {
-                        const labelComponentMap = generateLabelsForStory(mainBeamsInStory, joints, gridData);
-                        labelComponentMap.forEach((components, beamKey) => {
-                            const [name, joint1, joint2] = beamKey.split('|');
-                            const originalBeam = mainBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
-                            if (!originalBeam) return;
-
-                            const propUpper = originalBeam.prop.toUpperCase();
-                                const prefix = components.isVertical ?
-                                    (propUpper.startsWith('FB') ? 'FB' : 'B') :
-                                    (propUpper.startsWith('FB') ? 'FG' : 'G');
-
-                            const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
-                            const newLabel = `${finalPrefix}-${components.serial}`;
-                            
-                            allLabeledBeams.push({ ...originalBeam,
-                                newLabel
-                            });
-                        });
-                    }
-
-                    if (secondaryBeamsInStory.length > 0) {
-                        const secondaryBeamLabels = generateSecondaryBeamLabels(secondaryBeamsInStory, mainBeamsInStory, joints, 'b');
-                        secondaryBeamLabels.forEach((value, key) => {
-                            const [name, joint1, joint2] = key.split('|');
-                            const originalBeam = secondaryBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
-                            if (originalBeam) {
-                                allLabeledBeams.push({ ...originalBeam,
-                                    newLabel: value.newLabel
-                                });
-                            }
-                        });
-                    }
-                    
-                    if (secondaryFoundationBeamsInStory.length > 0) {
-                        const foundationBeamLabels = generateSecondaryBeamLabels(secondaryFoundationBeamsInStory, mainBeamsInStory, joints, 'fb');
-                        foundationBeamLabels.forEach((value, key) => {
-                            const [name, joint1, joint2] = key.split('|');
-                            const originalBeam = secondaryFoundationBeamsInStory.find(b => b.name === name && b.joint1 === joint1 && b.joint2 === joint2);
-                            if (originalBeam) {
-                                allLabeledBeams.push({ ...originalBeam,
-                                    newLabel: value.newLabel
-                                });
-                            }
-                        });
-                    }
-                }
-
-                let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
-                finalProcessedData = finalProcessedData.filter(beam => beam.newLabel);
-
-                finalProcessedData.sort((a, b) => {
-                    const storyCompare = storyOrderInfo[a.story] - storyOrderInfo[b.story];
-                    if (storyCompare !== 0) return storyCompare;
-
-                    const aIsSecondary = a.newLabel.toLowerCase().startsWith('b') || a.newLabel.toLowerCase().startsWith('fb');
-                    const bIsSecondary = b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb');
-
-                    if (aIsSecondary && !bIsSecondary) return 1;
-                    if (!aIsSecondary && bIsSecondary) return -1;
-
-                    return (a.newLabel || "").localeCompare(b.newLabel || "", "en", {
-                        numeric: true
-                    });
-                });
-
-                fullProcessedBeams = finalProcessedData;
-
-                if (availableStories.includes('2F')) {
-                    storySelector.value = '2F';
-                }
-                handleStoryChange();
-
-                statusDiv.innerHTML = `<p>Processing complete! ${fullProcessedBeams.length} items numbered.</p>`;
-                if (fullProcessedBeams.length > 0) {
-                    exportBtn.disabled = false;
-                }
-
-            } catch (error) {
-                statusDiv.innerHTML = `<p class="error">Processing failed: ${error.message}</p>`;
-                console.error(error);
-            }
+        if (panZoomInstance) {
+          panZoomInstance.destroy();
+          panZoomInstance = null;
         }
 
-        function populateStorySelector() {
-            const selector = document.getElementById('storySelector');
-            selector.innerHTML = '<option value="all">All Floors</option>';
-            availableStories.forEach(story => {
-                const option = document.createElement('option');
-                option.value = story;
-                option.textContent = story;
-                selector.appendChild(option);
-            });
-            selector.disabled = false;
-            document.getElementById('beamTypeSelector').disabled = false;
-            // 【在最後一行後面加上】
-document.getElementById('mirrorModeToggle').disabled = false;
+        fullProcessedBeams = [];
+        fullDrawableBeams = [];
+        availableStories = [];
+        gridData = {};
+
+        if (fileInput.files.length === 0) {
+          statusDiv.innerHTML =
+            '<p class="error">Error: Please select an .e2k file first.</p>';
+          return;
+        }
+        const file = fileInput.files[0];
+        statusDiv.innerHTML = `<p>Reading file "${file.name}"...</p>`;
+        let fileContent;
+        try {
+          fileContent = await file.text();
+        } catch (error) {
+          statusDiv.innerHTML = `<p class="error">Failed to read file: ${error.message}</p>`;
+          return;
         }
 
-        function handleStoryChange() {
-            const storySelector = document.getElementById('storySelector');
-            const beamTypeSelector = document.getElementById('beamTypeSelector');
-            const selectedStory = storySelector.value;
-            const selectedBeamType = beamTypeSelector.value;
-            const svg = document.getElementById('drawing-svg');
+        try {
+          const storySectionMatch = fileContent.match(
+            /\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i
+          );
+          if (!storySectionMatch)
+            throw new Error(
+              "Could not find story definitions ($ STORIES) in the .e2k file."
+            );
+          const allStoryNames = storySectionMatch[1]
+            .trim()
+            .split("\n")
+            .map((line) => line.match(/STORY\s+"([^"]+)"/i)?.[1])
+            .filter(Boolean);
+          if (allStoryNames.length === 0)
+            throw new Error("Story definition block is empty.");
 
-            document.getElementById('plan-story-name').textContent = selectedStory === 'all' ? 'All Floors Combined' : selectedStory;
+          availableStories = allStoryNames;
+          populateStorySelector();
 
-            let beamsToDisplay = fullProcessedBeams;
-            let backgroundBeams = fullDrawableBeams;
+          statusDiv.innerHTML += `<p>Found ${availableStories.length} stories, parsing components...</p>`;
+          gridData = parseGrids(fileContent);
+          const joints = parseJoints(fileContent);
 
-            if (selectedStory !== 'all') {
-                beamsToDisplay = beamsToDisplay.filter(b => b.story === selectedStory);
-                backgroundBeams = backgroundBeams.filter(b => b.story === selectedStory);
-            }
+          let allBeamsAcrossStories = [];
+          for (const story of availableStories) {
+            const frames = parseFrames(fileContent, story);
+            if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+          }
+          if (allBeamsAcrossStories.length === 0)
+            throw new Error("No qualifying beams found on any story.");
 
-            if (selectedBeamType === 'main') {
-                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && !(b.newLabel.startsWith('b') || b.newLabel.startsWith('fb')));
-                backgroundBeams = backgroundBeams.filter(b => b.prop && !/SB/.test(b.prop.toUpperCase()));
-            } else if (selectedBeamType === 'secondary') {
-                beamsToDisplay = beamsToDisplay.filter(b => b.newLabel && (b.newLabel.toLowerCase().startsWith('b') || b.newLabel.toLowerCase().startsWith('fb')));
-                backgroundBeams = backgroundBeams.filter(b => b.prop && /SB/.test(b.prop.toUpperCase()));
-            }
+          fullDrawableBeams = allBeamsAcrossStories.map((f) => ({
+            ...f,
+            j1: joints[f.joint1],
+            j2: joints[f.joint2],
+          }));
+          storyOrderInfo = availableStories.reduce((acc, story, index) => {
+            acc[story] = index;
+            return acc;
+          }, {});
 
-            if (panZoomInstance) {
-                panZoomInstance.destroy();
-                panZoomInstance = null;
-            }
+          const mainBeams = allBeamsAcrossStories.filter((b) => {
+            const prop = b.prop.toUpperCase();
+            const isNumericBeam = /^\d+(\.\d+)?B/.test(prop);
+            return (
+              (isNumericBeam ||
+                prop.startsWith("B") ||
+                prop.startsWith("G") ||
+                prop.startsWith("FB") ||
+                prop.startsWith("FGB")) &&
+              !prop.startsWith("SB") &&
+              !prop.startsWith("FSB")
+            );
+          });
+          const secondaryBeams = allBeamsAcrossStories.filter(
+            (b) =>
+              b.prop.toUpperCase().startsWith("SB") &&
+              !b.prop.toUpperCase().startsWith("FSB")
+          );
+          const secondaryFoundationBeams = allBeamsAcrossStories.filter((b) =>
+            b.prop.toUpperCase().startsWith("FSB")
+          );
+          const specialBeams = allBeamsAcrossStories.filter(
+            (b) =>
+              b.prop.toUpperCase().startsWith("WB") ||
+              b.prop.toUpperCase().startsWith("FWB")
+          );
 
-            const labeledBeamsWithCoords = beamsToDisplay.map(beam => {
-                const originalBeam = fullDrawableBeams.find(b =>
-                    b.name === beam.name &&
-                    b.story === beam.story &&
-                    b.joint1 === beam.joint1 &&
-                    b.joint2 === beam.joint2
+          let allLabeledBeams = [...specialBeams];
+
+          for (const story of availableStories) {
+            const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
+            const secondaryBeamsInStory = secondaryBeams.filter(
+              (b) => b.story === story
+            );
+            const secondaryFoundationBeamsInStory =
+              secondaryFoundationBeams.filter((b) => b.story === story);
+
+            if (mainBeamsInStory.length > 0) {
+              const labelComponentMap = generateLabelsForStory(
+                mainBeamsInStory,
+                joints,
+                gridData
+              );
+              labelComponentMap.forEach((components, beamKey) => {
+                const [name, joint1, joint2] = beamKey.split("|");
+                const originalBeam = mainBeamsInStory.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2
                 );
-                return { ...beam,
-                    j1: originalBeam?.j1,
-                    j2: originalBeam?.j2
-                };
-            });
+                if (!originalBeam) return;
 
-            displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData);
+                const propUpper = originalBeam.prop.toUpperCase();
+                const prefix = components.isVertical
+                  ? propUpper.startsWith("FB")
+                    ? "FB"
+                    : "B"
+                  : propUpper.startsWith("FB")
+                  ? "FG"
+                  : "G";
 
-            if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
-                panZoomInstance = svgPanZoom('#drawing-svg', {
-                    panEnabled: true,
-                    zoomEnabled: true,
-                    dblClickZoomEnabled: true,
-                    controlIconsEnabled: true,
-                    fit: true,
-                    center: true,
-                    minZoom: 0.1,
-                    maxZoom: 50,
-                    // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
-                    onZoom: function(newZoom) {
-                        // --- 更新梁標籤 ---
-                        const beamLabels = document.querySelectorAll('#drawing-svg .beam-label');
-                        beamLabels.forEach(label => {
-                            // 1. 反向縮放字體大小和外框
-                            label.style.fontSize = `${INITIAL_BEAM_FONT_SIZE / newZoom}px`;
-                            label.style.strokeWidth = `${INITIAL_BEAM_LABEL_STROKE / newZoom}px`;
+                const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
+                const newLabel = `${finalPrefix}-${components.serial}`;
 
-                            // 2. 反向縮放位置偏移
-                            const baseX = parseFloat(label.dataset.baseX);
-                            const baseY = parseFloat(label.dataset.baseY);
-                            const orientation = label.dataset.orientation;
-
-                            if (orientation === 'horizontal') {
-                                const newOffsetY = INITIAL_HORIZONTAL_OFFSET / newZoom;
-                                label.setAttribute('y', baseY + newOffsetY);
-                            } else if (orientation === 'vertical') {
-                                const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
-                                const newRotatedX = baseX - newOffsetX;
-                                label.setAttribute('x', newRotatedX);
-                                // 更新旋轉變換，確保旋轉中心正確
-                                label.setAttribute('transform', `rotate(-90, ${newRotatedX}, ${baseY})`);
-                            } else if (orientation === 'angled') {
-                                const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
-                                label.setAttribute('dy', -newOffsetY);
-                            }
-                        });
-
-                        // --- 更新網格氣泡 ---
-                        const gridBubbles = document.querySelectorAll('#drawing-svg .grid-bubble');
-                        gridBubbles.forEach(bubble => {
-                            bubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS / newZoom);
-                            bubble.style.strokeWidth = `${INITIAL_GRID_BUBBLE_STROKE / newZoom}px`;
-                        });
-
-                        const gridBubbleTexts = document.querySelectorAll('#drawing-svg .grid-bubble-text');
-                        gridBubbleTexts.forEach(text => {
-                            text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
-                        });
-                    }
-                });
+                allLabeledBeams.push({ ...originalBeam, newLabel });
+              });
             }
+
+            if (secondaryBeamsInStory.length > 0) {
+              const secondaryBeamLabels = generateSecondaryBeamLabels(
+                secondaryBeamsInStory,
+                mainBeamsInStory,
+                joints,
+                "b"
+              );
+              secondaryBeamLabels.forEach((value, key) => {
+                const [name, joint1, joint2] = key.split("|");
+                const originalBeam = secondaryBeamsInStory.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2
+                );
+                if (originalBeam) {
+                  allLabeledBeams.push({
+                    ...originalBeam,
+                    newLabel: value.newLabel,
+                  });
+                }
+              });
+            }
+
+            if (secondaryFoundationBeamsInStory.length > 0) {
+              const foundationBeamLabels = generateSecondaryBeamLabels(
+                secondaryFoundationBeamsInStory,
+                mainBeamsInStory,
+                joints,
+                "fb"
+              );
+              foundationBeamLabels.forEach((value, key) => {
+                const [name, joint1, joint2] = key.split("|");
+                const originalBeam = secondaryFoundationBeamsInStory.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2
+                );
+                if (originalBeam) {
+                  allLabeledBeams.push({
+                    ...originalBeam,
+                    newLabel: value.newLabel,
+                  });
+                }
+              });
+            }
+          }
+
+          let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
+          finalProcessedData = finalProcessedData.filter(
+            (beam) => beam.newLabel
+          );
+
+          finalProcessedData.sort((a, b) => {
+            const storyCompare =
+              storyOrderInfo[a.story] - storyOrderInfo[b.story];
+            if (storyCompare !== 0) return storyCompare;
+
+            const aIsSecondary =
+              a.newLabel.toLowerCase().startsWith("b") ||
+              a.newLabel.toLowerCase().startsWith("fb");
+            const bIsSecondary =
+              b.newLabel.toLowerCase().startsWith("b") ||
+              b.newLabel.toLowerCase().startsWith("fb");
+
+            if (aIsSecondary && !bIsSecondary) return 1;
+            if (!aIsSecondary && bIsSecondary) return -1;
+
+            return (a.newLabel || "").localeCompare(b.newLabel || "", "en", {
+              numeric: true,
+            });
+          });
+
+          fullProcessedBeams = finalProcessedData;
+
+          if (availableStories.includes("2F")) {
+            storySelector.value = "2F";
+          }
+          handleStoryChange();
+
+          statusDiv.innerHTML = `<p>Processing complete! ${fullProcessedBeams.length} items numbered.</p>`;
+          if (fullProcessedBeams.length > 0) {
+            exportBtn.disabled = false;
+          }
+        } catch (error) {
+          statusDiv.innerHTML = `<p class="error">Processing failed: ${error.message}</p>`;
+          console.error(error);
+        }
+      }
+
+      function populateStorySelector() {
+        const selector = document.getElementById("storySelector");
+        selector.innerHTML = '<option value="all">All Floors</option>';
+        availableStories.forEach((story) => {
+          const option = document.createElement("option");
+          option.value = story;
+          option.textContent = story;
+          selector.appendChild(option);
+        });
+        selector.disabled = false;
+        document.getElementById("beamTypeSelector").disabled = false;
+        // 【在最後一行後面加上】
+        document.getElementById("mirrorModeToggle").disabled = false;
+      }
+
+      function handleStoryChange() {
+        const storySelector = document.getElementById("storySelector");
+        const beamTypeSelector = document.getElementById("beamTypeSelector");
+        const selectedStory = storySelector.value;
+        const selectedBeamType = beamTypeSelector.value;
+        const svg = document.getElementById("drawing-svg");
+
+        document.getElementById("plan-story-name").textContent =
+          selectedStory === "all" ? "All Floors Combined" : selectedStory;
+
+        let beamsToDisplay = fullProcessedBeams;
+        let backgroundBeams = fullDrawableBeams;
+
+        if (selectedStory !== "all") {
+          beamsToDisplay = beamsToDisplay.filter(
+            (b) => b.story === selectedStory
+          );
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.story === selectedStory
+          );
         }
 
-        function summarizeFloors(floors, storyOrder) {
-            if (!floors || floors.length === 0) return '';
-            if (floors.length === 1) return floors[0];
+        if (selectedBeamType === "main") {
+          beamsToDisplay = beamsToDisplay.filter(
+            (b) =>
+              b.newLabel &&
+              !(b.newLabel.startsWith("b") || b.newLabel.startsWith("fb"))
+          );
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.prop && !/SB/.test(b.prop.toUpperCase())
+          );
+        } else if (selectedBeamType === "secondary") {
+          beamsToDisplay = beamsToDisplay.filter(
+            (b) =>
+              b.newLabel &&
+              (b.newLabel.toLowerCase().startsWith("b") ||
+                b.newLabel.toLowerCase().startsWith("fb"))
+          );
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.prop && /SB/.test(b.prop.toUpperCase())
+          );
+        }
 
-            const sortedFloors = [...floors].sort((a, b) => storyOrder[a] - storyOrder[b]);
-            const ranges = [];
-            let rangeStart = sortedFloors[0];
+        if (panZoomInstance) {
+          panZoomInstance.destroy();
+          panZoomInstance = null;
+        }
 
-            for (let i = 1; i < sortedFloors.length; i++) {
-                const currentStoryOrder = storyOrder[sortedFloors[i]];
-                const prevStoryOrder = storyOrder[sortedFloors[i - 1]];
+        const labeledBeamsWithCoords = beamsToDisplay.map((beam) => {
+          const originalBeam = fullDrawableBeams.find(
+            (b) =>
+              b.name === beam.name &&
+              b.story === beam.story &&
+              b.joint1 === beam.joint1 &&
+              b.joint2 === beam.joint2
+          );
+          return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
+        });
 
-                if (currentStoryOrder !== prevStoryOrder + 1) {
-                    if (rangeStart === sortedFloors[i - 1]) {
-                        ranges.push(rangeStart);
-                    } else {
-                        ranges.push(`${rangeStart}~${sortedFloors[i-1]}`);
-                    }
-                    rangeStart = sortedFloors[i];
+        displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData);
+
+        if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
+          panZoomInstance = svgPanZoom("#drawing-svg", {
+            panEnabled: true,
+            zoomEnabled: true,
+            dblClickZoomEnabled: true,
+            controlIconsEnabled: true,
+            fit: true,
+            center: true,
+            minZoom: 0.1,
+            maxZoom: 50,
+            // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
+            onZoom: function (newZoom) {
+              // --- 更新梁標籤 ---
+              const beamLabels = document.querySelectorAll(
+                "#drawing-svg .beam-label"
+              );
+              beamLabels.forEach((label) => {
+                // 1. 反向縮放字體大小和外框
+                label.style.fontSize = `${INITIAL_BEAM_FONT_SIZE / newZoom}px`;
+                label.style.strokeWidth = `${
+                  INITIAL_BEAM_LABEL_STROKE / newZoom
+                }px`;
+
+                // 2. 反向縮放位置偏移
+                const baseX = parseFloat(label.dataset.baseX);
+                const baseY = parseFloat(label.dataset.baseY);
+                const orientation = label.dataset.orientation;
+
+                if (orientation === "horizontal") {
+                  const newOffsetY = INITIAL_HORIZONTAL_OFFSET / newZoom;
+                  label.setAttribute("y", baseY + newOffsetY);
+                } else if (orientation === "vertical") {
+                  const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
+                  const newRotatedX = baseX - newOffsetX;
+                  label.setAttribute("x", newRotatedX);
+                  // 更新旋轉變換，確保旋轉中心正確
+                  label.setAttribute(
+                    "transform",
+                    `rotate(-90, ${newRotatedX}, ${baseY})`
+                  );
+                } else if (orientation === "angled") {
+                  const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
+                  label.setAttribute("dy", -newOffsetY);
                 }
-            }
+              });
 
-            if (rangeStart === sortedFloors[sortedFloors.length - 1]) {
-                ranges.push(rangeStart);
+              // --- 更新網格氣泡 ---
+              const gridBubbles = document.querySelectorAll(
+                "#drawing-svg .grid-bubble"
+              );
+              gridBubbles.forEach((bubble) => {
+                bubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS / newZoom);
+                bubble.style.strokeWidth = `${
+                  INITIAL_GRID_BUBBLE_STROKE / newZoom
+                }px`;
+              });
+
+              const gridBubbleTexts = document.querySelectorAll(
+                "#drawing-svg .grid-bubble-text"
+              );
+              gridBubbleTexts.forEach((text) => {
+                text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
+              });
+            },
+          });
+        }
+      }
+
+      function summarizeFloors(floors, storyOrder) {
+        if (!floors || floors.length === 0) return "";
+        if (floors.length === 1) return floors[0];
+
+        const sortedFloors = [...floors].sort(
+          (a, b) => storyOrder[a] - storyOrder[b]
+        );
+        const ranges = [];
+        let rangeStart = sortedFloors[0];
+
+        for (let i = 1; i < sortedFloors.length; i++) {
+          const currentStoryOrder = storyOrder[sortedFloors[i]];
+          const prevStoryOrder = storyOrder[sortedFloors[i - 1]];
+
+          if (currentStoryOrder !== prevStoryOrder + 1) {
+            if (rangeStart === sortedFloors[i - 1]) {
+              ranges.push(rangeStart);
             } else {
-                ranges.push(`${rangeStart}~${sortedFloors[sortedFloors.length - 1]}`);
+              ranges.push(`${rangeStart}~${sortedFloors[i - 1]}`);
             }
-            return ranges.join(', ');
+            rangeStart = sortedFloors[i];
+          }
         }
 
-        function summarizeProperties(floorProps, storyOrder) {
-            if (!floorProps || floorProps.length === 0) return '';
-
-            const propsToFloorsMap = new Map();
-            for (const {
-                    story,
-                    prop
-                } of floorProps) {
-                if (!propsToFloorsMap.has(prop)) {
-                    propsToFloorsMap.set(prop, []);
-                }
-                propsToFloorsMap.get(prop).push(story);
-            }
-
-            const summaryParts = [];
-            propsToFloorsMap.forEach((floors, prop) => {
-                const floorRange = summarizeFloors(floors, storyOrder);
-                summaryParts.push(`${floorRange}: ${prop}`);
-            });
-
-            summaryParts.sort((a, b) => {
-                const firstStoryA = a.split(':')[0].trim().split('~')[0];
-                const firstStoryB = b.split(':')[0].trim().split('~')[0];
-                return storyOrder[firstStoryA] - storyOrder[firstStoryB];
-            });
-
-            return summaryParts.join('; ');
+        if (rangeStart === sortedFloors[sortedFloors.length - 1]) {
+          ranges.push(rangeStart);
+        } else {
+          ranges.push(`${rangeStart}~${sortedFloors[sortedFloors.length - 1]}`);
         }
-        
-        function displayResults(labeledBeams, allBeams, svg, grids) {
-            const beamCoords = allBeams.flatMap(b => [b.j1, b.j2]).filter(Boolean);
-            if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
-                svg.innerHTML = '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
-                return;
-            }
+        return ranges.join(", ");
+      }
 
-            const gridCoordsX = grids.x ? grids.x.map(g => g.ordinate) : [];
-            const gridCoordsY = grids.y ? grids.y.map(g => g.ordinate) : [];
-            const allX = beamCoords.map(p => p.x).concat(gridCoordsX);
-            const allY = beamCoords.map(p => p.y).concat(gridCoordsY);
-            const minX = Math.min(...allX);
-            const maxX = Math.max(...allX);
-            const minY = Math.min(...allY);
-            const maxY = Math.max(...allY);
+      function summarizeProperties(floorProps, storyOrder) {
+        if (!floorProps || floorProps.length === 0) return "";
 
-            const padding = 60;
-            const svgWidth = svg.clientWidth;
-            const svgHeight = svg.clientHeight;
-            const contentWidth = maxX - minX;
-            const contentHeight = maxY - minY;
-
-            let scale = Math.min((svgWidth - 2 * padding) / (contentWidth || 1), (svgHeight - 2 * padding) / (contentHeight || 1)) * 0.9;
-            if (!isFinite(scale) || scale === 0) scale = 1;
-
-            const transformX = (x) => padding + (x - minX) * scale;
-            const transformY = (y) => svgHeight - padding - (y - minY) * scale;
-
-            svg.innerHTML = '';
-
-            const allDrawableBeams = allBeams.filter(b => b.j1 && b.j2);
-            allDrawableBeams.forEach(beam => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', transformX(beam.j1.x));
-                line.setAttribute('y1', transformY(beam.j1.y));
-                line.setAttribute('x2', transformX(beam.j2.x));
-                line.setAttribute('y2', transformY(beam.j2.y));
-                line.setAttribute('class', 'beam-line');
-                svg.appendChild(line);
-            });
-
-            if (grids && grids.x && grids.y) {
-                const gridGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-                gridGroup.setAttribute('class', 'grid-lines');
-                grids.x.forEach(gridLine => {
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', transformX(gridLine.ordinate));
-                    line.setAttribute('y1', padding);
-                    line.setAttribute('x2', transformX(gridLine.ordinate));
-                    line.setAttribute('y2', svgHeight - padding);
-                    gridGroup.appendChild(line);
-                });
-                grids.y.forEach(gridLine => {
-                    const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                    line.setAttribute('x1', padding);
-                    line.setAttribute('y1', transformY(gridLine.ordinate));
-                    line.setAttribute('x2', svgWidth - padding);
-                    line.setAttribute('y2', transformY(gridLine.ordinate));
-                    gridGroup.appendChild(line);
-                });
-                svg.appendChild(gridGroup);
-                
-                const gridLabelsGroup = document.createElementNS('http://www.w3.org/2000/svg', 'g');
-
-                grids.x.forEach(gridLine => {
-                    const cx = transformX(gridLine.ordinate);
-                    const loc = gridLine.bubbleLoc;
-
-                    if (loc === 'End' || loc === 'Both' || !loc) {
-                        const cyTop = padding / 2;
-                        const topBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        topBubble.setAttribute('cx', cx);
-                        topBubble.setAttribute('cy', cyTop);
-                        topBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
-                        topBubble.setAttribute('class', 'grid-bubble');
-                        const topText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        topText.setAttribute('x', cx);
-                        topText.setAttribute('y', cyTop);
-                        topText.setAttribute('class', 'grid-bubble-text');
-                        topText.textContent = gridLine.name;
-                        gridLabelsGroup.appendChild(topBubble);
-                        gridLabelsGroup.appendChild(topText);
-                    }
-
-                    if (loc === 'Start' || loc === 'Both') {
-                        const cyBottom = svgHeight - padding / 2;
-                        const bottomBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        bottomBubble.setAttribute('cx', cx);
-                        bottomBubble.setAttribute('cy', cyBottom);
-                        bottomBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
-                        bottomBubble.setAttribute('class', 'grid-bubble');
-                        const bottomText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        bottomText.setAttribute('x', cx);
-                        bottomText.setAttribute('y', cyBottom);
-                        bottomText.setAttribute('class', 'grid-bubble-text');
-                        bottomText.textContent = gridLine.name;
-                        gridLabelsGroup.appendChild(bottomBubble);
-                        gridLabelsGroup.appendChild(bottomText);
-                    }
-                });
-
-                grids.y.forEach(gridLine => {
-                    const cy = transformY(gridLine.ordinate);
-                    const loc = gridLine.bubbleLoc;
-
-                    if (loc === 'Start' || loc === 'Both' || !loc) {
-                        const cxLeft = padding / 2;
-                        const leftBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        leftBubble.setAttribute('cx', cxLeft);
-                        leftBubble.setAttribute('cy', cy);
-                        leftBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
-                        leftBubble.setAttribute('class', 'grid-bubble');
-                        const leftText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        leftText.setAttribute('x', cxLeft);
-                        leftText.setAttribute('y', cy);
-                        leftText.setAttribute('class', 'grid-bubble-text');
-                        leftText.textContent = gridLine.name;
-                        gridLabelsGroup.appendChild(leftBubble);
-                        gridLabelsGroup.appendChild(leftText);
-                    }
-
-                    if (loc === 'End' || loc === 'Both') {
-                        const cxRight = svgWidth - padding / 2;
-                        const rightBubble = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
-                        rightBubble.setAttribute('cx', cxRight);
-                        rightBubble.setAttribute('cy', cy);
-                        rightBubble.setAttribute('r', INITIAL_GRID_BUBBLE_RADIUS);
-                        rightBubble.setAttribute('class', 'grid-bubble');
-                        const rightText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-                        rightText.setAttribute('x', cxRight);
-                        rightText.setAttribute('y', cy);
-                        rightText.setAttribute('class', 'grid-bubble-text');
-                        rightText.textContent = gridLine.name;
-                        gridLabelsGroup.appendChild(rightBubble);
-                        gridLabelsGroup.appendChild(rightText);
-                    }
-                });
-                svg.appendChild(gridLabelsGroup);
-            }
-
-            const labeledDrawableBeams = labeledBeams.filter(b => b.j1 && b.j2);
-            labeledDrawableBeams.forEach(beam => {
-                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
-                line.setAttribute('x1', transformX(beam.j1.x));
-                line.setAttribute('y1', transformY(beam.j1.y));
-                line.setAttribute('x2', transformX(beam.j2.x));
-                line.setAttribute('y2', transformY(beam.j2.y));
-
-                let className = 'labeled-beam-line';
-                if (beam.newLabel.startsWith('b') || beam.newLabel.startsWith('fb') || beam.newLabel === 'g1') {
-                    className = 'special-beam-line';
-                } else if (beam.prop.toUpperCase().startsWith('WB') || beam.prop.toUpperCase().startsWith('FWB')) {
-                    className = 'special-beam-line';
-                }
-
-                line.setAttribute('class', className);
-                svg.appendChild(line);
-
-                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
-
-                const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
-                const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
-                
-                // [新增] 將基準點座標存入 data-* 屬性
-                text.dataset.baseX = textX;
-                text.dataset.baseY = textY;
-
-                const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
-                const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
-
-                if (isHorizontal) {
-                    // [新增] 標記方向
-                    text.dataset.orientation = 'horizontal';
-                    text.setAttribute('x', textX);
-                    // [修改] 使用初始常數設定位置
-                    text.setAttribute('y', textY + INITIAL_HORIZONTAL_OFFSET);
-                    text.setAttribute('text-anchor', 'middle');
-
-                } else if (isVertical) {
-                    // [新增] 標記方向
-                    text.dataset.orientation = 'vertical';
-                    // [修改] 使用初始常數設定位置
-                    const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
-                    text.setAttribute('x', rotatedX);
-                    text.setAttribute('y', textY);
-                    text.setAttribute('text-anchor', 'middle');
-                    text.setAttribute('dominant-baseline', 'middle');
-                    // [修改] 更新旋轉中心點
-                    text.setAttribute('transform', `rotate(-90, ${rotatedX}, ${textY})`);
-                } else {
-                    // [新增] 標記方向
-                    text.dataset.orientation = 'angled';
-                    const x1_svg = transformX(beam.j1.x);
-                    const y1_svg = transformY(beam.j1.y);
-                    const x2_svg = transformX(beam.j2.x);
-                    const y2_svg = transformY(beam.j2.y);
-                    let angle = Math.atan2(y2_svg - y1_svg, x2_svg - x1_svg) * 180 / Math.PI;
-
-                    if (angle > 90 || angle < -90) {
-                        angle += 180;
-                    }
-                    
-                    text.setAttribute('x', textX);
-                    text.setAttribute('y', textY);
-                    text.setAttribute('text-anchor', 'middle');
-                    text.setAttribute('dominant-baseline', 'alphabetic');
-                    text.setAttribute('transform', `rotate(${angle}, ${textX}, ${textY})`);
-                    // [修改] 使用初始常數設定位置
-                    text.setAttribute('dy', -INITIAL_ANGLED_OFFSET);
-                }
-
-                text.setAttribute('class', 'beam-label');
-                text.textContent = beam.newLabel;
-                svg.appendChild(text);
-            });
+        const propsToFloorsMap = new Map();
+        for (const { story, prop } of floorProps) {
+          if (!propsToFloorsMap.has(prop)) {
+            propsToFloorsMap.set(prop, []);
+          }
+          propsToFloorsMap.get(prop).push(story);
         }
 
-        // --- Core Parsing & Labeling Functions (No changes below this line) ---
-        function parseGrids(content) {
-            const grids = {
-                x: [],
-                y: []
-            };
-            const gridTableSection = content.match(/TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/);
-            if (gridTableSection) {
-                let currentGrid = {};
-                const lines = gridTableSection[1].trim().split('\n');
-                lines.forEach(line => {
-                    const trimmedLine = line.trim();
-                    if (trimmedLine === "") {
-                        if (currentGrid.name && currentGrid.type && currentGrid.ordinate !== undefined) {
-                            if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid);
-                            else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid);
-                        }
-                        currentGrid = {};
-                    } else {
-                        const match = trimmedLine.match(/(\S+)\s*=\s*"?([^"]*)"?/);
-                        if (match) {
-                            const [, key, value] = match;
-                            if (key === 'GridID') currentGrid.name = value;
-                            if (key === 'GridType') currentGrid.type = value;
-                            if (key === 'Ordinate') currentGrid.ordinate = parseFloat(value);
-                            if (key === 'BubbleLoc') currentGrid.bubbleLoc = value;
-                        }
-                    }
-                });
-                if (currentGrid.name) {
-                    if (currentGrid.type.toUpperCase() === 'X') grids.x.push(currentGrid);
-                    else if (currentGrid.type.toUpperCase() === 'Y') grids.y.push(currentGrid);
-                }
-            }
-            if (grids.x.length === 0 && grids.y.length === 0) {
-                const gridDollarSection = content.match(/\$ GRIDS([\s\S]*?)(?=\$|$)/);
-                if (gridDollarSection) {
-                    const lines = gridDollarSection[1].trim().split('\n');
-                    lines.forEach(line => {
-                        const match = line.match(/LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i);
-                        if (match) {
-                            const [, name, type, ordinate] = match;
-                            const gridInfo = {
-                                name,
-                                type,
-                                ordinate: parseFloat(ordinate)
-                            };
-                            if (type.toUpperCase() === 'X') grids.x.push(gridInfo);
-                            else if (type.toUpperCase() === 'Y') grids.y.push(gridInfo);
-                        }
-                    });
-                }
-            }
-            if (grids.x.length === 0 && grids.y.length === 0) {
-                throw new Error("Could not find grid definitions.");
-            }
-            grids.x = [...new Map(grids.x.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
-            grids.y = [...new Map(grids.y.map(item => [item.name, item])).values()].sort((a, b) => a.ordinate - b.ordinate);
-            return grids;
+        const summaryParts = [];
+        propsToFloorsMap.forEach((floors, prop) => {
+          const floorRange = summarizeFloors(floors, storyOrder);
+          summaryParts.push(`${floorRange}: ${prop}`);
+        });
+
+        summaryParts.sort((a, b) => {
+          const firstStoryA = a.split(":")[0].trim().split("~")[0];
+          const firstStoryB = b.split(":")[0].trim().split("~")[0];
+          return storyOrder[firstStoryA] - storyOrder[firstStoryB];
+        });
+
+        return summaryParts.join("; ");
+      }
+
+      function displayResults(labeledBeams, allBeams, svg, grids) {
+        const beamCoords = allBeams
+          .flatMap((b) => [b.j1, b.j2])
+          .filter(Boolean);
+        if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
+          svg.innerHTML =
+            '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
+          return;
         }
 
-        function parseJoints(content) {
-            const joints = {};
-            const sciNotationRegex = /"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
-            const pointRegex = /^POINT\s+"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
-            const nameRegex = /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
+        const gridCoordsX = grids.x ? grids.x.map((g) => g.ordinate) : [];
+        const gridCoordsY = grids.y ? grids.y.map((g) => g.ordinate) : [];
+        const allX = beamCoords.map((p) => p.x).concat(gridCoordsX);
+        const allY = beamCoords.map((p) => p.y).concat(gridCoordsY);
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
 
-            const jointTableSection = content.match(/TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/);
-            if (jointTableSection) {
-                const lines = jointTableSection[1].trim().split('\n');
-                lines.forEach(line => {
-                    if (line.trim().startsWith('JOINT')) return;
-                    const match = line.trim().match(sciNotationRegex);
-                    if (match) {
-                        joints[match[1]] = {
-                            x: parseFloat(match[2]),
-                            y: parseFloat(match[3])
-                        };
-                    }
-                });
+        const padding = 60;
+        const svgWidth = svg.clientWidth;
+        const svgHeight = svg.clientHeight;
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+
+        let scale =
+          Math.min(
+            (svgWidth - 2 * padding) / (contentWidth || 1),
+            (svgHeight - 2 * padding) / (contentHeight || 1)
+          ) * 0.9;
+        if (!isFinite(scale) || scale === 0) scale = 1;
+
+        const transformX = (x) => padding + (x - minX) * scale;
+        const transformY = (y) => svgHeight - padding - (y - minY) * scale;
+
+        svg.innerHTML = "";
+
+        const allDrawableBeams = allBeams.filter((b) => b.j1 && b.j2);
+        allDrawableBeams.forEach((beam) => {
+          const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line"
+          );
+          line.setAttribute("x1", transformX(beam.j1.x));
+          line.setAttribute("y1", transformY(beam.j1.y));
+          line.setAttribute("x2", transformX(beam.j2.x));
+          line.setAttribute("y2", transformY(beam.j2.y));
+          line.setAttribute("class", "beam-line");
+          svg.appendChild(line);
+        });
+
+        if (grids && grids.x && grids.y) {
+          const gridGroup = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g"
+          );
+          gridGroup.setAttribute("class", "grid-lines");
+          grids.x.forEach((gridLine) => {
+            const line = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "line"
+            );
+            line.setAttribute("x1", transformX(gridLine.ordinate));
+            line.setAttribute("y1", padding);
+            line.setAttribute("x2", transformX(gridLine.ordinate));
+            line.setAttribute("y2", svgHeight - padding);
+            gridGroup.appendChild(line);
+          });
+          grids.y.forEach((gridLine) => {
+            const line = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "line"
+            );
+            line.setAttribute("x1", padding);
+            line.setAttribute("y1", transformY(gridLine.ordinate));
+            line.setAttribute("x2", svgWidth - padding);
+            line.setAttribute("y2", transformY(gridLine.ordinate));
+            gridGroup.appendChild(line);
+          });
+          svg.appendChild(gridGroup);
+
+          const gridLabelsGroup = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g"
+          );
+
+          grids.x.forEach((gridLine) => {
+            const cx = transformX(gridLine.ordinate);
+            const loc = gridLine.bubbleLoc;
+
+            if (loc === "End" || loc === "Both" || !loc) {
+              const cyTop = padding / 2;
+              const topBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              topBubble.setAttribute("cx", cx);
+              topBubble.setAttribute("cy", cyTop);
+              topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              topBubble.setAttribute("class", "grid-bubble");
+              const topText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              topText.setAttribute("x", cx);
+              topText.setAttribute("y", cyTop);
+              topText.setAttribute("class", "grid-bubble-text");
+              topText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(topBubble);
+              gridLabelsGroup.appendChild(topText);
             }
-            if (Object.keys(joints).length === 0) {
-                const lines = content.split('\n');
-                lines.forEach(line => {
-                    const match = line.trim().match(pointRegex);
-                    if (match) {
-                        joints[match[1]] = {
-                            x: parseFloat(match[2]),
-                            y: parseFloat(match[3])
-                        };
-                    }
-                });
+
+            if (loc === "Start" || loc === "Both") {
+              const cyBottom = svgHeight - padding / 2;
+              const bottomBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              bottomBubble.setAttribute("cx", cx);
+              bottomBubble.setAttribute("cy", cyBottom);
+              bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              bottomBubble.setAttribute("class", "grid-bubble");
+              const bottomText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              bottomText.setAttribute("x", cx);
+              bottomText.setAttribute("y", cyBottom);
+              bottomText.setAttribute("class", "grid-bubble-text");
+              bottomText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(bottomBubble);
+              gridLabelsGroup.appendChild(bottomText);
             }
-            if (Object.keys(joints).length === 0) {
-                const jointDollarSection = content.match(/\$ JOINTS([\s\S]*?)(?=\$|$)/s);
-                if (jointDollarSection) {
-                    const lines = jointDollarSection[1].trim().split('\n');
-                    lines.forEach(line => {
-                        const match = line.match(nameRegex);
-                        if (match) {
-                            joints[match[1]] = {
-                                x: parseFloat(match[2]),
-                                y: parseFloat(match[3])
-                            };
-                        }
-                    });
-                }
+          });
+
+          grids.y.forEach((gridLine) => {
+            const cy = transformY(gridLine.ordinate);
+            const loc = gridLine.bubbleLoc;
+
+            if (loc === "Start" || loc === "Both" || !loc) {
+              const cxLeft = padding / 2;
+              const leftBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              leftBubble.setAttribute("cx", cxLeft);
+              leftBubble.setAttribute("cy", cy);
+              leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              leftBubble.setAttribute("class", "grid-bubble");
+              const leftText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              leftText.setAttribute("x", cxLeft);
+              leftText.setAttribute("y", cy);
+              leftText.setAttribute("class", "grid-bubble-text");
+              leftText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(leftBubble);
+              gridLabelsGroup.appendChild(leftText);
             }
-            if (Object.keys(joints).length === 0) {
-                throw new Error("Could not find joint coordinate definitions.");
+
+            if (loc === "End" || loc === "Both") {
+              const cxRight = svgWidth - padding / 2;
+              const rightBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle"
+              );
+              rightBubble.setAttribute("cx", cxRight);
+              rightBubble.setAttribute("cy", cy);
+              rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              rightBubble.setAttribute("class", "grid-bubble");
+              const rightText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text"
+              );
+              rightText.setAttribute("x", cxRight);
+              rightText.setAttribute("y", cy);
+              rightText.setAttribute("class", "grid-bubble-text");
+              rightText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(rightBubble);
+              gridLabelsGroup.appendChild(rightText);
             }
-            return joints;
+          });
+          svg.appendChild(gridLabelsGroup);
         }
 
-        function parseFrames(content, story) {
-            const frames = [];
-            const isBeamProp = (propName) => {
-                if (!propName) return false;
-                const p = propName.toUpperCase();
-                const isNumericBeam = /^\d+(\.\d+)?B/.test(p);
-                return isNumericBeam || p.startsWith('B') || p.startsWith('G') || p.startsWith('SB') || p.startsWith('WB') || p.startsWith('FB') || p.startsWith('FGB') || p.startsWith('FSB') || p.startsWith('FWB');
-            };
+        const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
+        labeledDrawableBeams.forEach((beam) => {
+          const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line"
+          );
+          line.setAttribute("x1", transformX(beam.j1.x));
+          line.setAttribute("y1", transformY(beam.j1.y));
+          line.setAttribute("x2", transformX(beam.j2.x));
+          line.setAttribute("y2", transformY(beam.j2.y));
 
-            const frameTableSection = content.match(/TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/);
-            const frameAssignSection = content.match(/TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/);
-            if (frameTableSection && frameAssignSection) {
-                const connectivityLines = frameTableSection[1].trim().split('\n');
-                const assignLines = frameAssignSection[1].trim().split('\n');
-                const frameProperties = new Map();
-                assignLines.forEach(line => {
-                    const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
-                    if (match && match[2] === story) {
-                        frameProperties.set(match[1], match[3]);
-                    }
-                });
-                connectivityLines.forEach(line => {
-                    const match = line.trim().match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
-                    if (match) {
-                        const [, name, joint1, joint2] = match;
-                        const propName = frameProperties.get(name);
-                        if (isBeamProp(propName)) {
-                            frames.push({
-                                name,
-                                prop: propName,
-                                joint1,
-                                joint2,
-                                story
-                            });
-                        }
-                    }
-                });
+          let className = "labeled-beam-line";
+          if (
+            beam.newLabel.startsWith("b") ||
+            beam.newLabel.startsWith("fb") ||
+            beam.newLabel === "g1"
+          ) {
+            className = "special-beam-line";
+          } else if (
+            beam.prop.toUpperCase().startsWith("WB") ||
+            beam.prop.toUpperCase().startsWith("FWB")
+          ) {
+            className = "special-beam-line";
+          }
+
+          line.setAttribute("class", className);
+          svg.appendChild(line);
+
+          const text = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text"
+          );
+
+          const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
+          const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
+
+          // [新增] 將基準點座標存入 data-* 屬性
+          text.dataset.baseX = textX;
+          text.dataset.baseY = textY;
+
+          const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
+          const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
+
+          if (isHorizontal) {
+            // [新增] 標記方向
+            text.dataset.orientation = "horizontal";
+            text.setAttribute("x", textX);
+            // [修改] 使用初始常數設定位置
+            text.setAttribute("y", textY + INITIAL_HORIZONTAL_OFFSET);
+            text.setAttribute("text-anchor", "middle");
+          } else if (isVertical) {
+            // [新增] 標記方向
+            text.dataset.orientation = "vertical";
+            // [修改] 使用初始常數設定位置
+            const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
+            text.setAttribute("x", rotatedX);
+            text.setAttribute("y", textY);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "middle");
+            // [修改] 更新旋轉中心點
+            text.setAttribute(
+              "transform",
+              `rotate(-90, ${rotatedX}, ${textY})`
+            );
+          } else {
+            // [新增] 標記方向
+            text.dataset.orientation = "angled";
+            const x1_svg = transformX(beam.j1.x);
+            const y1_svg = transformY(beam.j1.y);
+            const x2_svg = transformX(beam.j2.x);
+            const y2_svg = transformY(beam.j2.y);
+            let angle =
+              (Math.atan2(y2_svg - y1_svg, x2_svg - x1_svg) * 180) / Math.PI;
+
+            if (angle > 90 || angle < -90) {
+              angle += 180;
             }
-            if (frames.length === 0) {
-                const lineConnectivitySection = content.match(/\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i);
-                const lineAssignsSection = content.match(/\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i);
-                if (lineConnectivitySection && lineAssignsSection) {
-                    const connectLines = lineConnectivitySection[1].trim().split('\n');
-                    const assignLines = lineAssignsSection[1].trim().split('\n');
-                    const beamAssigns = new Map();
-                    assignLines.forEach(line => {
-                        const assignMatch = line.match(new RegExp(`LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`, 'i'));
-                        if (assignMatch) {
-                            const [, name, propName] = assignMatch;
-                            if (isBeamProp(propName)) {
-                                beamAssigns.set(name, propName);
-                            }
-                        }
-                    });
-                    connectLines.forEach(line => {
-                        const connMatch = line.match(/LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i);
-                        if (connMatch) {
-                            const [, name, joint1, joint2] = connMatch;
-                            if (beamAssigns.has(name)) {
-                                frames.push({
-                                    name,
-                                    prop: beamAssigns.get(name),
-                                    joint1,
-                                    joint2,
-                                    story
-                                });
-                            }
-                        }
-                    });
-                }
+
+            text.setAttribute("x", textX);
+            text.setAttribute("y", textY);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "alphabetic");
+            text.setAttribute(
+              "transform",
+              `rotate(${angle}, ${textX}, ${textY})`
+            );
+            // [修改] 使用初始常數設定位置
+            text.setAttribute("dy", -INITIAL_ANGLED_OFFSET);
+          }
+
+          text.setAttribute("class", "beam-label");
+          text.textContent = beam.newLabel;
+          svg.appendChild(text);
+        });
+      }
+
+      // --- Core Parsing & Labeling Functions (No changes below this line) ---
+      function parseGrids(content) {
+        const grids = {
+          x: [],
+          y: [],
+        };
+        const gridTableSection = content.match(
+          /TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/
+        );
+        if (gridTableSection) {
+          let currentGrid = {};
+          const lines = gridTableSection[1].trim().split("\n");
+          lines.forEach((line) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine === "") {
+              if (
+                currentGrid.name &&
+                currentGrid.type &&
+                currentGrid.ordinate !== undefined
+              ) {
+                if (currentGrid.type.toUpperCase() === "X")
+                  grids.x.push(currentGrid);
+                else if (currentGrid.type.toUpperCase() === "Y")
+                  grids.y.push(currentGrid);
+              }
+              currentGrid = {};
+            } else {
+              const match = trimmedLine.match(/(\S+)\s*=\s*"?([^"]*)"?/);
+              if (match) {
+                const [, key, value] = match;
+                if (key === "GridID") currentGrid.name = value;
+                if (key === "GridType") currentGrid.type = value;
+                if (key === "Ordinate")
+                  currentGrid.ordinate = parseFloat(value);
+                if (key === "BubbleLoc") currentGrid.bubbleLoc = value;
+              }
             }
-            return frames;
+          });
+          if (currentGrid.name) {
+            if (currentGrid.type.toUpperCase() === "X")
+              grids.x.push(currentGrid);
+            else if (currentGrid.type.toUpperCase() === "Y")
+              grids.y.push(currentGrid);
+          }
         }
-
-        function findClosestGrid(coordinate, grids) {
-            if (!grids || grids.length === 0) return null;
-            return grids.reduce((closest, current) => {
-                const closestDiff = Math.abs(coordinate - closest.ordinate);
-                const currentDiff = Math.abs(coordinate - current.ordinate);
-                return currentDiff < closestDiff ? current : closest;
-            });
-        }
-        
-        function generateLabelsForStory(beamsInStory, joints, grids) {
-            const labelComponentMap = new Map();
-
-            // 【新的程式碼 - 請完整複製並替換】
-        function getBeamSerial(segment, grids, isHorizontal) {
-            const ON_GRID_TOLERANCE = 0.01;
-
-            // isHorizontal 對應的是 G 梁 (水平梁)
-            if (isHorizontal) {
-                const endGrid = findClosestGrid(segment.maxX, grids.x);
-            // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
-                if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-                    const n = parseInt(endGrid.name.replace(/^\D+/g, ''), 10);
-                    if (!isNaN(n)) {
-                        return n - 1;
-            }
-        }
-        
-            // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
-                const startGrid = findClosestGrid(segment.minX, grids.x);
-                const n = parseInt(startGrid.name.replace(/^\D+/g, ''), 10);
-                if (!isNaN(n)) {
-                    return n;
-        }
-
-        // else 對應的是 B 梁 (垂直梁)
-            } else { 
-                const endGrid = findClosestGrid(segment.maxY, grids.y);
-                // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
-                if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-                    // findIndex 會得到 0, 1, 2... 的索引值
-                    const index = grids.y.findIndex(g => g.name === endGrid.name);
-                    if (index !== -1) {
-                    // 你的要求 n 從 1 開始，所以 n = index + 1
-                    // 流水號要 n-1，所以就是 (index + 1) - 1 = index
-                        return index; 
-            }
-        }
-        
-        // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
-                const startGrid = findClosestGrid(segment.minY, grids.y);
-                const index = grids.y.findIndex(g => g.name === startGrid.name);
-                if (index !== -1) {
-                    // 你的要求 n 從 1 開始，所以 n = index + 1
-                    // 流水號直接用 n，所以就是 index + 1
-                    return index + 1;
-        }
-    }
-    
-            // 如果發生意外情況，回傳一個無效值
-            return NaN; 
-}   
-
-            function parseGridName(gridName) {
-                if (!gridName) return '';
-                const upperGridName = gridName.toUpperCase();
-                if (upperGridName.startsWith('X') || upperGridName.startsWith('Y')) {
-                    const match = gridName.match(/^[XY](.*)/i);
-                    return match ? match[1] : gridName;
-                }
-                return gridName;
-            }
-            
-            const beamsWithCoords = beamsInStory.map(b => {
-                const j1 = joints[b.joint1], j2 = joints[b.joint2];
-                if (!j1 || !j2) return null;
-                return {
-                    ...b, j1, j2,
-                    minX: Math.min(j1.x, j2.x), maxX: Math.max(j1.x, j2.x),
-                    minY: Math.min(j1.y, j2.y), maxY: Math.max(j1.y, j2.y),
-                    centerX: (j1.x + j2.x) / 2, centerY: (j1.y + j2.y) / 2,
-                    isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
-                    isVertical: Math.abs(j1.x - j2.x) < TOLERANCE
+        if (grids.x.length === 0 && grids.y.length === 0) {
+          const gridDollarSection = content.match(/\$ GRIDS([\s\S]*?)(?=\$|$)/);
+          if (gridDollarSection) {
+            const lines = gridDollarSection[1].trim().split("\n");
+            lines.forEach((line) => {
+              const match = line.match(
+                /LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i
+              );
+              if (match) {
+                const [, name, type, ordinate] = match;
+                const gridInfo = {
+                  name,
+                  type,
+                  ordinate: parseFloat(ordinate),
                 };
-            }).filter(Boolean);
-
-            const processedBeams = new Set();
-            beamsWithCoords.forEach(beam => {
-                const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
-                if (processedBeams.has(beamKey) || (!beam.isHorizontal && !beam.isVertical)) return;
-
-                processedBeams.add(beamKey);
-                
-                let serial;
-                let primaryGridName;
-                let subGridMarker = '';
-
-                if (beam.isVertical) {
-                    const onGrid = findClosestGrid(beam.centerX, grids.x);
-                    primaryGridName = parseGridName(onGrid.name);
-                    
-                    if (Math.abs(beam.centerX - onGrid.ordinate) >= TOLERANCE) {
-                        const prevGridX = grids.x.slice().reverse().find(g => g.ordinate < beam.centerX);
-                        if (!prevGridX) return; 
-                        primaryGridName = parseGridName(prevGridX.name);
-                        
-                        const nextGridX = onGrid;
-                        const uniqueXCoords = [...new Set(beamsWithCoords.filter(b => b.isVertical && b.centerX > prevGridX.ordinate && b.centerX < nextGridX.ordinate).map(b => b.centerX.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
-                        const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
-                        // 【新的程式碼】
-                        // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
-                        subGridMarker = String.fromCharCode(97 + rank);
-                    }
-                    serial = getBeamSerial(beam, grids, false);
-
-                } else { 
-                    const onGrid = findClosestGrid(beam.centerY, grids.y);
-                    primaryGridName = parseGridName(onGrid.name);
-                    
-                    if (Math.abs(beam.centerY - onGrid.ordinate) >= TOLERANCE) {
-                        const prevGridY = grids.y.slice().reverse().find(g => g.ordinate < beam.centerY);
-                        if (!prevGridY) return;
-                        primaryGridName = parseGridName(prevGridY.name);
-
-                        const nextGridY = onGrid;
-                        const uniqueYCoords = [...new Set(beamsWithCoords.filter(b => b.isHorizontal && b.centerY > prevGridY.ordinate && b.centerY < nextGridY.ordinate).map(b => b.centerY.toFixed(2)))].sort((a, b) => parseFloat(a) - parseFloat(b));
-                        const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
-                        // 【新的程式碼】
-                        // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
-                        subGridMarker = String.fromCharCode(97 + rank);
-                    }
-                    serial = getBeamSerial(beam, grids, true);
-                }
-
-                if (serial !== undefined && serial !== -1 && !isNaN(serial)) {
-                    labelComponentMap.set(beamKey, {
-                        isVertical: beam.isVertical,
-                        primaryGridName,
-                        subGridMarker,
-                        serial
-                    });
-                }
+                if (type.toUpperCase() === "X") grids.x.push(gridInfo);
+                else if (type.toUpperCase() === "Y") grids.y.push(gridInfo);
+              }
             });
-            return labelComponentMap;
+          }
         }
-
-        function distance(p1, p2) {
-            if (!p1 || !p2) return Infinity;
-            return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+        if (grids.x.length === 0 && grids.y.length === 0) {
+          throw new Error("Could not find grid definitions.");
         }
+        grids.x = [
+          ...new Map(grids.x.map((item) => [item.name, item])).values(),
+        ].sort((a, b) => a.ordinate - b.ordinate);
+        grids.y = [
+          ...new Map(grids.y.map((item) => [item.name, item])).values(),
+        ].sort((a, b) => a.ordinate - b.ordinate);
+        return grids;
+      }
 
-        function isPointOnSegment(point, segP1, segP2, tolerance) {
-            if (!point || !segP1 || !segP2) return false;
-            const segLength = distance(segP1, segP2);
-            if (segLength < tolerance) {
-                return distance(point, segP1) < tolerance;
+      function parseJoints(content) {
+        const joints = {};
+        const sciNotationRegex = /"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+        const pointRegex = /^POINT\s+"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+        const nameRegex =
+          /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
+
+        const jointTableSection = content.match(
+          /TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/
+        );
+        if (jointTableSection) {
+          const lines = jointTableSection[1].trim().split("\n");
+          lines.forEach((line) => {
+            if (line.trim().startsWith("JOINT")) return;
+            const match = line.trim().match(sciNotationRegex);
+            if (match) {
+              joints[match[1]] = {
+                x: parseFloat(match[2]),
+                y: parseFloat(match[3]),
+              };
             }
-            const distSum = distance(point, segP1) + distance(point, segP2);
-            return Math.abs(distSum - segLength) < tolerance;
+          });
         }
-        // =================================================================
-// [新增] ### 開始：幾何運算與對稱判斷輔助函式 ###
-// =================================================================
-
-const SYMMETRY_TOLERANCE = 0.2; // 5cm 的容許誤差值
-
-/**
- * 計算一組梁的形心 (幾何中心)
- * @param {Array} beams - 包含梁物件的陣列
- * @param {Object} joints - 包含所有節點座標的物件
- * @returns {Object|null} - 回傳形心座標 {x, y}，或在沒有有效節點時回傳 null
- */
-function calculateCentroid(beams, joints) {
-    const points = new Set();
-    beams.forEach(beam => {
-        if (joints[beam.joint1]) points.add(joints[beam.joint1]);
-        if (joints[beam.joint2]) points.add(joints[beam.joint2]);
-    });
-
-    if (points.size === 0) return null;
-
-    let sumX = 0;
-    let sumY = 0;
-    points.forEach(p => {
-        sumX += p.x;
-        sumY += p.y;
-    });
-
-    return { x: sumX / points.size, y: sumY / points.size };
-}
-
-/**
- * 對單一座標點執行鏡像轉換
- * @param {Object} point - 要轉換的點 {x, y}
- * @param {Object} axis - 對稱軸，包含點 {p1, p2} 和類型 'vertical'/'horizontal'
- * @returns {Object} - 鏡像後的新座標點 {x, y}
- */
-function mirrorPoint(point, axis) {
-    if (axis.type === 'vertical') {
-        const axisX = axis.p1.x;
-        return { x: 2 * axisX - point.x, y: point.y };
-    } else { // horizontal
-        const axisY = axis.p1.y;
-        return { x: point.x, y: 2 * axisY - point.y };
-    }
-}
-
-/**
- * 產生一個結構群組的特徵「指紋」，用於比對
- * @param {Array} component - 結構群組 (梁的陣列)
- * @param {Object} joints - 節點座標物件
- * @param {Object} centroid - 該群組的形心
- * @returns {String} - 代表該群組幾何特徵的字串
- */
-function generateComponentFingerprint(component, joints, centroid) {
-    const signatures = component.map(beam => {
-        const p1 = joints[beam.joint1];
-        const p2 = joints[beam.joint2];
-        if (!p1 || !p2) return null;
-
-        // 計算相對於形心的座標，以消除絕對位置的影響
-        const relP1 = { x: p1.x - centroid.x, y: p1.y - centroid.y };
-        const relP2 = { x: p2.x - centroid.x, y: p2.y - centroid.y };
-
-        // 建立梁的特徵，包含相對座標和斷面屬性
-        const sig1 = `${relP1.x.toFixed(3)},${relP1.y.toFixed(3)}`;
-        const sig2 = `${relP2.x.toFixed(3)},${relP2.y.toFixed(3)}`;
-
-        // 排序點的特徵，確保 A->B 和 B->A 的梁有相同的指紋
-        return sig1 < sig2 ? `${sig1}|${sig2}|${beam.prop}` : `${sig2}|${sig1}|${beam.prop}`;
-    }).filter(Boolean);
-
-    // 將所有梁的特徵排序，確保整體結構的指紋是唯一的
-    return signatures.sort().join(';');
-}
-
-
-/**
- * 檢查兩個結構群組是否鏡像對稱
- * @param {Array} compA - 結構群組 A
- * @param {Array} compB - 結構群組 B
- * @param {Object} joints - 節點座標物件
- * @returns {Object|null} - 如果對稱，回傳對稱軸資訊；否則回傳 null
- */
-function checkInterComponentSymmetry(compA, compB, joints) {
-    const centroidA = calculateCentroid(compA, joints);
-    const centroidB = calculateCentroid(compB, joints);
-    if (!centroidA || !centroidB) return null;
-
-    // 候選對稱軸：兩形心連線的中垂線 (這裡簡化為垂直或水平)
-    const midPoint = { x: (centroidA.x + centroidB.x) / 2, y: (centroidA.y + centroidB.y) / 2 };
-
-    // 檢查候選的垂直對稱軸
-    if (Math.abs(centroidA.y - centroidB.y) < SYMMETRY_TOLERANCE) {
-        const axis = { p1: midPoint, p2: {x: midPoint.x, y: midPoint.y + 1}, type: 'vertical' };
-        const mirroredCentroidB = mirrorPoint(centroidB, axis);
-        if (distance(centroidA, mirroredCentroidB) < SYMMETRY_TOLERANCE) {
-             const mirroredCompB = compB.map(beam => {
-                const m_p1 = mirrorPoint(joints[beam.joint1], axis);
-                const m_p2 = mirrorPoint(joints[beam.joint2], axis);
-                 // 建立一個假的 joints 物件來產生指紋
-                const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
-                return { ...beam, tempJoints };
+        if (Object.keys(joints).length === 0) {
+          const lines = content.split("\n");
+          lines.forEach((line) => {
+            const match = line.trim().match(pointRegex);
+            if (match) {
+              joints[match[1]] = {
+                x: parseFloat(match[2]),
+                y: parseFloat(match[3]),
+              };
+            }
+          });
+        }
+        if (Object.keys(joints).length === 0) {
+          const jointDollarSection = content.match(
+            /\$ JOINTS([\s\S]*?)(?=\$|$)/s
+          );
+          if (jointDollarSection) {
+            const lines = jointDollarSection[1].trim().split("\n");
+            lines.forEach((line) => {
+              const match = line.match(nameRegex);
+              if (match) {
+                joints[match[1]] = {
+                  x: parseFloat(match[2]),
+                  y: parseFloat(match[3]),
+                };
+              }
             });
-            
-            const tempMirroredJoints = mirroredCompB.reduce((acc, b) => ({...acc, ...b.tempJoints}), {});
-            const fingerprintA = generateComponentFingerprint(compA, joints, centroidA);
-            const fingerprintB_mirrored = generateComponentFingerprint(mirroredCompB, tempMirroredJoints, mirroredCentroidB);
-
-            if (fingerprintA === fingerprintB_mirrored) {
-                return axis;
-            }
+          }
         }
-    }
-    
-    // 檢查候選的水平對稱軸
-    if (Math.abs(centroidA.x - centroidB.x) < SYMMETRY_TOLERANCE) {
-        const axis = { p1: midPoint, p2: {x: midPoint.x + 1, y: midPoint.y}, type: 'horizontal' };
-        const mirroredCentroidB = mirrorPoint(centroidB, axis);
-        if (distance(centroidA, mirroredCentroidB) < SYMMETRY_TOLERANCE) {
-            const mirroredCompB = compB.map(beam => {
-                const m_p1 = mirrorPoint(joints[beam.joint1], axis);
-                const m_p2 = mirrorPoint(joints[beam.joint2], axis);
-                const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
-                return { ...beam, tempJoints };
+        if (Object.keys(joints).length === 0) {
+          throw new Error("Could not find joint coordinate definitions.");
+        }
+        return joints;
+      }
+
+      function parseFrames(content, story) {
+        const frames = [];
+        const isBeamProp = (propName) => {
+          if (!propName) return false;
+          const p = propName.toUpperCase();
+          const isNumericBeam = /^\d+(\.\d+)?B/.test(p);
+          return (
+            isNumericBeam ||
+            p.startsWith("B") ||
+            p.startsWith("G") ||
+            p.startsWith("SB") ||
+            p.startsWith("WB") ||
+            p.startsWith("FB") ||
+            p.startsWith("FGB") ||
+            p.startsWith("FSB") ||
+            p.startsWith("FWB")
+          );
+        };
+
+        const frameTableSection = content.match(
+          /TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/
+        );
+        const frameAssignSection = content.match(
+          /TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/
+        );
+        if (frameTableSection && frameAssignSection) {
+          const connectivityLines = frameTableSection[1].trim().split("\n");
+          const assignLines = frameAssignSection[1].trim().split("\n");
+          const frameProperties = new Map();
+          assignLines.forEach((line) => {
+            const match = line
+              .trim()
+              .match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+            if (match && match[2] === story) {
+              frameProperties.set(match[1], match[3]);
+            }
+          });
+          connectivityLines.forEach((line) => {
+            const match = line
+              .trim()
+              .match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+            if (match) {
+              const [, name, joint1, joint2] = match;
+              const propName = frameProperties.get(name);
+              if (isBeamProp(propName)) {
+                frames.push({
+                  name,
+                  prop: propName,
+                  joint1,
+                  joint2,
+                  story,
+                });
+              }
+            }
+          });
+        }
+        if (frames.length === 0) {
+          const lineConnectivitySection = content.match(
+            /\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i
+          );
+          const lineAssignsSection = content.match(
+            /\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i
+          );
+          if (lineConnectivitySection && lineAssignsSection) {
+            const connectLines = lineConnectivitySection[1].trim().split("\n");
+            const assignLines = lineAssignsSection[1].trim().split("\n");
+            const beamAssigns = new Map();
+            assignLines.forEach((line) => {
+              const assignMatch = line.match(
+                new RegExp(
+                  `LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`,
+                  "i"
+                )
+              );
+              if (assignMatch) {
+                const [, name, propName] = assignMatch;
+                if (isBeamProp(propName)) {
+                  beamAssigns.set(name, propName);
+                }
+              }
             });
-
-            const tempMirroredJoints = mirroredCompB.reduce((acc, b) => ({...acc, ...b.tempJoints}), {});
-            const fingerprintA = generateComponentFingerprint(compA, joints, centroidA);
-            const fingerprintB_mirrored = generateComponentFingerprint(mirroredCompB, tempMirroredJoints, mirroredCentroidB);
-
-            if (fingerprintA === fingerprintB_mirrored) {
-                return axis;
-            }
-        }
-    }
-
-    return null;
-}
-
-/**
- * 檢查單一結構群組是否內不對稱
- * @param {Array} component - 要檢查的結構群組
- * @param {Object} joints - 節點座標物件
- * @returns {Object|null} - 如果對稱，回傳對稱軸資訊；否則回傳 null
- */
-function checkIntraComponentSymmetry(component, joints) {
-    const centroid = calculateCentroid(component, joints);
-    if (!centroid) return null;
-
-    const axesToTest = [
-        { p1: centroid, p2: {x: centroid.x, y: centroid.y + 1}, type: 'vertical' },
-        { p1: centroid, p2: {x: centroid.x + 1, y: centroid.y}, type: 'horizontal' }
-    ];
-
-    for (const axis of axesToTest) {
-        let masterHalf = [];
-        let slaveHalf = [];
-
-        if (axis.type === 'vertical') {
-            component.forEach(beam => {
-                const p1 = joints[beam.joint1];
-                const p2 = joints[beam.joint2];
-                if (!p1 || !p2) return;
-                
-                // 分割規則：梁的中點在軸左側或軸上，則歸類為主體 (master)
-                const centerX = (p1.x + p2.x) / 2;
-                if (centerX <= axis.p1.x + SYMMETRY_TOLERANCE) {
-                    masterHalf.push(beam);
-                } else {
-                    slaveHalf.push(beam);
+            connectLines.forEach((line) => {
+              const connMatch = line.match(
+                /LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i
+              );
+              if (connMatch) {
+                const [, name, joint1, joint2] = connMatch;
+                if (beamAssigns.has(name)) {
+                  frames.push({
+                    name,
+                    prop: beamAssigns.get(name),
+                    joint1,
+                    joint2,
+                    story,
+                  });
                 }
+              }
             });
-        } else { // horizontal
-            component.forEach(beam => {
-                const p1 = joints[beam.joint1];
-                const p2 = joints[beam.joint2];
-                if (!p1 || !p2) return;
-
-                // 分割規則：梁的中點在軸下方或軸上，則歸類為主體 (master)
-                const centerY = (p1.y + p2.y) / 2;
-                if (centerY <= axis.p1.y + SYMMETRY_TOLERANCE) {
-                    masterHalf.push(beam);
-                } else {
-                    slaveHalf.push(beam);
-                }
-            });
+          }
         }
-        
-        if (masterHalf.length === 0 || slaveHalf.length === 0) continue;
-        
-        // 鏡像從屬體並進行比對
-        const centroidMaster = calculateCentroid(masterHalf, joints);
-        const centroidSlave = calculateCentroid(slaveHalf, joints);
-        if(!centroidMaster || !centroidSlave) continue;
+        return frames;
+      }
 
-        const mirroredCentroidSlave = mirrorPoint(centroidSlave, axis);
-        if (distance(centroidMaster, mirroredCentroidSlave) < SYMMETRY_TOLERANCE) {
-            const mirroredSlaveHalf = slaveHalf.map(beam => {
-                const m_p1 = mirrorPoint(joints[beam.joint1], axis);
-                const m_p2 = mirrorPoint(joints[beam.joint2], axis);
-                const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
-                return { ...beam, tempJoints };
-            });
+      function findClosestGrid(coordinate, grids) {
+        if (!grids || grids.length === 0) return null;
+        return grids.reduce((closest, current) => {
+          const closestDiff = Math.abs(coordinate - closest.ordinate);
+          const currentDiff = Math.abs(coordinate - current.ordinate);
+          return currentDiff < closestDiff ? current : closest;
+        });
+      }
 
-            const tempMirroredJoints = mirroredSlaveHalf.reduce((acc, b) => ({...acc, ...b.tempJoints}), {});
-            const fingerprintMaster = generateComponentFingerprint(masterHalf, joints, centroidMaster);
-            const fingerprintSlave_mirrored = generateComponentFingerprint(mirroredSlaveHalf, tempMirroredJoints, mirroredCentroidSlave);
-
-            if (fingerprintMaster === fingerprintSlave_mirrored) {
-                return axis; // 找到對稱！
-            }
-        }
-    }
-    
-    return null; // 沒有找到內部對稱
-}
-
-// =================================================================
-// [新增] ### 結束：幾何運算與對稱判斷輔助函式 ###
-// =================================================================
-        function findBuildingComponents(allBeamsOnStory, joints) {
-            if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
-
-            const GEOMETRIC_TOLERANCE = 0.01; 
-            const components = [];
-            const processedBeams = new Set();
-
-            const beamsWithCoords = allBeamsOnStory.map(b => ({
-                ...b,
-                p1: joints[b.joint1],
-                p2: joints[b.joint2]
-            })).filter(b => b.p1 && b.p2);
-
-            function areBeamsConnected(beamA, beamB) {
-                if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
-                if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
-                if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
-                if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
-                if (isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)) return true;
-                if (isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)) return true;
-                if (isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)) return true;
-                if (isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)) return true;
-                return false;
-            }
-
-            for (const startBeam of beamsWithCoords) {
-                if (processedBeams.has(startBeam.name)) {
-                    continue;
-                }
-
-                const currentComponent = [];
-                const q = [startBeam];
-                processedBeams.add(startBeam.name);
-
-                while (q.length > 0) {
-                    const currentBeam = q.shift();
-                    currentComponent.push(currentBeam);
-
-                    for (const otherBeam of beamsWithCoords) {
-                        if (processedBeams.has(otherBeam.name)) {
-                            continue;
-                        }
-                        if (areBeamsConnected(currentBeam, otherBeam)) {
-                            processedBeams.add(otherBeam.name);
-                            q.push(otherBeam);
-                        }
-                    }
-                }
-
-                if (currentComponent.length > 0) {
-                    components.push(currentComponent);
-                }
-            }
-            return components;
-        }
+      function generateLabelsForStory(beamsInStory, joints, grids) {
+        const labelComponentMap = new Map();
 
         // 【新的程式碼 - 請完整複製並替換】
-function generateSecondaryBeamLabels(secondaryBeamsToNumber, mainBeamsInStory, joints, prefix) {
-    const allLabels = new Map();
-    const useMirrorMode = document.getElementById('mirrorModeToggle').checked;
+        function getBeamSerial(segment, grids, isHorizontal) {
+          const ON_GRID_TOLERANCE = 0.01;
 
-    // 「核心編號引擎」：這是原本的編號邏輯，現在被封裝成一個內部函式
-    const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
-        const labels = new Map();
-        let counter = startCounter;
-        
-        const beamsWithData = beamsToNumber.map(b => {
-            const j1_coords = joints[b.joint1], j2_coords = joints[b.joint2];
-            if (!j1_coords || !j2_coords) return null;
-            const isHorizontal = Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
-            const isVertical = Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
-            let startJointName = b.joint1, endJointName = b.joint2;
-            if (isHorizontal && j1_coords.x > j2_coords.x) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
-            if (isVertical && j1_coords.y > j2_coords.y) { [startJointName, endJointName] = [b.joint2, b.joint1]; }
-            return { ...b, startJointName, endJointName, isHorizontal, isVertical };
-        }).filter(Boolean);
+          // isHorizontal 對應的是 G 梁 (水平梁)
+          if (isHorizontal) {
+            const endGrid = findClosestGrid(segment.maxX, grids.x);
+            // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
+            if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              const n = parseInt(endGrid.name.replace(/^\D+/g, ""), 10);
+              if (!isNaN(n)) {
+                return n - 1;
+              }
+            }
 
-        const processed = new Set();
-        const beamGroups = [
-            beamsWithData.filter(b => b.isHorizontal).sort((a, b) => joints[a.startJointName].y - joints[b.startJointName].y || joints[a.startJointName].x - joints[b.startJointName].x),
-            beamsWithData.filter(b => b.isVertical).sort((a, b) => joints[a.startJointName].x - joints[b.startJointName].x || joints[a.startJointName].y - joints[b.startJointName].y)
+            // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
+            const startGrid = findClosestGrid(segment.minX, grids.x);
+            const n = parseInt(startGrid.name.replace(/^\D+/g, ""), 10);
+            if (!isNaN(n)) {
+              return n;
+            }
+
+            // else 對應的是 B 梁 (垂直梁)
+          } else {
+            const endGrid = findClosestGrid(segment.maxY, grids.y);
+            // 規則 1：如果梁的結尾有接到 grid line，則流水號為 n-1
+            if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              // findIndex 會得到 0, 1, 2... 的索引值
+              const index = grids.y.findIndex((g) => g.name === endGrid.name);
+              if (index !== -1) {
+                // 你的要求 n 從 1 開始，所以 n = index + 1
+                // 流水號要 n-1，所以就是 (index + 1) - 1 = index
+                return index;
+              }
+            }
+
+            // 規則 2：如果結尾沒接到，則以梁開頭的 grid line n 去編
+            const startGrid = findClosestGrid(segment.minY, grids.y);
+            const index = grids.y.findIndex((g) => g.name === startGrid.name);
+            if (index !== -1) {
+              // 你的要求 n 從 1 開始，所以 n = index + 1
+              // 流水號直接用 n，所以就是 index + 1
+              return index + 1;
+            }
+          }
+
+          // 如果發生意外情況，回傳一個無效值
+          return NaN;
+        }
+
+        function parseGridName(gridName) {
+          if (!gridName) return "";
+          const upperGridName = gridName.toUpperCase();
+          if (upperGridName.startsWith("X") || upperGridName.startsWith("Y")) {
+            const match = gridName.match(/^[XY](.*)/i);
+            return match ? match[1] : gridName;
+          }
+          return gridName;
+        }
+
+        const beamsWithCoords = beamsInStory
+          .map((b) => {
+            const j1 = joints[b.joint1],
+              j2 = joints[b.joint2];
+            if (!j1 || !j2) return null;
+            return {
+              ...b,
+              j1,
+              j2,
+              minX: Math.min(j1.x, j2.x),
+              maxX: Math.max(j1.x, j2.x),
+              minY: Math.min(j1.y, j2.y),
+              maxY: Math.max(j1.y, j2.y),
+              centerX: (j1.x + j2.x) / 2,
+              centerY: (j1.y + j2.y) / 2,
+              isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
+              isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
+            };
+          })
+          .filter(Boolean);
+
+        const processedBeams = new Set();
+        beamsWithCoords.forEach((beam) => {
+          const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+          if (
+            processedBeams.has(beamKey) ||
+            (!beam.isHorizontal && !beam.isVertical)
+          )
+            return;
+
+          processedBeams.add(beamKey);
+
+          let serial;
+          let primaryGridName;
+          let subGridMarker = "";
+
+          if (beam.isVertical) {
+            const onGrid = findClosestGrid(beam.centerX, grids.x);
+            primaryGridName = parseGridName(onGrid.name);
+
+            if (Math.abs(beam.centerX - onGrid.ordinate) >= TOLERANCE) {
+              const prevGridX = grids.x
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerX);
+              if (!prevGridX) return;
+              primaryGridName = parseGridName(prevGridX.name);
+
+              const nextGridX = onGrid;
+              const uniqueXCoords = [
+                ...new Set(
+                  beamsWithCoords
+                    .filter(
+                      (b) =>
+                        b.isVertical &&
+                        b.centerX > prevGridX.ordinate &&
+                        b.centerX < nextGridX.ordinate
+                    )
+                    .map((b) => b.centerX.toFixed(2))
+                ),
+              ].sort((a, b) => parseFloat(a) - parseFloat(b));
+              const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+              // 【新的程式碼】
+              // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
+              subGridMarker = String.fromCharCode(97 + rank);
+            }
+            serial = getBeamSerial(beam, grids, false);
+          } else {
+            const onGrid = findClosestGrid(beam.centerY, grids.y);
+            primaryGridName = parseGridName(onGrid.name);
+
+            if (Math.abs(beam.centerY - onGrid.ordinate) >= TOLERANCE) {
+              const prevGridY = grids.y
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerY);
+              if (!prevGridY) return;
+              primaryGridName = parseGridName(prevGridY.name);
+
+              const nextGridY = onGrid;
+              const uniqueYCoords = [
+                ...new Set(
+                  beamsWithCoords
+                    .filter(
+                      (b) =>
+                        b.isHorizontal &&
+                        b.centerY > prevGridY.ordinate &&
+                        b.centerY < nextGridY.ordinate
+                    )
+                    .map((b) => b.centerY.toFixed(2))
+                ),
+              ].sort((a, b) => parseFloat(a) - parseFloat(b));
+              const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+              // 【新的程式碼】
+              // String.fromCharCode(97 + rank) 會將數字 (0, 1, 2...) 轉換成對應的小寫字母 (a, b, c...)
+              subGridMarker = String.fromCharCode(97 + rank);
+            }
+            serial = getBeamSerial(beam, grids, true);
+          }
+
+          if (serial !== undefined && serial !== -1 && !isNaN(serial)) {
+            labelComponentMap.set(beamKey, {
+              isVertical: beam.isVertical,
+              primaryGridName,
+              subGridMarker,
+              serial,
+            });
+          }
+        });
+        return labelComponentMap;
+      }
+
+      function distance(p1, p2) {
+        if (!p1 || !p2) return Infinity;
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+      }
+
+      function isPointOnSegment(point, segP1, segP2, tolerance) {
+        if (!point || !segP1 || !segP2) return false;
+        const segLength = distance(segP1, segP2);
+        if (segLength < tolerance) {
+          return distance(point, segP1) < tolerance;
+        }
+        const distSum = distance(point, segP1) + distance(point, segP2);
+        return Math.abs(distSum - segLength) < tolerance;
+      }
+      // =================================================================
+      // [新增] ### 開始：幾何運算與對稱判斷輔助函式 ###
+      // =================================================================
+
+      const SYMMETRY_TOLERANCE = 0.2; // 5cm 的容許誤差值
+
+      /**
+       * 計算一組梁的形心 (幾何中心)
+       * @param {Array} beams - 包含梁物件的陣列
+       * @param {Object} joints - 包含所有節點座標的物件
+       * @returns {Object|null} - 回傳形心座標 {x, y}，或在沒有有效節點時回傳 null
+       */
+      function calculateCentroid(beams, joints) {
+        const points = new Set();
+        beams.forEach((beam) => {
+          if (joints[beam.joint1]) points.add(joints[beam.joint1]);
+          if (joints[beam.joint2]) points.add(joints[beam.joint2]);
+        });
+
+        if (points.size === 0) return null;
+
+        let sumX = 0;
+        let sumY = 0;
+        points.forEach((p) => {
+          sumX += p.x;
+          sumY += p.y;
+        });
+
+        return { x: sumX / points.size, y: sumY / points.size };
+      }
+
+      /**
+       * 對單一座標點執行鏡像轉換
+       * @param {Object} point - 要轉換的點 {x, y}
+       * @param {Object} axis - 對稱軸，包含點 {p1, p2} 和類型 'vertical'/'horizontal'
+       * @returns {Object} - 鏡像後的新座標點 {x, y}
+       */
+      function mirrorPoint(point, axis) {
+        if (axis.type === "vertical") {
+          const axisX = axis.p1.x;
+          return { x: 2 * axisX - point.x, y: point.y };
+        } else {
+          // horizontal
+          const axisY = axis.p1.y;
+          return { x: point.x, y: 2 * axisY - point.y };
+        }
+      }
+
+      /**
+       * 產生一個結構群組的特徵「指紋」，用於比對
+       * @param {Array} component - 結構群組 (梁的陣列)
+       * @param {Object} joints - 節點座標物件
+       * @param {Object} centroid - 該群組的形心
+       * @returns {String} - 代表該群組幾何特徵的字串
+       */
+      function generateComponentFingerprint(component, joints, centroid) {
+        const signatures = component
+          .map((beam) => {
+            const p1 = joints[beam.joint1];
+            const p2 = joints[beam.joint2];
+            if (!p1 || !p2) return null;
+
+            // 計算相對於形心的座標，以消除絕對位置的影響
+            const relP1 = { x: p1.x - centroid.x, y: p1.y - centroid.y };
+            const relP2 = { x: p2.x - centroid.x, y: p2.y - centroid.y };
+
+            // 建立梁的特徵，包含相對座標和斷面屬性
+            const sig1 = `${relP1.x.toFixed(3)},${relP1.y.toFixed(3)}`;
+            const sig2 = `${relP2.x.toFixed(3)},${relP2.y.toFixed(3)}`;
+
+            // 排序點的特徵，確保 A->B 和 B->A 的梁有相同的指紋
+            return sig1 < sig2
+              ? `${sig1}|${sig2}|${beam.prop}`
+              : `${sig2}|${sig1}|${beam.prop}`;
+          })
+          .filter(Boolean);
+
+        // 將所有梁的特徵排序，確保整體結構的指紋是唯一的
+        return signatures.sort().join(";");
+      }
+
+      /**
+       * 檢查兩個結構群組是否鏡像對稱
+       * @param {Array} compA - 結構群組 A
+       * @param {Array} compB - 結構群組 B
+       * @param {Object} joints - 節點座標物件
+       * @returns {Object|null} - 如果對稱，回傳對稱軸資訊；否則回傳 null
+       */
+      function checkInterComponentSymmetry(compA, compB, joints) {
+        const centroidA = calculateCentroid(compA, joints);
+        const centroidB = calculateCentroid(compB, joints);
+        if (!centroidA || !centroidB) return null;
+
+        // 候選對稱軸：兩形心連線的中垂線 (這裡簡化為垂直或水平)
+        const midPoint = {
+          x: (centroidA.x + centroidB.x) / 2,
+          y: (centroidA.y + centroidB.y) / 2,
+        };
+
+        // 檢查候選的垂直對稱軸
+        if (Math.abs(centroidA.y - centroidB.y) < SYMMETRY_TOLERANCE) {
+          const axis = {
+            p1: midPoint,
+            p2: { x: midPoint.x, y: midPoint.y + 1 },
+            type: "vertical",
+          };
+          const mirroredCentroidB = mirrorPoint(centroidB, axis);
+          if (distance(centroidA, mirroredCentroidB) < SYMMETRY_TOLERANCE) {
+            const mirroredCompB = compB.map((beam) => {
+              const m_p1 = mirrorPoint(joints[beam.joint1], axis);
+              const m_p2 = mirrorPoint(joints[beam.joint2], axis);
+              // 建立一個假的 joints 物件來產生指紋
+              const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
+              return { ...beam, tempJoints };
+            });
+
+            const tempMirroredJoints = mirroredCompB.reduce(
+              (acc, b) => ({ ...acc, ...b.tempJoints }),
+              {}
+            );
+            const fingerprintA = generateComponentFingerprint(
+              compA,
+              joints,
+              centroidA
+            );
+            const fingerprintB_mirrored = generateComponentFingerprint(
+              mirroredCompB,
+              tempMirroredJoints,
+              mirroredCentroidB
+            );
+
+            if (fingerprintA === fingerprintB_mirrored) {
+              return axis;
+            }
+          }
+        }
+
+        // 檢查候選的水平對稱軸
+        if (Math.abs(centroidA.x - centroidB.x) < SYMMETRY_TOLERANCE) {
+          const axis = {
+            p1: midPoint,
+            p2: { x: midPoint.x + 1, y: midPoint.y },
+            type: "horizontal",
+          };
+          const mirroredCentroidB = mirrorPoint(centroidB, axis);
+          if (distance(centroidA, mirroredCentroidB) < SYMMETRY_TOLERANCE) {
+            const mirroredCompB = compB.map((beam) => {
+              const m_p1 = mirrorPoint(joints[beam.joint1], axis);
+              const m_p2 = mirrorPoint(joints[beam.joint2], axis);
+              const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
+              return { ...beam, tempJoints };
+            });
+
+            const tempMirroredJoints = mirroredCompB.reduce(
+              (acc, b) => ({ ...acc, ...b.tempJoints }),
+              {}
+            );
+            const fingerprintA = generateComponentFingerprint(
+              compA,
+              joints,
+              centroidA
+            );
+            const fingerprintB_mirrored = generateComponentFingerprint(
+              mirroredCompB,
+              tempMirroredJoints,
+              mirroredCentroidB
+            );
+
+            if (fingerprintA === fingerprintB_mirrored) {
+              return axis;
+            }
+          }
+        }
+
+        return null;
+      }
+
+      /**
+       * 檢查單一結構群組是否內不對稱
+       * @param {Array} component - 要檢查的結構群組
+       * @param {Object} joints - 節點座標物件
+       * @returns {Object|null} - 如果對稱，回傳對稱軸資訊；否則回傳 null
+       */
+      function checkIntraComponentSymmetry(component, joints) {
+        const centroid = calculateCentroid(component, joints);
+        if (!centroid) return null;
+
+        const axesToTest = [
+          {
+            p1: centroid,
+            p2: { x: centroid.x, y: centroid.y + 1 },
+            type: "vertical",
+          },
+          {
+            p1: centroid,
+            p2: { x: centroid.x + 1, y: centroid.y },
+            type: "horizontal",
+          },
         ];
 
-        let isVerticalRun = false;
-        beamGroups.forEach(group => {
+        for (const axis of axesToTest) {
+          let masterHalf = [];
+          let slaveHalf = [];
+
+          if (axis.type === "vertical") {
+            component.forEach((beam) => {
+              const p1 = joints[beam.joint1];
+              const p2 = joints[beam.joint2];
+              if (!p1 || !p2) return;
+
+              // 分割規則：梁的中點在軸左側或軸上，則歸類為主體 (master)
+              const centerX = (p1.x + p2.x) / 2;
+              if (centerX <= axis.p1.x + SYMMETRY_TOLERANCE) {
+                masterHalf.push(beam);
+              } else {
+                slaveHalf.push(beam);
+              }
+            });
+          } else {
+            // horizontal
+            component.forEach((beam) => {
+              const p1 = joints[beam.joint1];
+              const p2 = joints[beam.joint2];
+              if (!p1 || !p2) return;
+
+              // 分割規則：梁的中點在軸下方或軸上，則歸類為主體 (master)
+              const centerY = (p1.y + p2.y) / 2;
+              if (centerY <= axis.p1.y + SYMMETRY_TOLERANCE) {
+                masterHalf.push(beam);
+              } else {
+                slaveHalf.push(beam);
+              }
+            });
+          }
+
+          if (masterHalf.length === 0 || slaveHalf.length === 0) continue;
+
+          // 鏡像從屬體並進行比對
+          const centroidMaster = calculateCentroid(masterHalf, joints);
+          const centroidSlave = calculateCentroid(slaveHalf, joints);
+          if (!centroidMaster || !centroidSlave) continue;
+
+          const mirroredCentroidSlave = mirrorPoint(centroidSlave, axis);
+          if (
+            distance(centroidMaster, mirroredCentroidSlave) < SYMMETRY_TOLERANCE
+          ) {
+            const mirroredSlaveHalf = slaveHalf.map((beam) => {
+              const m_p1 = mirrorPoint(joints[beam.joint1], axis);
+              const m_p2 = mirrorPoint(joints[beam.joint2], axis);
+              const tempJoints = { [beam.joint1]: m_p1, [beam.joint2]: m_p2 };
+              return { ...beam, tempJoints };
+            });
+
+            const tempMirroredJoints = mirroredSlaveHalf.reduce(
+              (acc, b) => ({ ...acc, ...b.tempJoints }),
+              {}
+            );
+            const fingerprintMaster = generateComponentFingerprint(
+              masterHalf,
+              joints,
+              centroidMaster
+            );
+            const fingerprintSlave_mirrored = generateComponentFingerprint(
+              mirroredSlaveHalf,
+              tempMirroredJoints,
+              mirroredCentroidSlave
+            );
+
+            if (fingerprintMaster === fingerprintSlave_mirrored) {
+              return axis; // 找到對稱！
+            }
+          }
+        }
+
+        return null; // 沒有找到內部對稱
+      }
+
+      // =================================================================
+      // [新增] ### 結束：幾何運算與對稱判斷輔助函式 ###
+      // =================================================================
+      function findBuildingComponents(allBeamsOnStory, joints) {
+        if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
+
+        const GEOMETRIC_TOLERANCE = 0.01;
+        const components = [];
+        const processedBeams = new Set();
+
+        const beamsWithCoords = allBeamsOnStory
+          .map((b) => ({
+            ...b,
+            p1: joints[b.joint1],
+            p2: joints[b.joint2],
+          }))
+          .filter((b) => b.p1 && b.p2);
+
+        function areBeamsConnected(beamA, beamB) {
+          if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (
+            isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          return false;
+        }
+
+        for (const startBeam of beamsWithCoords) {
+          if (processedBeams.has(startBeam.name)) {
+            continue;
+          }
+
+          const currentComponent = [];
+          const q = [startBeam];
+          processedBeams.add(startBeam.name);
+
+          while (q.length > 0) {
+            const currentBeam = q.shift();
+            currentComponent.push(currentBeam);
+
+            for (const otherBeam of beamsWithCoords) {
+              if (processedBeams.has(otherBeam.name)) {
+                continue;
+              }
+              if (areBeamsConnected(currentBeam, otherBeam)) {
+                processedBeams.add(otherBeam.name);
+                q.push(otherBeam);
+              }
+            }
+          }
+
+          if (currentComponent.length > 0) {
+            components.push(currentComponent);
+          }
+        }
+        return components;
+      }
+
+      // 【新的程式碼 - 請完整複製並替換】
+      function generateSecondaryBeamLabels(
+        secondaryBeamsToNumber,
+        mainBeamsInStory,
+        joints,
+        prefix
+      ) {
+        const allLabels = new Map();
+        const useMirrorMode =
+          document.getElementById("mirrorModeToggle").checked;
+
+        // 「核心編號引擎」：這是原本的編號邏輯，現在被封裝成一個內部函式
+        const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
+          const labels = new Map();
+          let counter = startCounter;
+
+          const beamsWithData = beamsToNumber
+            .map((b) => {
+              const j1_coords = joints[b.joint1],
+                j2_coords = joints[b.joint2];
+              if (!j1_coords || !j2_coords) return null;
+              const isHorizontal =
+                Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
+              const isVertical =
+                Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
+              let startJointName = b.joint1,
+                endJointName = b.joint2;
+              if (isHorizontal && j1_coords.x > j2_coords.x) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              if (isVertical && j1_coords.y > j2_coords.y) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              return {
+                ...b,
+                startJointName,
+                endJointName,
+                isHorizontal,
+                isVertical,
+              };
+            })
+            .filter(Boolean);
+
+          const processed = new Set();
+          const beamGroups = [
+            beamsWithData
+              .filter((b) => b.isHorizontal)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].y - joints[b.startJointName].y ||
+                  joints[a.startJointName].x - joints[b.startJointName].x
+              ),
+            beamsWithData
+              .filter((b) => b.isVertical)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].x - joints[b.startJointName].x ||
+                  joints[a.startJointName].y - joints[b.startJointName].y
+              ),
+          ];
+
+          let isVerticalRun = false;
+          beamGroups.forEach((group) => {
             if (isVerticalRun && counter > 1) {
-                const lastNum = counter - 1;
-                counter = (lastNum % 10 === 0) ? lastNum + 1 : Math.ceil(lastNum / 10) * 10 + 1;
+              const lastNum = counter - 1;
+              counter =
+                lastNum % 10 === 0
+                  ? lastNum + 1
+                  : Math.ceil(lastNum / 10) * 10 + 1;
             }
             for (const startBeam of group) {
-                const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
-                if (processed.has(startKey)) continue;
+              const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
+              if (processed.has(startKey)) continue;
 
-                let chain = [startBeam];
-                processed.add(startKey);
-                let currentLink = startBeam;
+              let chain = [startBeam];
+              processed.add(startKey);
+              let currentLink = startBeam;
 
-                while (true) {
-                    const nextLink = group.find(b => {
-                        const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
-                        return !processed.has(nextKey) && b.startJointName === currentLink.endJointName;
-                    });
-                    if (nextLink) {
-                        chain.push(nextLink);
-                        processed.add(`${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`);
-                        currentLink = nextLink;
-                    } else { break; }
-                }
-                
-                if (chain.length > 1) {
-                    chain.forEach((beam, index) => {
-                        labels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, { newLabel: `${prefix}${counter}-${index + 1}` });
-                    });
+              while (true) {
+                const nextLink = group.find((b) => {
+                  const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
+                  return (
+                    !processed.has(nextKey) &&
+                    b.startJointName === currentLink.endJointName
+                  );
+                });
+                if (nextLink) {
+                  chain.push(nextLink);
+                  processed.add(
+                    `${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`
+                  );
+                  currentLink = nextLink;
                 } else {
-                    labels.set(`${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`, { newLabel: `${prefix}${counter}` });
+                  break;
                 }
-                counter++;
+              }
+
+              if (chain.length > 1) {
+                chain.forEach((beam, index) => {
+                  labels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, {
+                    newLabel: `${prefix}${counter}-${index + 1}`,
+                  });
+                });
+              } else {
+                labels.set(
+                  `${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`,
+                  { newLabel: `${prefix}${counter}` }
+                );
+              }
+              counter++;
             }
             isVerticalRun = true;
-        });
-        return { labels, nextCounter: counter };
-    };
-    
-    // 如果不使用鏡像模式，或小梁數量太少，直接使用舊方法
-    if (!useMirrorMode || secondaryBeamsToNumber.length < 2) {
-        const { labels } = coreNumberingEngine(secondaryBeamsToNumber);
-        return labels;
-    }
+          });
+          return { labels, nextCounter: counter };
+        };
 
-    // --- 開始執行鏡像模式的總指揮邏輯 ---
-    const allBeamsOnStory = [...secondaryBeamsToNumber, ...mainBeamsInStory];
-    const components = findBuildingComponents(allBeamsOnStory, joints)
-      .map(comp => comp.filter(b => secondaryBeamsToNumber.some(sb => sb.name === b.name)))
-      .filter(comp => comp.length > 0);
+        // 如果不使用鏡像模式，或小梁數量太少，直接使用舊方法
+        if (!useMirrorMode || secondaryBeamsToNumber.length < 2) {
+          const { labels } = coreNumberingEngine(secondaryBeamsToNumber);
+          return labels;
+        }
 
-    let processedComponents = new Set();
-    let globalCounter = 1;
+        // --- 開始執行鏡像模式的總指揮邏輯 ---
+        const allBeamsOnStory = [
+          ...secondaryBeamsToNumber,
+          ...mainBeamsInStory,
+        ];
+        const components = findBuildingComponents(allBeamsOnStory, joints)
+          .map((comp) =>
+            comp.filter((b) =>
+              secondaryBeamsToNumber.some((sb) => sb.name === b.name)
+            )
+          )
+          .filter((comp) => comp.length > 0);
 
-    // 階段一：棟間對稱
-    for (let i = 0; i < components.length; i++) {
-        if (processedComponents.has(i)) continue;
-        for (let j = i + 1; j < components.length; j++) {
+        let processedComponents = new Set();
+        let globalCounter = 1;
+
+        // 階段一：棟間對稱
+        for (let i = 0; i < components.length; i++) {
+          if (processedComponents.has(i)) continue;
+          for (let j = i + 1; j < components.length; j++) {
             if (processedComponents.has(j)) continue;
 
             const compA = components[i];
             const compB = components[j];
-            const symmetryAxis = checkInterComponentSymmetry(compA, compB, joints);
+            const symmetryAxis = checkInterComponentSymmetry(
+              compA,
+              compB,
+              joints
+            );
 
             if (symmetryAxis) {
-                const masterComp = (calculateCentroid(compA, joints).x <= calculateCentroid(compB, joints).x) ? compA : compB;
-                const slaveComp = (masterComp === compA) ? compB : compA;
-                
-                const { labels: masterLabels, nextCounter } = coreNumberingEngine(masterComp, globalCounter);
-                masterLabels.forEach((value, key) => allLabels.set(key, value));
+              const masterComp =
+                calculateCentroid(compA, joints).x <=
+                calculateCentroid(compB, joints).x
+                  ? compA
+                  : compB;
+              const slaveComp = masterComp === compA ? compB : compA;
 
-                // 映射編號
-                const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(key => masterComp.find(b => `${b.name}|${b.joint1}|${b.joint2}` === key));
-                
-                masterBeamsWithLabels.forEach(masterBeam => {
-                    const masterLabelInfo = masterLabels.get(`${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`);
-                    const mirrored_p1 = mirrorPoint(joints[masterBeam.joint1], symmetryAxis);
-                    
-                    const slaveBeam = slaveComp.find(b => 
-                        (distance(joints[b.joint1], mirrored_p1) < SYMMETRY_TOLERANCE) ||
-                        (distance(joints[b.joint2], mirrored_p1) < SYMMETRY_TOLERANCE)
-                    );
-                    
-                    if (slaveBeam) {
-                        allLabels.set(`${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`, { newLabel: masterLabelInfo.newLabel });
-                    }
-                });
+              const { labels: masterLabels, nextCounter } = coreNumberingEngine(
+                masterComp,
+                globalCounter
+              );
+              masterLabels.forEach((value, key) => allLabels.set(key, value));
 
-                processedComponents.add(i);
-                processedComponents.add(j);
-                globalCounter = nextCounter;
-                break; // CompA 找到配對，跳出內層迴圈
+              // 映射編號
+              const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(
+                (key) =>
+                  masterComp.find(
+                    (b) => `${b.name}|${b.joint1}|${b.joint2}` === key
+                  )
+              );
+
+              masterBeamsWithLabels.forEach((masterBeam) => {
+                const masterLabelInfo = masterLabels.get(
+                  `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`
+                );
+                const mirrored_p1 = mirrorPoint(
+                  joints[masterBeam.joint1],
+                  symmetryAxis
+                );
+
+                const slaveBeam = slaveComp.find(
+                  (b) =>
+                    distance(joints[b.joint1], mirrored_p1) <
+                      SYMMETRY_TOLERANCE ||
+                    distance(joints[b.joint2], mirrored_p1) < SYMMETRY_TOLERANCE
+                );
+
+                if (slaveBeam) {
+                  allLabels.set(
+                    `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`,
+                    { newLabel: masterLabelInfo.newLabel }
+                  );
+                }
+              });
+
+              processedComponents.add(i);
+              processedComponents.add(j);
+              globalCounter = nextCounter;
+              break; // CompA 找到配對，跳出內層迴圈
             }
+          }
         }
-    }
 
-    // 階段二：內部對稱
-    for (let i = 0; i < components.length; i++) {
-        if (processedComponents.has(i)) continue;
-        const component = components[i];
-        const symmetryAxis = checkIntraComponentSymmetry(component, joints);
+        // 階段二：內部對稱
+        for (let i = 0; i < components.length; i++) {
+          if (processedComponents.has(i)) continue;
+          const component = components[i];
+          const symmetryAxis = checkIntraComponentSymmetry(component, joints);
 
-        if (symmetryAxis) {
-            let masterHalf = [], slaveHalf = [];
+          if (symmetryAxis) {
+            let masterHalf = [],
+              slaveHalf = [];
             // 分割
-            if (symmetryAxis.type === 'vertical') {
-                 component.forEach(beam => {
-                    const centerX = (joints[beam.joint1].x + joints[beam.joint2].x) / 2;
-                    if (centerX <= symmetryAxis.p1.x + SYMMETRY_TOLERANCE) masterHalf.push(beam); else slaveHalf.push(beam);
-                });
-            } else { // horizontal
-                 component.forEach(beam => {
-                    const centerY = (joints[beam.joint1].y + joints[beam.joint2].y) / 2;
-                    if (centerY <= symmetryAxis.p1.y + SYMMETRY_TOLERANCE) masterHalf.push(beam); else slaveHalf.push(beam);
-                });
+            if (symmetryAxis.type === "vertical") {
+              component.forEach((beam) => {
+                const centerX =
+                  (joints[beam.joint1].x + joints[beam.joint2].x) / 2;
+                if (centerX <= symmetryAxis.p1.x + SYMMETRY_TOLERANCE)
+                  masterHalf.push(beam);
+                else slaveHalf.push(beam);
+              });
+            } else {
+              // horizontal
+              component.forEach((beam) => {
+                const centerY =
+                  (joints[beam.joint1].y + joints[beam.joint2].y) / 2;
+                if (centerY <= symmetryAxis.p1.y + SYMMETRY_TOLERANCE)
+                  masterHalf.push(beam);
+                else slaveHalf.push(beam);
+              });
             }
-            
-            const { labels: masterLabels, nextCounter } = coreNumberingEngine(masterHalf, globalCounter);
+
+            const { labels: masterLabels, nextCounter } = coreNumberingEngine(
+              masterHalf,
+              globalCounter
+            );
             masterLabels.forEach((value, key) => allLabels.set(key, value));
 
             // 映射編號
-            const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(key => masterHalf.find(b => `${b.name}|${b.joint1}|${b.joint2}` === key));
-             masterBeamsWithLabels.forEach(masterBeam => {
-                const masterLabelInfo = masterLabels.get(`${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`);
-                const mirrored_p1 = mirrorPoint(joints[masterBeam.joint1], symmetryAxis);
-                
-                const slaveBeam = slaveHalf.find(b => 
-                    (distance(joints[b.joint1], mirrored_p1) < SYMMETRY_TOLERANCE) ||
-                    (distance(joints[b.joint2], mirrored_p1) < SYMMETRY_TOLERANCE)
+            const masterBeamsWithLabels = Array.from(masterLabels.keys()).map(
+              (key) =>
+                masterHalf.find(
+                  (b) => `${b.name}|${b.joint1}|${b.joint2}` === key
+                )
+            );
+            masterBeamsWithLabels.forEach((masterBeam) => {
+              const masterLabelInfo = masterLabels.get(
+                `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`
+              );
+              const mirrored_p1 = mirrorPoint(
+                joints[masterBeam.joint1],
+                symmetryAxis
+              );
+
+              const slaveBeam = slaveHalf.find(
+                (b) =>
+                  distance(joints[b.joint1], mirrored_p1) <
+                    SYMMETRY_TOLERANCE ||
+                  distance(joints[b.joint2], mirrored_p1) < SYMMETRY_TOLERANCE
+              );
+
+              if (slaveBeam) {
+                allLabels.set(
+                  `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`,
+                  { newLabel: masterLabelInfo.newLabel }
                 );
-                
-                if (slaveBeam) {
-                    allLabels.set(`${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`, { newLabel: masterLabelInfo.newLabel });
-                }
+              }
             });
 
             processedComponents.add(i);
             globalCounter = nextCounter;
-        }
-    }
-
-    // 階段三：常規編號
-    for (let i = 0; i < components.length; i++) {
-        if (processedComponents.has(i)) continue;
-        const { labels, nextCounter } = coreNumberingEngine(components[i], globalCounter);
-        labels.forEach((value, key) => allLabels.set(key, value));
-        globalCounter = nextCounter;
-        processedComponents.add(i);
-    }
-
-    return allLabels;
-}
-
-        function applySpecialPrefixRules(allBeams) {
-            const processPrefix = (prefix) => {
-                const targetBeams = allBeams.filter(b => b.prop && b.prop.toUpperCase().startsWith(prefix));
-                if (targetBeams.length === 0) return null;
-                const uniqueProps = [...new Set(targetBeams.map(b => b.prop))];
-                const propRanks = uniqueProps.map(prop => {
-                    const match = prop.match(/(\d+)[xX](\d+)/);
-                    if (match) {
-                        return {
-                            propName: prop,
-                            area: parseInt(match[1], 10) * parseInt(match[2], 10)
-                        };
-                    }
-                    return {
-                        propName: prop,
-                        area: Infinity
-                    };
-                }).sort((a, b) => a.area - b.area);
-                const propToLabelMap = new Map();
-                propRanks.forEach((propInfo, index) => {
-                    propToLabelMap.set(propInfo.propName, `${prefix}${index + 1}`);
-                });
-                return propToLabelMap;
-            };
-            const wbLabelMap = processPrefix('WB');
-            const fwbLabelMap = processPrefix('FWB');
-            return allBeams.map(beam => {
-                if (wbLabelMap && wbLabelMap.has(beam.prop)) {
-                    return { ...beam,
-                        newLabel: wbLabelMap.get(beam.prop)
-                    };
-                }
-                if (fwbLabelMap && fwbLabelMap.has(beam.prop)) {
-                    return { ...beam,
-                        newLabel: fwbLabelMap.get(beam.prop)
-                    };
-                }
-                return beam;
-            });
+          }
         }
 
-        function generateFloorFingerprint(story, allBeams, precision = 2) {
-            const beamsOnStory = allBeams.filter(b => b.story === story);
-            if (beamsOnStory.length === 0) {
-                return '';
-            }
-
-            const beamSignatures = beamsOnStory.map(beam => {
-                if (!beam.j1 || !beam.j2) return '';
-
-                const x1 = beam.j1.x.toFixed(precision);
-                const y1 = beam.j1.y.toFixed(precision);
-                const x2 = beam.j2.x.toFixed(precision);
-                const y2 = beam.j2.y.toFixed(precision);
-
-                const point1Str = `${x1},${y1}`;
-                const point2Str = `${x2},${y2}`;
-
-                return point1Str < point2Str ? `${point1Str}|${point2Str}` : `${point2Str}|${point1Str}`;
-            }).filter(Boolean);
-
-            return beamSignatures.sort().join(';');
+        // 階段三：常規編號
+        for (let i = 0; i < components.length; i++) {
+          if (processedComponents.has(i)) continue;
+          const { labels, nextCounter } = coreNumberingEngine(
+            components[i],
+            globalCounter
+          );
+          labels.forEach((value, key) => allLabels.set(key, value));
+          globalCounter = nextCounter;
+          processedComponents.add(i);
         }
 
-        function createStandardFloorGroups() {
-            if (availableStories.length === 0) return [];
+        return allLabels;
+      }
 
-            const sortedStories = [...availableStories].sort((a, b) => storyOrderInfo[a] - storyOrderInfo[b]);
+      function applySpecialPrefixRules(allBeams) {
+        const processPrefix = (prefix) => {
+          const targetBeams = allBeams.filter(
+            (b) => b.prop && b.prop.toUpperCase().startsWith(prefix)
+          );
+          if (targetBeams.length === 0) return null;
+          const uniqueProps = [...new Set(targetBeams.map((b) => b.prop))];
+          const propRanks = uniqueProps
+            .map((prop) => {
+              const match = prop.match(/(\d+)[xX](\d+)/);
+              if (match) {
+                return {
+                  propName: prop,
+                  area: parseInt(match[1], 10) * parseInt(match[2], 10),
+                };
+              }
+              return {
+                propName: prop,
+                area: Infinity,
+              };
+            })
+            .sort((a, b) => a.area - b.area);
+          const propToLabelMap = new Map();
+          propRanks.forEach((propInfo, index) => {
+            propToLabelMap.set(propInfo.propName, `${prefix}${index + 1}`);
+          });
+          return propToLabelMap;
+        };
+        const wbLabelMap = processPrefix("WB");
+        const fwbLabelMap = processPrefix("FWB");
+        return allBeams.map((beam) => {
+          if (wbLabelMap && wbLabelMap.has(beam.prop)) {
+            return { ...beam, newLabel: wbLabelMap.get(beam.prop) };
+          }
+          if (fwbLabelMap && fwbLabelMap.has(beam.prop)) {
+            return { ...beam, newLabel: fwbLabelMap.get(beam.prop) };
+          }
+          return beam;
+        });
+      }
 
-            const fingerprints = sortedStories.map(story => ({
-                story,
-                fingerprint: generateFloorFingerprint(story, fullDrawableBeams, 2)
-            }));
+      function generateFloorFingerprint(story, allBeams, precision = 2) {
+        const beamsOnStory = allBeams.filter((b) => b.story === story);
+        if (beamsOnStory.length === 0) {
+          return "";
+        }
 
-            if (fingerprints.length === 0) return [];
+        const beamSignatures = beamsOnStory
+          .map((beam) => {
+            if (!beam.j1 || !beam.j2) return "";
 
-            const groups = [];
-            let currentGroup = [fingerprints[0].story];
+            const x1 = beam.j1.x.toFixed(precision);
+            const y1 = beam.j1.y.toFixed(precision);
+            const x2 = beam.j2.x.toFixed(precision);
+            const y2 = beam.j2.y.toFixed(precision);
 
-            for (let i = 1; i < fingerprints.length; i++) {
-                if (fingerprints[i].fingerprint === fingerprints[i - 1].fingerprint && fingerprints[i].fingerprint !== '') {
-                    currentGroup.push(fingerprints[i].story);
-                } else {
-                    groups.push(currentGroup);
-                    currentGroup = [fingerprints[i].story];
-                }
-            }
+            const point1Str = `${x1},${y1}`;
+            const point2Str = `${x2},${y2}`;
+
+            return point1Str < point2Str
+              ? `${point1Str}|${point2Str}`
+              : `${point2Str}|${point1Str}`;
+          })
+          .filter(Boolean);
+
+        return beamSignatures.sort().join(";");
+      }
+
+      function createStandardFloorGroups() {
+        if (availableStories.length === 0) return [];
+
+        const sortedStories = [...availableStories].sort(
+          (a, b) => storyOrderInfo[a] - storyOrderInfo[b]
+        );
+
+        const fingerprints = sortedStories.map((story) => ({
+          story,
+          fingerprint: generateFloorFingerprint(story, fullDrawableBeams, 2),
+        }));
+
+        if (fingerprints.length === 0) return [];
+
+        const groups = [];
+        let currentGroup = [fingerprints[0].story];
+
+        for (let i = 1; i < fingerprints.length; i++) {
+          if (
+            fingerprints[i].fingerprint === fingerprints[i - 1].fingerprint &&
+            fingerprints[i].fingerprint !== ""
+          ) {
+            currentGroup.push(fingerprints[i].story);
+          } else {
             groups.push(currentGroup);
+            currentGroup = [fingerprints[i].story];
+          }
+        }
+        groups.push(currentGroup);
 
-            return groups;
+        return groups;
+      }
+
+      function exportToExcel() {
+        if (fullProcessedBeams.length === 0) {
+          alert("沒有可匯出的資料。");
+          return;
         }
 
-        function exportToExcel() {
-            if (fullProcessedBeams.length === 0) {
-                alert("沒有可匯出的資料。");
-                return;
-            }
+        const standardFloorGroups = createStandardFloorGroups();
+        const preppedData = [];
 
-            const standardFloorGroups = createStandardFloorGroups();
-            const preppedData = [];
+        for (const group of standardFloorGroups) {
+          const beamsInGroup = fullProcessedBeams.filter((b) =>
+            group.includes(b.story)
+          );
 
-            for (const group of standardFloorGroups) {
-                const beamsInGroup = fullProcessedBeams.filter(b => group.includes(b.story));
-
-                if (group.length === 1) {
-                    beamsInGroup.forEach(beam => {
-                        preppedData.push({
-                            floor: beam.story,
-                            etabsLabel: beam.name,
-                            newLabel: beam.newLabel,
-                        });
-                    });
-                } else {
-                    const mergedBeamsInGroup = new Map();
-                    beamsInGroup.forEach(beam => {
-                        const key = beam.newLabel;
-                        if (!mergedBeamsInGroup.has(key)) {
-                            mergedBeamsInGroup.set(key, {
-                                name: beam.name,
-                                newLabel: beam.newLabel,
-                                floorProps: []
-                            });
-                        }
-                        mergedBeamsInGroup.get(key).floorProps.push({
-                            story: beam.story,
-                            prop: beam.prop
-                        });
-                    });
-
-                    mergedBeamsInGroup.forEach(mergedBeam => {
-                        const floorString = summarizeFloors(group, storyOrderInfo);
-                        preppedData.push({
-                            floor: floorString,
-                            etabsLabel: mergedBeam.name,
-                            newLabel: mergedBeam.newLabel,
-                        });
-                    });
-                }
-            }
-
-            const mainBeamsData = [];
-            const secondaryBeamsData = [];
-
-            preppedData.forEach(item => {
-                if (item.newLabel && (item.newLabel.toLowerCase().startsWith('b') || item.newLabel.toLowerCase().startsWith('fb'))) {
-                    secondaryBeamsData.push({
-                        'ETABS編號': item.etabsLabel,
-                        '編號': item.newLabel,
-                        '樓層': item.floor
-                    });
-                } else {
-                    mainBeamsData.push({
-                        'ETABS編號': item.etabsLabel,
-                        '編號': item.newLabel,
-                        '樓層': item.floor
-                    });
-                }
+          if (group.length === 1) {
+            beamsInGroup.forEach((beam) => {
+              preppedData.push({
+                floor: beam.story,
+                etabsLabel: beam.name,
+                newLabel: beam.newLabel,
+              });
             });
-
-            const workbook = XLSX.utils.book_new();
-
-            const mainWs = XLSX.utils.json_to_sheet(mainBeamsData);
-            XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
-
-            const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
-            XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁與小地梁");
-
-            XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
-        }
-
-        function setupSelectWheelListeners() {
-            const selectors = document.querySelectorAll('#storySelector, #beamTypeSelector');
-
-            selectors.forEach(select => {
-                select.addEventListener('wheel', (event) => {
-                    if (select.options.length === 0 || select.disabled) {
-                        return;
-                    }
-                    event.preventDefault();
-                    const currentIndex = select.selectedIndex;
-                    let newIndex = currentIndex;
-                    if (event.deltaY < 0) {
-                        newIndex = Math.max(0, currentIndex - 1);
-                    } else {
-                        newIndex = Math.min(select.options.length - 1, currentIndex + 1);
-                    }
-                    if (newIndex !== currentIndex) {
-                        select.selectedIndex = newIndex;
-                        select.dispatchEvent(new Event('change'));
-                    }
+          } else {
+            const mergedBeamsInGroup = new Map();
+            beamsInGroup.forEach((beam) => {
+              const key = beam.newLabel;
+              if (!mergedBeamsInGroup.has(key)) {
+                mergedBeamsInGroup.set(key, {
+                  name: beam.name,
+                  newLabel: beam.newLabel,
+                  floorProps: [],
                 });
+              }
+              mergedBeamsInGroup.get(key).floorProps.push({
+                story: beam.story,
+                prop: beam.prop,
+              });
             });
+
+            mergedBeamsInGroup.forEach((mergedBeam) => {
+              const floorString = summarizeFloors(group, storyOrderInfo);
+              preppedData.push({
+                floor: floorString,
+                etabsLabel: mergedBeam.name,
+                newLabel: mergedBeam.newLabel,
+              });
+            });
+          }
         }
-        
-        setupSelectWheelListeners();
+
+        const mainBeamsData = [];
+        const secondaryBeamsData = [];
+
+        preppedData.forEach((item) => {
+          if (
+            item.newLabel &&
+            (item.newLabel.toLowerCase().startsWith("b") ||
+              item.newLabel.toLowerCase().startsWith("fb"))
+          ) {
+            secondaryBeamsData.push({
+              ETABS編號: item.etabsLabel,
+              編號: item.newLabel,
+              樓層: item.floor,
+            });
+          } else {
+            mainBeamsData.push({
+              ETABS編號: item.etabsLabel,
+              編號: item.newLabel,
+              樓層: item.floor,
+            });
+          }
+        });
+
+        const workbook = XLSX.utils.book_new();
+
+        const mainWs = XLSX.utils.json_to_sheet(mainBeamsData);
+        XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
+
+        const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
+        XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁與小地梁");
+
+        XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
+      }
+
+      function setupSelectWheelListeners() {
+        const selectors = document.querySelectorAll(
+          "#storySelector, #beamTypeSelector"
+        );
+
+        selectors.forEach((select) => {
+          select.addEventListener("wheel", (event) => {
+            if (select.options.length === 0 || select.disabled) {
+              return;
+            }
+            event.preventDefault();
+            const currentIndex = select.selectedIndex;
+            let newIndex = currentIndex;
+            if (event.deltaY < 0) {
+              newIndex = Math.max(0, currentIndex - 1);
+            } else {
+              newIndex = Math.min(select.options.length - 1, currentIndex + 1);
+            }
+            if (newIndex !== currentIndex) {
+              select.selectedIndex = newIndex;
+              select.dispatchEvent(new Event("change"));
+            }
+          });
+        });
+      }
+
+      setupSelectWheelListeners();
     </script>
-</body>
+  </body>
 </html>
