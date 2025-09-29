@@ -286,6 +286,10 @@
             <input type="file" id="e2kFile" accept=".e2k" />
           </div>
           <div class="control-group">
+            <div class="control-group">
+              <input type="checkbox" id="mirrorModeToggle" />
+              <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
+            </div>
             <button class="btn-process" onclick="processE2k()">開始編號</button>
             <button
               class="btn-export"
@@ -314,13 +318,8 @@
             >
               <option value="all">顯示全部</option>
               <option value="main">只顯示大梁</option>
-              <option value="secondary">只顯示小梁/小地梁</option>
+              <option value="secondary">只顯示小梁</option>
             </select>
-
-            <div class="control-group" style="margin-left: 20px">
-              <input type="checkbox" id="mirrorModeToggle" disabled />
-              <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
-            </div>
           </div>
         </div>
       </div>
@@ -642,10 +641,7 @@
           );
         } else if (selectedBeamType === "secondary") {
           beamsToDisplay = beamsToDisplay.filter(
-            (b) =>
-              b.newLabel &&
-              (b.newLabel.toLowerCase().startsWith("b") ||
-                b.newLabel.toLowerCase().startsWith("fb"))
+            (b) => b.newLabel && b.newLabel && /^(b|fb)\d/.test(b.newLabel)
           );
           backgroundBeams = backgroundBeams.filter(
             (b) => b.prop && /SB/.test(b.prop.toUpperCase())
@@ -1577,13 +1573,17 @@
             const p2 = joints[beam.joint2];
             if (!p1 || !p2) return null;
 
-            // 計算相對於形心的座標，以消除絕對位置的影響
+            // ... 函式內部 ...
             const relP1 = { x: p1.x - centroid.x, y: p1.y - centroid.y };
-            const relP2 = { x: p2.x - centroid.x, y: p2.y - centroid.y };
+            const relP2 = { x: p2.x - centroid.x, y: p2.y - centroid.y }; // 【已修正】建立梁的特徵，使用座標的絕對值來忽略正負號
 
-            // 建立梁的特徵，包含相對座標和斷面屬性
-            const sig1 = `${relP1.x.toFixed(3)},${relP1.y.toFixed(3)}`;
-            const sig2 = `${relP2.x.toFixed(3)},${relP2.y.toFixed(3)}`;
+            const sig1 = `${Math.abs(relP1.x).toFixed(3)},${Math.abs(
+              relP1.y
+            ).toFixed(3)}`;
+            const sig2 = `${Math.abs(relP2.x).toFixed(3)},${Math.abs(
+              relP2.y
+            ).toFixed(3)}`;
+            // ...
 
             // 排序點的特徵，確保 A->B 和 B->A 的梁有相同的指紋
             return sig1 < sig2
@@ -2337,7 +2337,7 @@
         XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
 
         const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
-        XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁與小地梁");
+        XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁");
 
         XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
       }
