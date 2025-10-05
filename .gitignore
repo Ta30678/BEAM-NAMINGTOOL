@@ -1,0 +1,43 @@
+# C# / .NET
+bin/
+obj/
+*.dll
+*.exe
+*.pdb
+*.user
+*.suo
+*.userprefs
+.vs/
+
+# AutoCAD
+*.dwg
+*.dwl
+*.dwl2
+*.bak
+
+# Node modules (if any)
+node_modules/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Temporary files
+*.tmp
+*.temp
+
+# Visual Studio Code
+.vscode/
+
+# E2K files (optional - 如果不想上傳大型檔案)
+# *.e2k
+
+# Excel exports
+*.xlsx
+*.xls
+
+# JSON exports (optional)
+# *.json
