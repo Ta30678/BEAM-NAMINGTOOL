@@ -297,7 +297,9 @@
               <input type="checkbox" id="mirrorModeToggle" />
               <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
             </div>
-            <button class="btn-process" onclick="processE2k()">開始編號</button>
+            <button class="btn-process" id="previewBtn" onclick="previewFile()">預覽結構</button>
+            <button class="btn-process" id="configBtn" onclick="showGridConfig()" disabled>設定編號規則</button>
+            <button class="btn-process" id="processBtn" onclick="processE2k()" disabled>執行編號</button>
             <button
               class="btn-export"
               id="exportBtn"
@@ -331,6 +333,34 @@
         </div>
       </div>
       <div id="status"></div>
+
+      <!-- 格線編號配置面板 -->
+      <div id="grid-config-panel" style="display: none; margin-bottom: 20px;">
+        <div class="control-area">
+          <h3>格線編號規則設定</h3>
+          <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.95em;">
+            💡 提示：<br>
+            • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b>（例如：設定 A=1，系統自動設定 B=2, C=3...）<br>
+            • 輸入 <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">-</code> / <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">skip</code> / 留空 來跳過不編號的格線<br>
+            • 您隨時可以手動修改任何格線的編號
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+            <div>
+              <h4 style="color: var(--theme-text-secondary); margin-bottom: 10px;">X 軸格線 (垂直方向)</h4>
+              <div id="x-grid-config" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+            <div>
+              <h4 style="color: var(--theme-text-secondary); margin-bottom: 10px;">Y 軸格線 (水平方向)</h4>
+              <div id="y-grid-config" style="max-height: 300px; overflow-y: auto;"></div>
+            </div>
+          </div>
+          <div style="margin-top: 15px; text-align: right;">
+            <button class="btn-process" onclick="applyGridConfig()">套用設定並執行編號</button>
+            <button class="btn-export" onclick="cancelGridConfig()">取消</button>
+          </div>
+        </div>
+      </div>
+
       <div id="output">
         <div id="drawing">
           <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
@@ -338,6 +368,29 @@
         </div>
       </div>
     </div>
+
+    <!-- 梁編號編輯對話框 (移到 container 外面，相對於整個視窗定位) -->
+    <div id="beam-edit-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 12px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); min-width: 400px;">
+      <h3 style="margin-top: 0;">編輯梁編號</h3>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">ETABS 編號:</label>
+        <input type="text" id="edit-etabs-name" readonly style="width: 100%; padding: 8px; background: var(--theme-bg); border: 1px solid var(--theme-border); border-radius: 6px;" />
+      </div>
+      <div style="margin-bottom: 15px;">
+        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">樓層:</label>
+        <input type="text" id="edit-story" readonly style="width: 100%; padding: 8px; background: var(--theme-bg); border: 1px solid var(--theme-border); border-radius: 6px;" />
+      </div>
+      <div style="margin-bottom: 20px;">
+        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">新編號:</label>
+        <input type="text" id="edit-new-label" style="width: 100%; padding: 8px; border: 1px solid var(--theme-border); border-radius: 6px;" placeholder="輸入新的編號" />
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+        <button class="btn-export" onclick="closeBeamEditDialog()">取消</button>
+        <button class="btn-process" onclick="saveBeamEdit()">儲存</button>
+      </div>
+    </div>
+    <!-- 遮罩層 -->
+    <div id="dialog-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;" onclick="closeBeamEditDialog()"></div>
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
@@ -359,74 +412,258 @@
       let storyOrderInfo = {};
       const TOLERANCE = 0.1;
 
-      async function processE2k() {
+      // [新增] 預覽模式用的全域變數
+      let previewFileContent = null;
+      let previewJoints = null;
+      let userGridConfig = null; // 使用者自訂的格線編號配置
+
+      // [新增] 梁編輯功能用的全域變數
+      let currentEditingBeam = null;
+
+      // [新增] 預覽檔案函式
+      async function previewFile() {
         const fileInput = document.getElementById("e2kFile");
         const statusDiv = document.getElementById("status");
         const storySelector = document.getElementById("storySelector");
         const beamTypeSelector = document.getElementById("beamTypeSelector");
-        // 【在它後面加上這行】
-        const mirrorModeToggle = document.getElementById("mirrorModeToggle");
 
         statusDiv.innerHTML = "";
         document.getElementById("drawing-svg").innerHTML = "";
-        document.getElementById("exportBtn").disabled = true;
-        storySelector.innerHTML = "";
-        storySelector.disabled = true;
-        beamTypeSelector.disabled = true;
+        document.getElementById("grid-config-panel").style.display = "none";
 
         if (panZoomInstance) {
           panZoomInstance.destroy();
           panZoomInstance = null;
         }
 
-        fullProcessedBeams = [];
-        fullDrawableBeams = [];
-        availableStories = [];
-        gridData = {};
-
         if (fileInput.files.length === 0) {
-          statusDiv.innerHTML =
-            '<p class="error">Error: Please select an .e2k file first.</p>';
-          return;
-        }
-        const file = fileInput.files[0];
-        statusDiv.innerHTML = `<p>Reading file "${file.name}"...</p>`;
-        let fileContent;
-        try {
-          fileContent = await file.text();
-        } catch (error) {
-          statusDiv.innerHTML = `<p class="error">Failed to read file: ${error.message}</p>`;
+          statusDiv.innerHTML = '<p class="error">請先選擇 .e2k 檔案</p>';
           return;
         }
 
+        const file = fileInput.files[0];
+        statusDiv.innerHTML = `<p>正在讀取檔案 "${file.name}"...</p>`;
+
         try {
-          const storySectionMatch = fileContent.match(
+          previewFileContent = await file.text();
+
+          // 解析樓層
+          const storySectionMatch = previewFileContent.match(
             /\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i
           );
-          if (!storySectionMatch)
-            throw new Error(
-              "Could not find story definitions ($ STORIES) in the .e2k file."
-            );
+          if (!storySectionMatch) throw new Error("找不到樓層定義");
+
           const allStoryNames = storySectionMatch[1]
             .trim()
             .split("\n")
             .map((line) => line.match(/STORY\s+"([^"]+)"/i)?.[1])
             .filter(Boolean);
-          if (allStoryNames.length === 0)
-            throw new Error("Story definition block is empty.");
+          if (allStoryNames.length === 0) throw new Error("樓層定義為空");
 
           availableStories = allStoryNames;
           populateStorySelector();
 
-          statusDiv.innerHTML += `<p>Found ${availableStories.length} stories, parsing components...</p>`;
-          gridData = parseGrids(fileContent);
-          // --- ↓↓↓ 暫時加入這段除錯碼 ↓↓↓ ---
-let debugText = "<h3>偵測到的格線清單：</h3>";
-debugText += "<p><b>X軸 (共 " + gridData.x.length + " 條):</b> " + gridData.x.map(g => `'${g.name}'`).join(', ') + "</p>";
-debugText += "<p><b>Y軸 (共 " + gridData.y.length + " 條):</b> " + gridData.y.map(g => `'${g.name}'`).join(', ') + "</p>";
-statusDiv.innerHTML += debugText;
-// --- ↑↑↑ 暫時加入這段除錯碼 ↑↑↑ ---
-          const joints = parseJoints(fileContent);
+          // 解析格線和節點
+          gridData = parseGrids(previewFileContent);
+          previewJoints = parseJoints(previewFileContent);
+
+          // 解析所有梁並顯示
+          let allBeamsAcrossStories = [];
+          for (const story of availableStories) {
+            const frames = parseFrames(previewFileContent, story);
+            if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+          }
+
+          fullDrawableBeams = allBeamsAcrossStories.map((f) => ({
+            ...f,
+            j1: previewJoints[f.joint1],
+            j2: previewJoints[f.joint2],
+          }));
+
+          storyOrderInfo = availableStories.reduce((acc, story, index) => {
+            acc[story] = index;
+            return acc;
+          }, {});
+
+          // 顯示預覽圖
+          if (availableStories.includes("2F")) {
+            storySelector.value = "2F";
+          }
+          handleStoryChange();
+
+          statusDiv.innerHTML = `<p>✅ 預覽完成！找到 ${availableStories.length} 個樓層，${allBeamsAcrossStories.length} 根梁</p>`;
+
+          // 啟用「設定編號規則」按鈕
+          document.getElementById("configBtn").disabled = false;
+
+        } catch (error) {
+          statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p>`;
+          console.error(error);
+        }
+      }
+
+      // [新增] 顯示格線配置介面
+      function showGridConfig() {
+        if (!gridData || (!gridData.x.length && !gridData.y.length)) {
+          alert("請先預覽檔案");
+          return;
+        }
+
+        const panel = document.getElementById("grid-config-panel");
+        const xConfigDiv = document.getElementById("x-grid-config");
+        const yConfigDiv = document.getElementById("y-grid-config");
+
+        // 生成 X 軸格線配置
+        xConfigDiv.innerHTML = gridData.x.map((grid, index) => `
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
+            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
+            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
+              ${grid.lineType ? `(${grid.lineType})` : '(Primary)'}
+            </span>
+            <label style="font-size: 0.9em;">編號為:</label>
+            <input type="text"
+              id="x-grid-${index}"
+              value="${index + 1}"
+              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
+              placeholder="- 跳過"
+              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
+              data-axis="x"
+              data-index="${index}"
+            />
+          </div>
+        `).join('');
+
+        // 生成 Y 軸格線配置
+        yConfigDiv.innerHTML = gridData.y.map((grid, index) => `
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
+            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
+            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
+              ${grid.lineType ? `(${grid.lineType})` : '(Primary)'}
+            </span>
+            <label style="font-size: 0.9em;">編號為:</label>
+            <input type="text"
+              id="y-grid-${index}"
+              value="${index + 1}"
+              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
+              placeholder="- 跳過"
+              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
+              data-axis="y"
+              data-index="${index}"
+            />
+          </div>
+        `).join('');
+
+        // [新增] 為所有輸入框添加自動順號事件
+        attachAutoIncrementListeners();
+
+        panel.style.display = "block";
+      }
+
+      // [新增] 自動順號功能
+      function attachAutoIncrementListeners() {
+        const allInputs = document.querySelectorAll('#x-grid-config input, #y-grid-config input');
+
+        allInputs.forEach(input => {
+          input.addEventListener('change', function() {
+            const axis = this.dataset.axis; // 'x' 或 'y'
+            const currentIndex = parseInt(this.dataset.index);
+            const currentValue = this.value.trim();
+
+            // 如果輸入的是數字，才自動順號
+            const parsedNum = parseInt(currentValue, 10);
+            if (isNaN(parsedNum) || currentValue === '' || currentValue === '-' || currentValue.toLowerCase() === 'skip') {
+              return; // 非數字或跳過標記，不自動順號
+            }
+
+            // 自動更新後面的格線編號
+            const totalGrids = axis === 'x' ? gridData.x.length : gridData.y.length;
+            let nextValue = parsedNum + 1;
+
+            for (let i = currentIndex + 1; i < totalGrids; i++) {
+              const nextInput = document.getElementById(`${axis}-grid-${i}`);
+              if (nextInput) {
+                const nextInputValue = nextInput.value.trim();
+                // 只更新數字類型的輸入框（保留使用者手動設定的非數字值）
+                const nextParsedNum = parseInt(nextInputValue, 10);
+                if (!isNaN(nextParsedNum) && nextInputValue !== '' && nextInputValue !== '-' && nextInputValue.toLowerCase() !== 'skip') {
+                  nextInput.value = nextValue;
+                  nextValue++;
+                } else {
+                  // 遇到非數字或跳過標記，停止自動順號
+                  break;
+                }
+              }
+            }
+          });
+        });
+      }
+
+      // [新增] 套用使用者配置
+      function applyGridConfig() {
+        // 收集使用者輸入
+        userGridConfig = {
+          x: gridData.x.map((grid, index) => {
+            const inputValue = document.getElementById(`x-grid-${index}`).value.trim();
+            // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
+            if (inputValue === '' || inputValue === '-' || inputValue.toLowerCase() === 'skip') {
+              return {
+                name: grid.name,
+                serialValue: null, // null 表示跳過，不會被用於編號
+                lineType: grid.lineType
+              };
+            }
+            return {
+              name: grid.name,
+              serialValue: isNaN(inputValue) ? inputValue : parseInt(inputValue, 10),
+              lineType: grid.lineType
+            };
+          }),
+          y: gridData.y.map((grid, index) => {
+            const inputValue = document.getElementById(`y-grid-${index}`).value.trim();
+            // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
+            if (inputValue === '' || inputValue === '-' || inputValue.toLowerCase() === 'skip') {
+              return {
+                name: grid.name,
+                serialValue: null, // null 表示跳過，不會被用於編號
+                lineType: grid.lineType
+              };
+            }
+            return {
+              name: grid.name,
+              serialValue: isNaN(inputValue) ? inputValue : parseInt(inputValue, 10),
+              lineType: grid.lineType
+            };
+          })
+        };
+
+        document.getElementById("grid-config-panel").style.display = "none";
+        document.getElementById("processBtn").disabled = false;
+
+        // [修改] 不再使用 alert，直接啟用執行編號按鈕
+      }
+
+      // [新增] 取消配置
+      function cancelGridConfig() {
+        document.getElementById("grid-config-panel").style.display = "none";
+      }
+
+      async function processE2k() {
+        const statusDiv = document.getElementById("status");
+        const mirrorModeToggle = document.getElementById("mirrorModeToggle");
+
+        // [修改] 檢查是否已有預覽資料
+        if (!previewFileContent || !previewJoints) {
+          statusDiv.innerHTML = '<p class="error">請先點擊「預覽結構」按鈕</p>';
+          return;
+        }
+
+        statusDiv.innerHTML = "<p>正在執行編號...</p>";
+        fullProcessedBeams = [];
+
+        try {
+          // 使用預覽時已解析好的資料
+          const fileContent = previewFileContent;
+          const joints = previewJoints;
 
           let allBeamsAcrossStories = [];
           for (const story of availableStories) {
@@ -666,6 +903,9 @@ statusDiv.innerHTML += debugText;
           panZoomInstance = null;
         }
 
+        // [修改] 預覽模式：如果沒有編號資料，直接顯示所有梁（當作背景梁但用藍色顯示）
+        const isPreviewMode = fullProcessedBeams.length === 0 && backgroundBeams.length > 0;
+
         const labeledBeamsWithCoords = beamsToDisplay.map((beam) => {
           const originalBeam = fullDrawableBeams.find(
             (b) =>
@@ -677,7 +917,7 @@ statusDiv.innerHTML += debugText;
           return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
         });
 
-        displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData);
+        displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData, isPreviewMode);
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
           panZoomInstance = svgPanZoom("#drawing-svg", {
@@ -805,7 +1045,7 @@ statusDiv.innerHTML += debugText;
         return summaryParts.join("; ");
       }
 
-      function displayResults(labeledBeams, allBeams, svg, grids) {
+      function displayResults(labeledBeams, allBeams, svg, grids, isPreviewMode = false) {
         const beamCoords = allBeams
           .flatMap((b) => [b.j1, b.j2])
           .filter(Boolean);
@@ -852,7 +1092,8 @@ statusDiv.innerHTML += debugText;
           line.setAttribute("y1", transformY(beam.j1.y));
           line.setAttribute("x2", transformX(beam.j2.x));
           line.setAttribute("y2", transformY(beam.j2.y));
-          line.setAttribute("class", "beam-line");
+          // [修改] 預覽模式時使用藍色顯示梁
+          line.setAttribute("class", isPreviewMode ? "labeled-beam-line" : "beam-line");
           svg.appendChild(line);
         });
 
@@ -1026,6 +1267,15 @@ statusDiv.innerHTML += debugText;
           }
 
           line.setAttribute("class", className);
+          // [新增] 儲存梁資料到 data 屬性，用於點擊編輯
+          line.dataset.beamName = beam.name;
+          line.dataset.beamStory = beam.story;
+          line.dataset.beamJoint1 = beam.joint1;
+          line.dataset.beamJoint2 = beam.joint2;
+          line.dataset.beamLabel = beam.newLabel;
+          // [新增] 設定梁為可點擊
+          line.style.cursor = 'pointer';
+          line.addEventListener('click', () => openBeamEditDialog(beam));
           svg.appendChild(line);
 
           const text = document.createElementNS(
@@ -1084,8 +1334,55 @@ statusDiv.innerHTML += debugText;
 
           text.setAttribute("class", "beam-label");
           text.textContent = beam.newLabel;
+          // [新增] 標籤也可點擊編輯
+          text.style.cursor = 'pointer';
+          text.addEventListener('click', () => openBeamEditDialog(beam));
           svg.appendChild(text);
         });
+      }
+
+      // [新增] 開啟梁編輯對話框
+      function openBeamEditDialog(beam) {
+        currentEditingBeam = beam;
+        document.getElementById('edit-etabs-name').value = beam.name;
+        document.getElementById('edit-story').value = beam.story;
+        document.getElementById('edit-new-label').value = beam.newLabel || '';
+        document.getElementById('beam-edit-dialog').style.display = 'block';
+        document.getElementById('dialog-overlay').style.display = 'block';
+      }
+
+      // [新增] 關閉梁編輯對話框
+      function closeBeamEditDialog() {
+        currentEditingBeam = null;
+        document.getElementById('beam-edit-dialog').style.display = 'none';
+        document.getElementById('dialog-overlay').style.display = 'none';
+      }
+
+      // [新增] 儲存梁編號編輯
+      function saveBeamEdit() {
+        if (!currentEditingBeam) return;
+
+        const newLabel = document.getElementById('edit-new-label').value.trim();
+        if (!newLabel) {
+          alert('請輸入新的編號');
+          return;
+        }
+
+        // 更新 fullProcessedBeams 中的資料
+        const beamIndex = fullProcessedBeams.findIndex(
+          b => b.name === currentEditingBeam.name &&
+               b.story === currentEditingBeam.story &&
+               b.joint1 === currentEditingBeam.joint1 &&
+               b.joint2 === currentEditingBeam.joint2
+        );
+
+        if (beamIndex !== -1) {
+          fullProcessedBeams[beamIndex].newLabel = newLabel;
+          // 重新繪製
+          handleStoryChange();
+          closeBeamEditDialog();
+          // [移除] 不再顯示 alert 提示
+        }
       }
       // --- Core Parsing & Labeling Functions (No changes below this line) ---
       function parseGrids(content) {
@@ -1122,6 +1419,8 @@ statusDiv.innerHTML += debugText;
                 if (key === "Ordinate")
                   currentGrid.ordinate = parseFloat(value);
                 if (key === "BubbleLoc") currentGrid.bubbleLoc = value;
+                // [新增] 解析格線類型 (Primary/Secondary)
+                if (key === "LineType") currentGrid.lineType = value;
               }
             }
           });
@@ -1336,190 +1635,214 @@ statusDiv.innerHTML += debugText;
       }
 
       function generateLabelsForStory(beamsInStory, joints, grids) {
-  const labelComponentMap = new Map();
+        const labelComponentMap = new Map();
 
-  // --- 開始：這是【最終修正版】的 getBeamSerial 函式 ---
-  function getBeamSerial(segment, grids, isHorizontal) {
-    const ON_GRID_TOLERANCE = 0.1;
+        // --- 開始：這是【最終修正版】的 getBeamSerial 函式 ---
+        function getBeamSerial(segment, grids, isHorizontal) {
+          const ON_GRID_TOLERANCE = 0.1;
 
-    // 統一的規則：先嘗試將格線名稱轉為數字，如果不行，再用格線的順序(index)
-    const getSerialValue = (gridNameToFind, gridArray) => {
-      const parsedNum = parseInt(gridNameToFind, 10);
-      if (!isNaN(parsedNum) && String(parsedNum) === gridNameToFind) {
-        // 如果格線名稱本身就是純數字，直接回傳該數字
-        return parsedNum;
-      } else {
-        // 否則，回傳它在陣列中的 1-based 順序
-        const index = gridArray.findIndex((g) => g.name === gridNameToFind);
-        return index !== -1 ? index + 1 : NaN;
-      }
-    };
+          // [修改] 優先使用使用者配置，只對 Primary 格線轉換為數字
+          const getSerialValue = (gridNameToFind, gridArray) => {
+            // 找到對應的格線物件
+            const gridObj = gridArray.find((g) => g.name === gridNameToFind);
+            if (!gridObj) return NaN;
 
-    if (isHorizontal) {
-      const endGrid = findClosestGrid(segment.maxX, grids.x);
-      if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-        // **【水平梁規則1】** 使用終點格線的值
-        return getSerialValue(endGrid.name, grids.x);
-      }
-      const startGrid = findClosestGrid(segment.minX, grids.x);
-      // **【水平梁規則2】** 使用起點格線的值
-      return getSerialValue(startGrid.name, grids.x);
-    } else {
-      // 垂直梁的規則比較單純，永遠使用 Y 軸格線的順序
-      const endGrid = findClosestGrid(segment.maxY, grids.y);
-      if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
-        const index = grids.y.findIndex((g) => g.name === endGrid.name);
-        if (index !== -1) {
-          return index + 1; // **【垂直梁規則1】** 使用終點格線的 1-based 順序
-        }
-      }
-      const startGrid = findClosestGrid(segment.minY, grids.y);
-      const index = grids.y.findIndex((g) => g.name === startGrid.name);
-      if (index !== -1) {
-        return index + 1; // **【垂直梁規則2】** 使用起點格線的 1-based 順序
-      }
-    }
-    return NaN;
-  }
-  // --- 結束：getBeamSerial 函式修改完畢 ---
+            // [新增] 優先使用使用者自訂配置
+            if (userGridConfig) {
+              const axisKey = gridArray === grids.x ? 'x' : 'y';
+              const userConfig = userGridConfig[axisKey]?.find(c => c.name === gridNameToFind);
+              if (userConfig && userConfig.serialValue !== undefined) {
+                // [修改] 如果 serialValue 是 null，表示要跳過這個格線
+                if (userConfig.serialValue === null) {
+                  return NaN; // 回傳 NaN 讓該梁不被編號
+                }
+                return userConfig.serialValue;
+              }
+            }
 
-  function parseGridName(gridName) {
-    if (!gridName) return "";
-    const upperGridName = gridName.toUpperCase();
-    if (upperGridName.startsWith("X") || upperGridName.startsWith("Y")) {
-      const match = gridName.match(/^[XY](.*)/i);
-      return match ? match[1] : gridName;
-    }
-    return gridName;
-  }
+            // 如果是 Secondary 格線，直接返回格線名稱
+            if (gridObj.lineType && gridObj.lineType.toUpperCase() === "SECONDARY") {
+              return gridNameToFind; // 返回原始名稱
+            }
 
-  const beamsWithCoords = beamsInStory
-    .map((b) => {
-      const j1 = joints[b.joint1],
-        j2 = joints[b.joint2];
-      if (!j1 || !j2) return null;
-      return {
-        ...b,
-        j1,
-        j2,
-        minX: Math.min(j1.x, j2.x),
-        maxX: Math.max(j1.x, j2.x),
-        minY: Math.min(j1.y, j2.y),
-        maxY: Math.max(j1.y, j2.y),
-        centerX: (j1.x + j2.x) / 2,
-        centerY: (j1.y + j2.y) / 2,
-        isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
-        isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
-      };
-    })
-    .filter(Boolean);
+            // Primary 格線：使用原有邏輯
+            const parsedNum = parseInt(gridNameToFind, 10);
+            if (!isNaN(parsedNum) && String(parsedNum) === gridNameToFind) {
+              // 如果格線名稱本身就是純數字，直接回傳該數字
+              return parsedNum;
+            } else {
+              // 否則，回傳它在陣列中的 1-based 順序
+              const index = gridArray.findIndex(
+                (g) => g.name === gridNameToFind
+              );
+              return index !== -1 ? index + 1 : NaN;
+            }
+          };
 
-  const processedBeams = new Set();
-  beamsWithCoords.forEach((beam) => {
-    const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
-    if (
-      processedBeams.has(beamKey) ||
-      (!beam.isHorizontal && !beam.isVertical)
-    )
-      return;
-
-    processedBeams.add(beamKey);
-
-    let serial;
-    let primaryGridName;
-    let subGridMarker = "";
-
-    if (beam.isVertical) {
-      let onGridLine = grids.x.find(
-        (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE
-      );
-
-      if (onGridLine) {
-        primaryGridName = parseGridName(onGridLine.name);
-        subGridMarker = "";
-      } else {
-        const gridBelow = grids.x
-          .slice()
-          .reverse()
-          .find((g) => g.ordinate < beam.centerX);
-        const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
-
-        if (gridBelow && gridAbove) {
-          primaryGridName = parseGridName(gridBelow.name);
-          const uniqueXCoords = [
-            ...new Set(
-              beamsWithCoords
-                .filter(
-                  (b) =>
-                    b.isVertical &&
-                    b.centerX > gridBelow.ordinate &&
-                    b.centerX < gridAbove.ordinate
-                )
-                .map((b) => b.centerX.toFixed(2))
-            ),
-          ].sort((a, b) => parseFloat(a) - parseFloat(b));
-
-          const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
-          if (rank !== -1) {
-            subGridMarker = String.fromCharCode(97 + rank);
+          if (isHorizontal) {
+            const endGrid = findClosestGrid(segment.maxX, grids.x);
+            if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              // **【水平梁規則1】** 終點格線編號 - 1
+              const serial = getSerialValue(endGrid.name, grids.x);
+              return typeof serial === 'number' ? serial - 1 : serial;
+            }
+            const startGrid = findClosestGrid(segment.minX, grids.x);
+            // **【水平梁規則2】** 起點格線編號（不減 1）
+            return getSerialValue(startGrid.name, grids.x);
+          } else {
+            // 垂直梁的規則：與水平梁相同
+            const endGrid = findClosestGrid(segment.maxY, grids.y);
+            if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              // **【垂直梁規則1】** 終點格線編號 - 1
+              const serial = getSerialValue(endGrid.name, grids.y);
+              return typeof serial === 'number' ? serial - 1 : serial;
+            }
+            const startGrid = findClosestGrid(segment.minY, grids.y);
+            // **【垂直梁規則2】** 起點格線編號（不減 1）
+            return getSerialValue(startGrid.name, grids.y);
           }
-        } else {
-          return;
+          return NaN;
         }
-      }
-      serial = getBeamSerial(beam, grids, false);
-    } else {
-      let onGridLine = grids.y.find(
-        (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE
-      );
+        // --- 結束：getBeamSerial 函式修改完畢 ---
 
-      if (onGridLine) {
-        primaryGridName = parseGridName(onGridLine.name);
-        subGridMarker = "";
-      } else {
-        const gridBelow = grids.y
-          .slice()
-          .reverse()
-          .find((g) => g.ordinate < beam.centerY);
-        const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
-
-        if (gridBelow && gridAbove) {
-          primaryGridName = parseGridName(gridBelow.name);
-          const uniqueYCoords = [
-            ...new Set(
-              beamsWithCoords
-                .filter(
-                  (b) =>
-                    b.isHorizontal &&
-                    b.centerY > gridBelow.ordinate &&
-                    b.centerY < gridAbove.ordinate
-                )
-                .map((b) => b.centerY.toFixed(2))
-            ),
-          ].sort((a, b) => parseFloat(a) - parseFloat(b));
-
-          const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
-          if (rank !== -1) {
-            subGridMarker = String.fromCharCode(97 + rank);
+        function parseGridName(gridName) {
+          if (!gridName) return "";
+          const upperGridName = gridName.toUpperCase();
+          if (upperGridName.startsWith("X") || upperGridName.startsWith("Y")) {
+            const match = gridName.match(/^[XY](.*)/i);
+            return match ? match[1] : gridName;
           }
-        } else {
-          return;
+          return gridName;
         }
-      }
-      serial = getBeamSerial(beam, grids, true);
-    }
 
-    if (serial !== undefined && serial !== -1 && !isNaN(serial)) {
-      labelComponentMap.set(beamKey, {
-        isVertical: beam.isVertical,
-        primaryGridName,
-        subGridMarker,
-        serial,
-      });
-    }
-  });
-  return labelComponentMap;
-}
+        const beamsWithCoords = beamsInStory
+          .map((b) => {
+            const j1 = joints[b.joint1],
+              j2 = joints[b.joint2];
+            if (!j1 || !j2) return null;
+            return {
+              ...b,
+              j1,
+              j2,
+              minX: Math.min(j1.x, j2.x),
+              maxX: Math.max(j1.x, j2.x),
+              minY: Math.min(j1.y, j2.y),
+              maxY: Math.max(j1.y, j2.y),
+              centerX: (j1.x + j2.x) / 2,
+              centerY: (j1.y + j2.y) / 2,
+              isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
+              isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
+            };
+          })
+          .filter(Boolean);
+
+        const processedBeams = new Set();
+        beamsWithCoords.forEach((beam) => {
+          const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+          if (
+            processedBeams.has(beamKey) ||
+            (!beam.isHorizontal && !beam.isVertical)
+          )
+            return;
+
+          processedBeams.add(beamKey);
+
+          let serial;
+          let primaryGridName;
+          let subGridMarker = "";
+
+          if (beam.isVertical) {
+            let onGridLine = grids.x.find(
+              (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE
+            );
+
+            if (onGridLine) {
+              primaryGridName = parseGridName(onGridLine.name);
+              subGridMarker = "";
+            } else {
+              const gridBelow = grids.x
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerX);
+              const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
+
+              if (gridBelow && gridAbove) {
+                primaryGridName = parseGridName(gridBelow.name);
+                const uniqueXCoords = [
+                  ...new Set(
+                    beamsWithCoords
+                      .filter(
+                        (b) =>
+                          b.isVertical &&
+                          b.centerX > gridBelow.ordinate &&
+                          b.centerX < gridAbove.ordinate
+                      )
+                      .map((b) => b.centerX.toFixed(2))
+                  ),
+                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+                if (rank !== -1) {
+                  subGridMarker = String.fromCharCode(97 + rank);
+                }
+              } else {
+                return;
+              }
+            }
+            serial = getBeamSerial(beam, grids, false);
+          } else {
+            let onGridLine = grids.y.find(
+              (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE
+            );
+
+            if (onGridLine) {
+              primaryGridName = parseGridName(onGridLine.name);
+              subGridMarker = "";
+            } else {
+              const gridBelow = grids.y
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerY);
+              const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
+
+              if (gridBelow && gridAbove) {
+                primaryGridName = parseGridName(gridBelow.name);
+                const uniqueYCoords = [
+                  ...new Set(
+                    beamsWithCoords
+                      .filter(
+                        (b) =>
+                          b.isHorizontal &&
+                          b.centerY > gridBelow.ordinate &&
+                          b.centerY < gridAbove.ordinate
+                      )
+                      .map((b) => b.centerY.toFixed(2))
+                  ),
+                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+                if (rank !== -1) {
+                  subGridMarker = String.fromCharCode(97 + rank);
+                }
+              } else {
+                return;
+              }
+            }
+            serial = getBeamSerial(beam, grids, true);
+          }
+
+          // [修改] 支援字串型序號 (Secondary 格線)
+          if (serial !== undefined && serial !== -1 && (typeof serial === 'string' || !isNaN(serial))) {
+            labelComponentMap.set(beamKey, {
+              isVertical: beam.isVertical,
+              primaryGridName,
+              subGridMarker,
+              serial,
+            });
+          }
+        });
+        return labelComponentMap;
+      }
 
       function distance(p1, p2) {
         if (!p1 || !p2) return Infinity;
@@ -1536,280 +1859,370 @@ statusDiv.innerHTML += debugText;
         return Math.abs(distSum - segLength) < tolerance;
       }
       // =================================================================
-// ### 全新鏡像演算法 v4 (最終版，依使用者思路)：開始 ###
-// =================================================================
+      // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：開始 ###
+      // =================================================================
 
-const SYMMETRY_TOLERANCE = 1; // 幾何容許誤差 (10cm)
+      const SYMMETRY_TOLERANCE = 1; // 幾何容許誤差 (10cm)
 
-/**
- * 計算一組梁的精確邊界和形心
- */
-function getComponentBounds(component, joints) {
-  if (!component || component.length === 0) return null;
-  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-  const uniquePoints = new Set();
-  component.forEach(beam => {
-    const p1 = joints[beam.joint1];
-    const p2 = joints[beam.joint2];
-    if (p1) uniquePoints.add(p1);
-    if (p2) uniquePoints.add(p2);
-  });
-  if (uniquePoints.size === 0) return null;
-  uniquePoints.forEach(p => {
-    minX = Math.min(minX, p.x);
-    maxX = Math.max(maxX, p.x);
-    minY = Math.min(minY, p.y);
-    maxY = Math.max(maxY, p.y);
-  });
-  return { minX, maxX, minY, maxY };
-}
+      /**
+       * 計算一組梁的精確邊界和形心
+       */
+      function getComponentBounds(component, joints) {
+        if (!component || component.length === 0) return null;
+        let minX = Infinity,
+          maxX = -Infinity,
+          minY = Infinity,
+          maxY = -Infinity;
+        const uniquePoints = new Set();
+        component.forEach((beam) => {
+          const p1 = joints[beam.joint1];
+          const p2 = joints[beam.joint2];
+          if (p1) uniquePoints.add(p1);
+          if (p2) uniquePoints.add(p2);
+        });
+        if (uniquePoints.size === 0) return null;
+        uniquePoints.forEach((p) => {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        });
+        return { minX, maxX, minY, maxY };
+      }
 
-/**
- * 鏡像反射一個點
- */
-function mirrorPoint(point, axisX) {
-    return { x: 2 * axisX - point.x, y: point.y };
-}
+      /**
+       * 鏡像反射一個點
+       */
+      function mirrorPoint(point, axisX) {
+        return { x: 2 * axisX - point.x, y: point.y };
+      }
 
-/**
- * 小梁編號核心函式 (最終版)
- */
-// 【最終修正版 - 請複製並完整替換舊的函式】
-// 【偵錯版 - 請複製並完整替換舊的函式】
-function generateSecondaryBeamLabels(
-    secondaryBeamsToNumber,
-    mainBeamsInStory,
-    joints,
-    prefix
-) {
-    const allLabels = new Map();
-    const useMirrorMode = document.getElementById("mirrorModeToggle").checked;
+      /**
+       * 小梁編號核心函式 (最終版)
+       */
+      // 【最終修正版 - 請複製並完整替換舊的函式】
+      // 【偵錯版 - 請複製並完整替換舊的函式】
+      function generateSecondaryBeamLabels(
+        secondaryBeamsToNumber,
+        mainBeamsInStory,
+        joints,
+        prefix
+      ) {
+        const allLabels = new Map();
+        const useMirrorMode =
+          document.getElementById("mirrorModeToggle").checked;
 
-    const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
-        // ... (這段循序編號函式維持不變) ...
-        const labels = new Map();
-        let counter = startCounter;
-        const beamsWithData = beamsToNumber
+        const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
+          // ... (這段循序編號函式維持不變) ...
+          const labels = new Map();
+          let counter = startCounter;
+          const beamsWithData = beamsToNumber
             .map((b) => {
-                const j1_coords = joints[b.joint1], j2_coords = joints[b.joint2];
-                if (!j1_coords || !j2_coords) return null;
-                const isHorizontal = Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
-                const isVertical = Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
-                let startJointName = b.joint1, endJointName = b.joint2;
-                if (isHorizontal && j1_coords.x > j2_coords.x) {
-                    [startJointName, endJointName] = [b.joint2, b.joint1];
-                }
-                if (isVertical && j1_coords.y > j2_coords.y) {
-                    [startJointName, endJointName] = [b.joint2, b.joint1];
-                }
-                return { ...b, startJointName, endJointName, isHorizontal, isVertical };
+              const j1_coords = joints[b.joint1],
+                j2_coords = joints[b.joint2];
+              if (!j1_coords || !j2_coords) return null;
+              const isHorizontal =
+                Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
+              const isVertical =
+                Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
+              let startJointName = b.joint1,
+                endJointName = b.joint2;
+              if (isHorizontal && j1_coords.x > j2_coords.x) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              if (isVertical && j1_coords.y > j2_coords.y) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              return {
+                ...b,
+                startJointName,
+                endJointName,
+                isHorizontal,
+                isVertical,
+              };
             })
             .filter(Boolean);
-        const processed = new Set();
-        const beamGroups = [
-            beamsWithData.filter((b) => b.isHorizontal).sort((a, b) => joints[a.startJointName].y - joints[b.startJointName].y || joints[a.startJointName].x - joints[b.startJointName].x),
-            beamsWithData.filter((b) => b.isVertical).sort((a, b) => joints[a.startJointName].x - joints[b.startJointName].x || joints[a.startJointName].y - joints[b.startJointName].y),
-        ];
-        let isVerticalRun = false;
-        beamGroups.forEach((group) => {
+          const processed = new Set();
+          const beamGroups = [
+            beamsWithData
+              .filter((b) => b.isHorizontal)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].y - joints[b.startJointName].y ||
+                  joints[a.startJointName].x - joints[b.startJointName].x
+              ),
+            beamsWithData
+              .filter((b) => b.isVertical)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].x - joints[b.startJointName].x ||
+                  joints[a.startJointName].y - joints[b.startJointName].y
+              ),
+          ];
+          let isVerticalRun = false;
+          beamGroups.forEach((group) => {
             if (isVerticalRun && counter > 1) {
-                const lastNum = counter - 1;
-                counter = lastNum % 10 === 0 ? lastNum + 1 : Math.ceil(lastNum / 10) * 10 + 1;
+              const lastNum = counter - 1;
+              counter =
+                lastNum % 10 === 0
+                  ? lastNum + 1
+                  : Math.ceil(lastNum / 10) * 10 + 1;
             }
             for (const startBeam of group) {
-                const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
-                if (processed.has(startKey)) continue;
-                let chain = [startBeam];
-                processed.add(startKey);
-                let currentLink = startBeam;
-                while (true) {
-                    const nextLink = group.find((b) => {
-                        const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
-                        return !processed.has(nextKey) && b.startJointName === currentLink.endJointName;
-                    });
-                    if (nextLink) {
-                        chain.push(nextLink);
-                        processed.add(`${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`);
-                        currentLink = nextLink;
-                    } else {
-                        break;
-                    }
-                }
-                if (chain.length > 1) {
-                    chain.forEach((beam, index) => {
-                        labels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, { newLabel: `${prefix}${counter}-${index + 1}` });
-                    });
+              const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
+              if (processed.has(startKey)) continue;
+              let chain = [startBeam];
+              processed.add(startKey);
+              let currentLink = startBeam;
+              while (true) {
+                const nextLink = group.find((b) => {
+                  const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
+                  return (
+                    !processed.has(nextKey) &&
+                    b.startJointName === currentLink.endJointName
+                  );
+                });
+                if (nextLink) {
+                  chain.push(nextLink);
+                  processed.add(
+                    `${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`
+                  );
+                  currentLink = nextLink;
                 } else {
-                    labels.set(`${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`, { newLabel: `${prefix}${counter}` });
+                  break;
                 }
-                counter++;
+              }
+              if (chain.length > 1) {
+                chain.forEach((beam, index) => {
+                  labels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, {
+                    newLabel: `${prefix}${counter}-${index + 1}`,
+                  });
+                });
+              } else {
+                labels.set(
+                  `${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`,
+                  { newLabel: `${prefix}${counter}` }
+                );
+              }
+              counter++;
             }
             isVerticalRun = true;
-        });
-        return { labels, nextCounter: counter };
-    };
+          });
+          return { labels, nextCounter: counter };
+        };
 
-    const allBeamsOnStory = [...secondaryBeamsToNumber, ...mainBeamsInStory];
-    const componentsRaw = findBuildingComponents(allBeamsOnStory, joints)
-        .map(comp => comp.filter(b => secondaryBeamsToNumber.some(sb => sb.name === b.name)))
-        .filter(comp => comp.length > 0);
+        const allBeamsOnStory = [
+          ...secondaryBeamsToNumber,
+          ...mainBeamsInStory,
+        ];
+        const componentsRaw = findBuildingComponents(allBeamsOnStory, joints)
+          .map((comp) =>
+            comp.filter((b) =>
+              secondaryBeamsToNumber.some((sb) => sb.name === b.name)
+            )
+          )
+          .filter((comp) => comp.length > 0);
 
-    if (componentsRaw.length === 0) return allLabels;
+        if (componentsRaw.length === 0) return allLabels;
 
-    const components = componentsRaw
-        .map(comp => ({ component: comp, bounds: getComponentBounds(comp, joints) }))
-        .sort((a, b) => a.bounds.minX - b.bounds.minX);
+        const components = componentsRaw
+          .map((comp) => ({
+            component: comp,
+            bounds: getComponentBounds(comp, joints),
+          }))
+          .sort((a, b) => a.bounds.minX - b.bounds.minX);
 
-    if (!useMirrorMode || components.length < 2) {
-        let globalCounter = 1;
-        for (const comp of components) {
-            const { labels, nextCounter } = coreNumberingEngine(comp.component, globalCounter);
+        if (!useMirrorMode || components.length < 2) {
+          let globalCounter = 1;
+          for (const comp of components) {
+            const { labels, nextCounter } = coreNumberingEngine(
+              comp.component,
+              globalCounter
+            );
             labels.forEach((value, key) => allLabels.set(key, value));
             globalCounter = nextCounter;
-        }
-    } else {
-        const master = components[0];
-        const slave = components[1];
-        
-        const { labels: masterLabels, nextCounter } = coreNumberingEngine(master.component, 1);
-        masterLabels.forEach((value, key) => allLabels.set(key, value));
+          }
+        } else {
+          const master = components[0];
+          const slave = components[1];
 
-        const axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
-        console.log(`=============================================`);
-        console.log(`偵錯開始：鏡像軸 X 座標為 ${axisX}`);
-        console.log(`=============================================`);
+          const { labels: masterLabels, nextCounter } = coreNumberingEngine(
+            master.component,
+            1
+          );
+          masterLabels.forEach((value, key) => allLabels.set(key, value));
 
-        // ★★★ 偵錯版鏡像配對邏輯 ★★★
-        masterLabels.forEach((labelInfo, masterKey) => {
-            const masterBeam = master.component.find(b => `${b.name}|${b.joint1}|${b.joint2}` === masterKey);
+          const axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
+          console.log(`=============================================`);
+          console.log(`偵錯開始：鏡像軸 X 座標為 ${axisX}`);
+          console.log(`=============================================`);
+
+          // ★★★ 偵錯版鏡像配對邏輯 ★★★
+          masterLabels.forEach((labelInfo, masterKey) => {
+            const masterBeam = master.component.find(
+              (b) => `${b.name}|${b.joint1}|${b.joint2}` === masterKey
+            );
             if (!masterBeam) return;
-            
+
             console.log(`\n--- [尋找 ${labelInfo.newLabel} 的鏡像] ---`);
-            
+
             const master_p1 = joints[masterBeam.joint1];
             const master_p2 = joints[masterBeam.joint2];
-            const masterMidpoint = { x: (master_p1.x + master_p2.x) / 2, y: (master_p1.y + master_p2.y) / 2 };
+            const masterMidpoint = {
+              x: (master_p1.x + master_p2.x) / 2,
+              y: (master_p1.y + master_p2.y) / 2,
+            };
             const masterLength = distance(master_p1, master_p2);
-            console.log(`主梁 ${masterBeam.name}: 長度=${masterLength.toFixed(3)}, 中點=(${masterMidpoint.x.toFixed(3)}, ${masterMidpoint.y.toFixed(3)})`);
+            console.log(
+              `主梁 ${masterBeam.name}: 長度=${masterLength.toFixed(
+                3
+              )}, 中點=(${masterMidpoint.x.toFixed(
+                3
+              )}, ${masterMidpoint.y.toFixed(3)})`
+            );
 
             const mirroredMidpoint = mirrorPoint(masterMidpoint, axisX);
-            console.log(`理論鏡像中點: (${mirroredMidpoint.x.toFixed(3)}, ${mirroredMidpoint.y.toFixed(3)})`);
+            console.log(
+              `理論鏡像中點: (${mirroredMidpoint.x.toFixed(
+                3
+              )}, ${mirroredMidpoint.y.toFixed(3)})`
+            );
 
             let foundSlave = null;
-            
-            slave.component.forEach(b => {
-                const slave_p1 = joints[b.joint1];
-                const slave_p2 = joints[b.joint2];
-                if (!slave_p1 || !slave_p2) return;
 
-                const slaveMidpoint = { x: (slave_p1.x + slave_p2.x) / 2, y: (slave_p1.y + slave_p2.y) / 2 };
-                const slaveLength = distance(slave_p1, slave_p2);
-                
-                const midDist = distance(slaveMidpoint, mirroredMidpoint);
-                const lenDiff = Math.abs(slaveLength - masterLength);
-                
-                // 為了偵錯，我們暫時只印出訊息，不直接 find
-                if (midDist < SYMMETRY_TOLERANCE * 2) { // 稍微放寬偵錯範圍
-                    console.log(`  -> 正在比對從梁 ${b.name}: 中點距離=${midDist.toFixed(3)}, 長度差異=${lenDiff.toFixed(3)} -> ${ (midDist < SYMMETRY_TOLERANCE && lenDiff < 0.01) ? "✔️ 符合" : "❌ 不符" }`);
-                }
+            slave.component.forEach((b) => {
+              const slave_p1 = joints[b.joint1];
+              const slave_p2 = joints[b.joint2];
+              if (!slave_p1 || !slave_p2) return;
 
-                if (midDist < SYMMETRY_TOLERANCE && lenDiff < 1) {
-                    foundSlave = b;
-                }
+              const slaveMidpoint = {
+                x: (slave_p1.x + slave_p2.x) / 2,
+                y: (slave_p1.y + slave_p2.y) / 2,
+              };
+              const slaveLength = distance(slave_p1, slave_p2);
+
+              const midDist = distance(slaveMidpoint, mirroredMidpoint);
+              const lenDiff = Math.abs(slaveLength - masterLength);
+
+              // 為了偵錯，我們暫時只印出訊息，不直接 find
+              if (midDist < SYMMETRY_TOLERANCE * 2) {
+                // 稍微放寬偵錯範圍
+                console.log(
+                  `  -> 正在比對從梁 ${b.name}: 中點距離=${midDist.toFixed(
+                    3
+                  )}, 長度差異=${lenDiff.toFixed(3)} -> ${
+                    midDist < SYMMETRY_TOLERANCE && lenDiff < 0.01
+                      ? "✔️ 符合"
+                      : "❌ 不符"
+                  }`
+                );
+              }
+
+              if (midDist < SYMMETRY_TOLERANCE && lenDiff < 1) {
+                foundSlave = b;
+              }
             });
 
             if (foundSlave) {
-                console.log(`[成功] ${labelInfo.newLabel} 配對成功！鏡像梁為 ${foundSlave.name}`);
-                allLabels.set(`${foundSlave.name}|${foundSlave.joint1}|${foundSlave.joint2}`, { newLabel: labelInfo.newLabel });
+              console.log(
+                `[成功] ${labelInfo.newLabel} 配對成功！鏡像梁為 ${foundSlave.name}`
+              );
+              allLabels.set(
+                `${foundSlave.name}|${foundSlave.joint1}|${foundSlave.joint2}`,
+                { newLabel: labelInfo.newLabel }
+              );
             } else {
-                console.log(`[失敗] ${labelInfo.newLabel} 在右棟找不到符合條件的鏡像梁！`);
+              console.log(
+                `[失敗] ${labelInfo.newLabel} 在右棟找不到符合條件的鏡像梁！`
+              );
             }
-        });
-        
-        if (components.length > 2) {
+          });
+
+          if (components.length > 2) {
             let orphanCounter = nextCounter;
             for (let i = 2; i < components.length; i++) {
-                const { labels, nextCounter: updatedCounter } = coreNumberingEngine(components[i].component, orphanCounter);
-                labels.forEach((value, key) => allLabels.set(key, value));
-                orphanCounter = updatedCounter;
+              const { labels, nextCounter: updatedCounter } =
+                coreNumberingEngine(components[i].component, orphanCounter);
+              labels.forEach((value, key) => allLabels.set(key, value));
+              orphanCounter = updatedCounter;
             }
+          }
         }
-    }
 
-    return allLabels;
-}
-function findBuildingComponents(allBeamsOnStory, joints) {
-  if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
-
-  const GEOMETRIC_TOLERANCE = 0.01;
-  const components = [];
-  const processedBeams = new Set();
-
-  const beamsWithCoords = allBeamsOnStory
-    .map((b) => ({
-      ...b,
-      p1: joints[b.joint1],
-      p2: joints[b.joint2],
-    }))
-    .filter((b) => b.p1 && b.p2);
-
-  function areBeamsConnected(beamA, beamB) {
-    if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
-    if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
-    if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
-    if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
-    if (
-      isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
-    )
-      return true;
-    if (
-      isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
-    )
-      return true;
-    if (
-      isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
-    )
-      return true;
-    if (
-      isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
-    )
-      return true;
-    return false;
-  }
-
-  for (const startBeam of beamsWithCoords) {
-    if (processedBeams.has(startBeam.name)) {
-      continue;
-    }
-
-    const currentComponent = [];
-    const q = [startBeam];
-    processedBeams.add(startBeam.name);
-
-    while (q.length > 0) {
-      const currentBeam = q.shift();
-      currentComponent.push(currentBeam);
-
-      for (const otherBeam of beamsWithCoords) {
-        if (processedBeams.has(otherBeam.name)) {
-          continue;
-        }
-        if (areBeamsConnected(currentBeam, otherBeam)) {
-          processedBeams.add(otherBeam.name);
-          q.push(otherBeam);
-        }
+        return allLabels;
       }
-    }
+      function findBuildingComponents(allBeamsOnStory, joints) {
+        if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
 
-    if (currentComponent.length > 0) {
-      components.push(currentComponent);
-    }
-  }
-  return components;
-}
-// =================================================================
-// ### 全新鏡像演算法 v4 (最終版，依使用者思路)：結束 ###
-// =================================================================
+        const GEOMETRIC_TOLERANCE = 0.01;
+        const components = [];
+        const processedBeams = new Set();
+
+        const beamsWithCoords = allBeamsOnStory
+          .map((b) => ({
+            ...b,
+            p1: joints[b.joint1],
+            p2: joints[b.joint2],
+          }))
+          .filter((b) => b.p1 && b.p2);
+
+        function areBeamsConnected(beamA, beamB) {
+          if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (
+            isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          return false;
+        }
+
+        for (const startBeam of beamsWithCoords) {
+          if (processedBeams.has(startBeam.name)) {
+            continue;
+          }
+
+          const currentComponent = [];
+          const q = [startBeam];
+          processedBeams.add(startBeam.name);
+
+          while (q.length > 0) {
+            const currentBeam = q.shift();
+            currentComponent.push(currentBeam);
+
+            for (const otherBeam of beamsWithCoords) {
+              if (processedBeams.has(otherBeam.name)) {
+                continue;
+              }
+              if (areBeamsConnected(currentBeam, otherBeam)) {
+                processedBeams.add(otherBeam.name);
+                q.push(otherBeam);
+              }
+            }
+          }
+
+          if (currentComponent.length > 0) {
+            components.push(currentComponent);
+          }
+        }
+        return components;
+      }
+      // =================================================================
+      // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：結束 ###
+      // =================================================================
 
       function applySpecialPrefixRules(allBeams) {
         const processPrefix = (prefix) => {
