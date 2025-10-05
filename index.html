@@ -261,14 +261,20 @@
       }
 
       .labeled-beam-line {
-        stroke: #3b82f6;
-        stroke-width: 1.5px; /* 加粗一點以示區別 */
+        stroke: #3b82f6; /* 大梁：藍色 */
+        stroke-width: 1.5px;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .secondary-beam-line {
+        stroke: #f97316; /* 小梁：橘色 */
+        stroke-width: 1px;
         vector-effect: non-scaling-stroke;
       }
 
       .special-beam-line {
         stroke: var(--theme-accent);
-        stroke-width: 1.5px; /* 加粗一點以示區別 */
+        stroke-width: 1.5px;
         vector-effect: non-scaling-stroke;
       }
 
@@ -306,15 +312,7 @@
               onclick="showGridConfig()"
               disabled
             >
-              設定編號規則
-            </button>
-            <button
-              class="btn-process"
-              id="processBtn"
-              onclick="processE2k()"
-              disabled
-            >
-              執行編號
+              設定編號規則並執行
             </button>
             <button
               class="btn-export"
@@ -327,9 +325,9 @@
             <button
               class="btn-export"
               id="exportJsonBtn"
-              onclick="exportToJSON()"
+              onclick="exportToJSONV2()"
               disabled
-              style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);"
+              style="background: linear-gradient(135deg, #10b981 0%, #059669 100%);"
             >
               匯出 JSON (給AutoCAD用)
             </button>
@@ -643,7 +641,7 @@
 
           statusDiv.innerHTML = `<p>✅ 預覽完成！找到 ${availableStories.length} 個樓層，${allBeamsAcrossStories.length} 根梁</p>`;
 
-          // 啟用「設定編號規則」按鈕
+          // 啟用「設定編號規則並執行」按鈕
           document.getElementById("configBtn").disabled = false;
         } catch (error) {
           statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p>`;
@@ -823,9 +821,9 @@
         };
 
         document.getElementById("grid-config-panel").style.display = "none";
-        document.getElementById("processBtn").disabled = false;
 
-        // [修改] 不再使用 alert，直接啟用執行編號按鈕
+        // 自動執行編號
+        processE2k();
       }
 
       // [新增] 取消配置
@@ -1019,7 +1017,7 @@
           }
           handleStoryChange();
 
-          statusDiv.innerHTML = `<p>Processing complete! ${fullProcessedBeams.length} items numbered.</p>`;
+          statusDiv.innerHTML = `<p>✅ 編號完成！共處理 ${fullProcessedBeams.length} 根梁</p>`;
           if (fullProcessedBeams.length > 0) {
             exportBtn.disabled = false;
             exportJsonBtn.disabled = false;
@@ -1292,11 +1290,18 @@
           line.setAttribute("y1", transformY(beam.j1.y));
           line.setAttribute("x2", transformX(beam.j2.x));
           line.setAttribute("y2", transformY(beam.j2.y));
-          // [修改] 預覽模式時使用藍色顯示梁
-          line.setAttribute(
-            "class",
-            isPreviewMode ? "labeled-beam-line" : "beam-line"
-          );
+
+          // 判斷是否為小梁 (SB 或 FSB 開頭的斷面)
+          const isSecondaryBeam = beam.prop && /^(SB|FSB)/i.test(beam.prop);
+
+          // 根據梁類型設定顏色類別
+          if (isPreviewMode) {
+            // 預覽模式：大梁用藍色，小梁用橘色
+            line.setAttribute("class", isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line");
+          } else {
+            // 背景梁：統一灰色
+            line.setAttribute("class", "beam-line");
+          }
           svg.appendChild(line);
         });
 
@@ -2616,6 +2621,142 @@
         const link = document.createElement("a");
         link.href = url;
         link.download = "ETABS_梁座標資料_AutoCAD.json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // 計算梁與軸線的相對位置關係
+      function calculateGridRelation(beam, joints, grids) {
+        const j1 = joints[beam.joint1];
+        const j2 = joints[beam.joint2];
+        if (!j1 || !j2) return null;
+
+        const tolerance = 0.1; // 容許誤差 0.1 公尺
+
+        // 判斷梁的方向
+        const deltaX = Math.abs(j2.x - j1.x);
+        const deltaY = Math.abs(j2.y - j1.y);
+        const isHorizontal = deltaX > deltaY;
+
+        if (isHorizontal) {
+          // 水平梁：沿著某條 Y 軸線，在兩條 X 軸線之間
+          // 找到最接近的 Y 軸線
+          const avgY = (j1.y + j2.y) / 2;
+          const closestYGrid = grids.y.reduce((prev, curr) => {
+            return Math.abs(curr.ordinate - avgY) < Math.abs(prev.ordinate - avgY) ? curr : prev;
+          });
+
+          // 找到梁跨越的 X 軸線
+          const minX = Math.min(j1.x, j2.x);
+          const maxX = Math.max(j1.x, j2.x);
+          const betweenX = grids.x
+            .filter(g => g.ordinate >= minX - tolerance && g.ordinate <= maxX + tolerance)
+            .sort((a, b) => a.ordinate - b.ordinate);
+
+          if (betweenX.length >= 2) {
+            return {
+              alongGrid: closestYGrid.name,
+              between: [betweenX[0].name, betweenX[betweenX.length - 1].name],
+              direction: "horizontal",
+              offsetFromStart: Math.abs(avgY - closestYGrid.ordinate),
+              length: deltaX
+            };
+          }
+        } else {
+          // 垂直梁：沿著某條 X 軸線，在兩條 Y 軸線之間
+          const avgX = (j1.x + j2.x) / 2;
+          const closestXGrid = grids.x.reduce((prev, curr) => {
+            return Math.abs(curr.ordinate - avgX) < Math.abs(prev.ordinate - avgX) ? curr : prev;
+          });
+
+          const minY = Math.min(j1.y, j2.y);
+          const maxY = Math.max(j1.y, j2.y);
+          const betweenY = grids.y
+            .filter(g => g.ordinate >= minY - tolerance && g.ordinate <= maxY + tolerance)
+            .sort((a, b) => a.ordinate - b.ordinate);
+
+          if (betweenY.length >= 2) {
+            return {
+              alongGrid: closestXGrid.name,
+              between: [betweenY[0].name, betweenY[betweenY.length - 1].name],
+              direction: "vertical",
+              offsetFromStart: Math.abs(avgX - closestXGrid.ordinate),
+              length: deltaY
+            };
+          }
+        }
+
+        return null;
+      }
+
+      // V2 版本：基於軸線相對位置的 JSON 匯出
+      function exportToJSONV2() {
+        if (fullProcessedBeams.length === 0) {
+          alert("沒有可匯出的資料。");
+          return;
+        }
+        if (!previewJoints || !gridData) {
+          alert("無法取得座標或軸線資訊，請確認已載入 E2K 檔案。");
+          return;
+        }
+
+        const outputData = {
+          project: "ETABS梁編號專案",
+          exportDate: new Date().toISOString(),
+          gridSystem: {
+            xGrids: gridData.x.map(g => g.name),
+            yGrids: gridData.y.map(g => g.name)
+          },
+          floors: []
+        };
+
+        // 依樓層分組
+        const floorGroups = new Map();
+        fullProcessedBeams.forEach((beam) => {
+          if (!floorGroups.has(beam.story)) {
+            floorGroups.set(beam.story, []);
+          }
+          floorGroups.get(beam.story).push(beam);
+        });
+
+        // 為每個樓層生成資料
+        floorGroups.forEach((beams, floorName) => {
+          const floorData = {
+            floorName: floorName,
+            beams: []
+          };
+
+          beams.forEach((beam) => {
+            const gridRelation = calculateGridRelation(beam, previewJoints, gridData);
+
+            if (gridRelation) {
+              floorData.beams.push({
+                etabsId: beam.name,
+                newLabel: beam.newLabel,
+                gridInfo: {
+                  alongGrid: gridRelation.alongGrid,
+                  between: gridRelation.between,
+                  direction: gridRelation.direction,
+                  offsetFromStart: gridRelation.offsetFromStart,
+                  length: gridRelation.length,
+                  tolerance: 0.1
+                },
+                section: beam.prop || "",
+                isMainBeam: !beam.newLabel.toLowerCase().startsWith("b") && !beam.newLabel.toLowerCase().startsWith("fb")
+              });
+            }
+          });
+
+          outputData.floors.push(floorData);
+        });
+
+        // 下載 JSON 檔案
+        const jsonStr = JSON.stringify(outputData, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "ETABS_梁編號_AutoCAD.json";
         link.click();
         URL.revokeObjectURL(url);
       }
