@@ -297,9 +297,25 @@
               <input type="checkbox" id="mirrorModeToggle" />
               <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
             </div>
-            <button class="btn-process" id="previewBtn" onclick="previewFile()">預覽結構</button>
-            <button class="btn-process" id="configBtn" onclick="showGridConfig()" disabled>設定編號規則</button>
-            <button class="btn-process" id="processBtn" onclick="processE2k()" disabled>執行編號</button>
+            <button class="btn-process" id="previewBtn" onclick="previewFile()">
+              預覽結構
+            </button>
+            <button
+              class="btn-process"
+              id="configBtn"
+              onclick="showGridConfig()"
+              disabled
+            >
+              設定編號規則
+            </button>
+            <button
+              class="btn-process"
+              id="processBtn"
+              onclick="processE2k()"
+              disabled
+            >
+              執行編號
+            </button>
             <button
               class="btn-export"
               id="exportBtn"
@@ -335,28 +351,71 @@
       <div id="status"></div>
 
       <!-- 格線編號配置面板 -->
-      <div id="grid-config-panel" style="display: none; margin-bottom: 20px;">
+      <div id="grid-config-panel" style="display: none; margin-bottom: 20px">
         <div class="control-area">
           <h3>格線編號規則設定</h3>
-          <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.95em;">
-            💡 提示：<br>
-            • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b>（例如：設定 A=1，系統自動設定 B=2, C=3...）<br>
-            • 輸入 <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">-</code> / <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">skip</code> / 留空 來跳過不編號的格線<br>
+          <p
+            style="
+              color: var(--theme-text-secondary);
+              margin-bottom: 15px;
+              font-size: 0.95em;
+            "
+          >
+            💡 提示：<br />
+            • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b>（例如：設定
+            A=1，系統自動設定 B=2, C=3...）<br />
+            • 輸入
+            <code
+              style="
+                background: var(--theme-bg);
+                padding: 2px 6px;
+                border-radius: 3px;
+              "
+              >-</code
+            >
+            /
+            <code
+              style="
+                background: var(--theme-bg);
+                padding: 2px 6px;
+                border-radius: 3px;
+              "
+              >skip</code
+            >
+            / 留空 來跳過不編號的格線<br />
             • 您隨時可以手動修改任何格線的編號
           </p>
-          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
             <div>
-              <h4 style="color: var(--theme-text-secondary); margin-bottom: 10px;">X 軸格線 (垂直方向)</h4>
-              <div id="x-grid-config" style="max-height: 300px; overflow-y: auto;"></div>
+              <h4
+                style="color: var(--theme-text-secondary); margin-bottom: 10px"
+              >
+                X 軸格線 (垂直方向)
+              </h4>
+              <div
+                id="x-grid-config"
+                style="max-height: 300px; overflow-y: auto"
+              ></div>
             </div>
             <div>
-              <h4 style="color: var(--theme-text-secondary); margin-bottom: 10px;">Y 軸格線 (水平方向)</h4>
-              <div id="y-grid-config" style="max-height: 300px; overflow-y: auto;"></div>
+              <h4
+                style="color: var(--theme-text-secondary); margin-bottom: 10px"
+              >
+                Y 軸格線 (水平方向)
+              </h4>
+              <div
+                id="y-grid-config"
+                style="max-height: 300px; overflow-y: auto"
+              ></div>
             </div>
           </div>
-          <div style="margin-top: 15px; text-align: right;">
-            <button class="btn-process" onclick="applyGridConfig()">套用設定並執行編號</button>
-            <button class="btn-export" onclick="cancelGridConfig()">取消</button>
+          <div style="margin-top: 15px; text-align: right">
+            <button class="btn-process" onclick="applyGridConfig()">
+              套用設定並執行編號
+            </button>
+            <button class="btn-export" onclick="cancelGridConfig()">
+              取消
+            </button>
           </div>
         </div>
       </div>
@@ -370,27 +429,109 @@
     </div>
 
     <!-- 梁編號編輯對話框 (移到 container 外面，相對於整個視窗定位) -->
-    <div id="beam-edit-dialog" style="display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 12px; padding: 20px; box-shadow: 0 10px 40px rgba(0,0,0,0.2); min-width: 400px;">
-      <h3 style="margin-top: 0;">編輯梁編號</h3>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">ETABS 編號:</label>
-        <input type="text" id="edit-etabs-name" readonly style="width: 100%; padding: 8px; background: var(--theme-bg); border: 1px solid var(--theme-border); border-radius: 6px;" />
+    <div
+      id="beam-edit-dialog"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        background: var(--theme-surface);
+        border: 1px solid var(--theme-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 400px;
+      "
+    >
+      <h3 style="margin-top: 0">編輯梁編號</h3>
+      <div style="margin-bottom: 15px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >ETABS 編號:</label
+        >
+        <input
+          type="text"
+          id="edit-etabs-name"
+          readonly
+          style="
+            width: 100%;
+            padding: 8px;
+            background: var(--theme-bg);
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+        />
       </div>
-      <div style="margin-bottom: 15px;">
-        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">樓層:</label>
-        <input type="text" id="edit-story" readonly style="width: 100%; padding: 8px; background: var(--theme-bg); border: 1px solid var(--theme-border); border-radius: 6px;" />
+      <div style="margin-bottom: 15px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >樓層:</label
+        >
+        <input
+          type="text"
+          id="edit-story"
+          readonly
+          style="
+            width: 100%;
+            padding: 8px;
+            background: var(--theme-bg);
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+        />
       </div>
-      <div style="margin-bottom: 20px;">
-        <label style="display: block; margin-bottom: 5px; color: var(--theme-text-secondary);">新編號:</label>
-        <input type="text" id="edit-new-label" style="width: 100%; padding: 8px; border: 1px solid var(--theme-border); border-radius: 6px;" placeholder="輸入新的編號" />
+      <div style="margin-bottom: 20px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >新編號:</label
+        >
+        <input
+          type="text"
+          id="edit-new-label"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+          placeholder="輸入新的編號"
+        />
       </div>
-      <div style="display: flex; gap: 10px; justify-content: flex-end;">
+      <div style="display: flex; gap: 10px; justify-content: flex-end">
         <button class="btn-export" onclick="closeBeamEditDialog()">取消</button>
         <button class="btn-process" onclick="saveBeamEdit()">儲存</button>
       </div>
     </div>
     <!-- 遮罩層 -->
-    <div id="dialog-overlay" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 999;" onclick="closeBeamEditDialog()"></div>
+    <div
+      id="dialog-overlay"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      "
+      onclick="closeBeamEditDialog()"
+    ></div>
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
@@ -495,7 +636,6 @@
 
           // 啟用「設定編號規則」按鈕
           document.getElementById("configBtn").disabled = false;
-
         } catch (error) {
           statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p>`;
           console.error(error);
@@ -514,11 +654,13 @@
         const yConfigDiv = document.getElementById("y-grid-config");
 
         // 生成 X 軸格線配置
-        xConfigDiv.innerHTML = gridData.x.map((grid, index) => `
+        xConfigDiv.innerHTML = gridData.x
+          .map(
+            (grid, index) => `
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
             <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
             <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
-              ${grid.lineType ? `(${grid.lineType})` : '(Primary)'}
+              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
             </span>
             <label style="font-size: 0.9em;">編號為:</label>
             <input type="text"
@@ -531,14 +673,18 @@
               data-index="${index}"
             />
           </div>
-        `).join('');
+        `
+          )
+          .join("");
 
         // 生成 Y 軸格線配置
-        yConfigDiv.innerHTML = gridData.y.map((grid, index) => `
+        yConfigDiv.innerHTML = gridData.y
+          .map(
+            (grid, index) => `
           <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
             <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
             <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
-              ${grid.lineType ? `(${grid.lineType})` : '(Primary)'}
+              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
             </span>
             <label style="font-size: 0.9em;">編號為:</label>
             <input type="text"
@@ -551,7 +697,9 @@
               data-index="${index}"
             />
           </div>
-        `).join('');
+        `
+          )
+          .join("");
 
         // [新增] 為所有輸入框添加自動順號事件
         attachAutoIncrementListeners();
@@ -561,22 +709,30 @@
 
       // [新增] 自動順號功能
       function attachAutoIncrementListeners() {
-        const allInputs = document.querySelectorAll('#x-grid-config input, #y-grid-config input');
+        const allInputs = document.querySelectorAll(
+          "#x-grid-config input, #y-grid-config input"
+        );
 
-        allInputs.forEach(input => {
-          input.addEventListener('change', function() {
+        allInputs.forEach((input) => {
+          input.addEventListener("change", function () {
             const axis = this.dataset.axis; // 'x' 或 'y'
             const currentIndex = parseInt(this.dataset.index);
             const currentValue = this.value.trim();
 
             // 如果輸入的是數字，才自動順號
             const parsedNum = parseInt(currentValue, 10);
-            if (isNaN(parsedNum) || currentValue === '' || currentValue === '-' || currentValue.toLowerCase() === 'skip') {
+            if (
+              isNaN(parsedNum) ||
+              currentValue === "" ||
+              currentValue === "-" ||
+              currentValue.toLowerCase() === "skip"
+            ) {
               return; // 非數字或跳過標記，不自動順號
             }
 
             // 自動更新後面的格線編號
-            const totalGrids = axis === 'x' ? gridData.x.length : gridData.y.length;
+            const totalGrids =
+              axis === "x" ? gridData.x.length : gridData.y.length;
             let nextValue = parsedNum + 1;
 
             for (let i = currentIndex + 1; i < totalGrids; i++) {
@@ -585,7 +741,12 @@
                 const nextInputValue = nextInput.value.trim();
                 // 只更新數字類型的輸入框（保留使用者手動設定的非數字值）
                 const nextParsedNum = parseInt(nextInputValue, 10);
-                if (!isNaN(nextParsedNum) && nextInputValue !== '' && nextInputValue !== '-' && nextInputValue.toLowerCase() !== 'skip') {
+                if (
+                  !isNaN(nextParsedNum) &&
+                  nextInputValue !== "" &&
+                  nextInputValue !== "-" &&
+                  nextInputValue.toLowerCase() !== "skip"
+                ) {
                   nextInput.value = nextValue;
                   nextValue++;
                 } else {
@@ -603,37 +764,53 @@
         // 收集使用者輸入
         userGridConfig = {
           x: gridData.x.map((grid, index) => {
-            const inputValue = document.getElementById(`x-grid-${index}`).value.trim();
+            const inputValue = document
+              .getElementById(`x-grid-${index}`)
+              .value.trim();
             // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
-            if (inputValue === '' || inputValue === '-' || inputValue.toLowerCase() === 'skip') {
+            if (
+              inputValue === "" ||
+              inputValue === "-" ||
+              inputValue.toLowerCase() === "skip"
+            ) {
               return {
                 name: grid.name,
                 serialValue: null, // null 表示跳過，不會被用於編號
-                lineType: grid.lineType
+                lineType: grid.lineType,
               };
             }
             return {
               name: grid.name,
-              serialValue: isNaN(inputValue) ? inputValue : parseInt(inputValue, 10),
-              lineType: grid.lineType
+              serialValue: isNaN(inputValue)
+                ? inputValue
+                : parseInt(inputValue, 10),
+              lineType: grid.lineType,
             };
           }),
           y: gridData.y.map((grid, index) => {
-            const inputValue = document.getElementById(`y-grid-${index}`).value.trim();
+            const inputValue = document
+              .getElementById(`y-grid-${index}`)
+              .value.trim();
             // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
-            if (inputValue === '' || inputValue === '-' || inputValue.toLowerCase() === 'skip') {
+            if (
+              inputValue === "" ||
+              inputValue === "-" ||
+              inputValue.toLowerCase() === "skip"
+            ) {
               return {
                 name: grid.name,
                 serialValue: null, // null 表示跳過，不會被用於編號
-                lineType: grid.lineType
+                lineType: grid.lineType,
               };
             }
             return {
               name: grid.name,
-              serialValue: isNaN(inputValue) ? inputValue : parseInt(inputValue, 10),
-              lineType: grid.lineType
+              serialValue: isNaN(inputValue)
+                ? inputValue
+                : parseInt(inputValue, 10),
+              lineType: grid.lineType,
             };
-          })
+          }),
         };
 
         document.getElementById("grid-config-panel").style.display = "none";
@@ -904,7 +1081,8 @@
         }
 
         // [修改] 預覽模式：如果沒有編號資料，直接顯示所有梁（當作背景梁但用藍色顯示）
-        const isPreviewMode = fullProcessedBeams.length === 0 && backgroundBeams.length > 0;
+        const isPreviewMode =
+          fullProcessedBeams.length === 0 && backgroundBeams.length > 0;
 
         const labeledBeamsWithCoords = beamsToDisplay.map((beam) => {
           const originalBeam = fullDrawableBeams.find(
@@ -917,7 +1095,13 @@
           return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
         });
 
-        displayResults(labeledBeamsWithCoords, backgroundBeams, svg, gridData, isPreviewMode);
+        displayResults(
+          labeledBeamsWithCoords,
+          backgroundBeams,
+          svg,
+          gridData,
+          isPreviewMode
+        );
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
           panZoomInstance = svgPanZoom("#drawing-svg", {
@@ -1045,7 +1229,13 @@
         return summaryParts.join("; ");
       }
 
-      function displayResults(labeledBeams, allBeams, svg, grids, isPreviewMode = false) {
+      function displayResults(
+        labeledBeams,
+        allBeams,
+        svg,
+        grids,
+        isPreviewMode = false
+      ) {
         const beamCoords = allBeams
           .flatMap((b) => [b.j1, b.j2])
           .filter(Boolean);
@@ -1093,7 +1283,10 @@
           line.setAttribute("x2", transformX(beam.j2.x));
           line.setAttribute("y2", transformY(beam.j2.y));
           // [修改] 預覽模式時使用藍色顯示梁
-          line.setAttribute("class", isPreviewMode ? "labeled-beam-line" : "beam-line");
+          line.setAttribute(
+            "class",
+            isPreviewMode ? "labeled-beam-line" : "beam-line"
+          );
           svg.appendChild(line);
         });
 
@@ -1274,8 +1467,8 @@
           line.dataset.beamJoint2 = beam.joint2;
           line.dataset.beamLabel = beam.newLabel;
           // [新增] 設定梁為可點擊
-          line.style.cursor = 'pointer';
-          line.addEventListener('click', () => openBeamEditDialog(beam));
+          line.style.cursor = "pointer";
+          line.addEventListener("click", () => openBeamEditDialog(beam));
           svg.appendChild(line);
 
           const text = document.createElementNS(
@@ -1335,8 +1528,8 @@
           text.setAttribute("class", "beam-label");
           text.textContent = beam.newLabel;
           // [新增] 標籤也可點擊編輯
-          text.style.cursor = 'pointer';
-          text.addEventListener('click', () => openBeamEditDialog(beam));
+          text.style.cursor = "pointer";
+          text.addEventListener("click", () => openBeamEditDialog(beam));
           svg.appendChild(text);
         });
       }
@@ -1344,36 +1537,37 @@
       // [新增] 開啟梁編輯對話框
       function openBeamEditDialog(beam) {
         currentEditingBeam = beam;
-        document.getElementById('edit-etabs-name').value = beam.name;
-        document.getElementById('edit-story').value = beam.story;
-        document.getElementById('edit-new-label').value = beam.newLabel || '';
-        document.getElementById('beam-edit-dialog').style.display = 'block';
-        document.getElementById('dialog-overlay').style.display = 'block';
+        document.getElementById("edit-etabs-name").value = beam.name;
+        document.getElementById("edit-story").value = beam.story;
+        document.getElementById("edit-new-label").value = beam.newLabel || "";
+        document.getElementById("beam-edit-dialog").style.display = "block";
+        document.getElementById("dialog-overlay").style.display = "block";
       }
 
       // [新增] 關閉梁編輯對話框
       function closeBeamEditDialog() {
         currentEditingBeam = null;
-        document.getElementById('beam-edit-dialog').style.display = 'none';
-        document.getElementById('dialog-overlay').style.display = 'none';
+        document.getElementById("beam-edit-dialog").style.display = "none";
+        document.getElementById("dialog-overlay").style.display = "none";
       }
 
       // [新增] 儲存梁編號編輯
       function saveBeamEdit() {
         if (!currentEditingBeam) return;
 
-        const newLabel = document.getElementById('edit-new-label').value.trim();
+        const newLabel = document.getElementById("edit-new-label").value.trim();
         if (!newLabel) {
-          alert('請輸入新的編號');
+          alert("請輸入新的編號");
           return;
         }
 
         // 更新 fullProcessedBeams 中的資料
         const beamIndex = fullProcessedBeams.findIndex(
-          b => b.name === currentEditingBeam.name &&
-               b.story === currentEditingBeam.story &&
-               b.joint1 === currentEditingBeam.joint1 &&
-               b.joint2 === currentEditingBeam.joint2
+          (b) =>
+            b.name === currentEditingBeam.name &&
+            b.story === currentEditingBeam.story &&
+            b.joint1 === currentEditingBeam.joint1 &&
+            b.joint2 === currentEditingBeam.joint2
         );
 
         if (beamIndex !== -1) {
@@ -1649,8 +1843,10 @@
 
             // [新增] 優先使用使用者自訂配置
             if (userGridConfig) {
-              const axisKey = gridArray === grids.x ? 'x' : 'y';
-              const userConfig = userGridConfig[axisKey]?.find(c => c.name === gridNameToFind);
+              const axisKey = gridArray === grids.x ? "x" : "y";
+              const userConfig = userGridConfig[axisKey]?.find(
+                (c) => c.name === gridNameToFind
+              );
               if (userConfig && userConfig.serialValue !== undefined) {
                 // [修改] 如果 serialValue 是 null，表示要跳過這個格線
                 if (userConfig.serialValue === null) {
@@ -1661,7 +1857,10 @@
             }
 
             // 如果是 Secondary 格線，直接返回格線名稱
-            if (gridObj.lineType && gridObj.lineType.toUpperCase() === "SECONDARY") {
+            if (
+              gridObj.lineType &&
+              gridObj.lineType.toUpperCase() === "SECONDARY"
+            ) {
               return gridNameToFind; // 返回原始名稱
             }
 
@@ -1684,7 +1883,7 @@
             if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【水平梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.x);
-              return typeof serial === 'number' ? serial - 1 : serial;
+              return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minX, grids.x);
             // **【水平梁規則2】** 起點格線編號（不減 1）
@@ -1695,7 +1894,7 @@
             if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【垂直梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.y);
-              return typeof serial === 'number' ? serial - 1 : serial;
+              return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minY, grids.y);
             // **【垂直梁規則2】** 起點格線編號（不減 1）
@@ -1832,7 +2031,11 @@
           }
 
           // [修改] 支援字串型序號 (Secondary 格線)
-          if (serial !== undefined && serial !== -1 && (typeof serial === 'string' || !isNaN(serial))) {
+          if (
+            serial !== undefined &&
+            serial !== -1 &&
+            (typeof serial === "string" || !isNaN(serial))
+          ) {
             labelComponentMap.set(beamKey, {
               isVertical: beam.isVertical,
               primaryGridName,
