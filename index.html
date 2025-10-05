@@ -459,12 +459,27 @@
         <div class="control-row">
           <div class="file-input-group">
             <label for="e2kFile" class="file-label">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="margin-right: 8px;">
-                <path d="M13 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-3-5z" stroke="currentColor" stroke-width="2"/>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                style="margin-right: 8px"
+              >
+                <path
+                  d="M13 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-3-5z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
               </svg>
               請選擇 ETABS .e2k 檔案
             </label>
-            <input type="file" id="e2kFile" accept=".e2k" style="display: none;" />
+            <input
+              type="file"
+              id="e2kFile"
+              accept=".e2k"
+              style="display: none"
+            />
             <span id="fileName" class="file-name-display">未選擇檔案</span>
           </div>
           <div class="checkbox-group">
@@ -475,30 +490,105 @@
 
         <!-- 第二排：主要操作按鈕 -->
         <div class="button-row">
-          <button class="btn btn-primary" id="previewBtn" onclick="previewFile()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-primary"
+            id="previewBtn"
+            onclick="previewFile()"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             預覽結構
           </button>
-          <button class="btn btn-secondary" id="configBtn" onclick="showGridConfig()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-secondary"
+            id="configBtn"
+            onclick="showGridConfig()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             設定規則並編號
           </button>
-          <button class="btn btn-success" id="exportBtn" onclick="exportToExcel()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"/>
-              <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-success"
+            id="exportBtn"
+            onclick="exportToExcel()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <polyline
+                points="14,2 14,8 20,8"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             匯出 Excel
           </button>
-          <button class="btn btn-autocad" id="exportJsonBtn" onclick="exportToJSONV2()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-autocad"
+            id="exportJsonBtn"
+            onclick="exportToJSONV2()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             匯出 AutoCAD
           </button>
@@ -508,11 +598,19 @@
         <div class="filter-row">
           <div class="filter-group">
             <label for="storySelector">樓層</label>
-            <select id="storySelector" onchange="handleStoryChange()" disabled></select>
+            <select
+              id="storySelector"
+              onchange="handleStoryChange()"
+              disabled
+            ></select>
           </div>
           <div class="filter-group">
             <label for="beamTypeSelector">類型</label>
-            <select id="beamTypeSelector" onchange="handleStoryChange()" disabled>
+            <select
+              id="beamTypeSelector"
+              onchange="handleStoryChange()"
+              disabled
+            >
               <option value="all">全部</option>
               <option value="main">大梁</option>
               <option value="secondary">小梁</option>
@@ -1462,7 +1560,10 @@
           // 根據梁類型設定顏色類別
           if (isPreviewMode) {
             // 預覽模式：大梁用藍色，小梁用橘色
-            line.setAttribute("class", isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line");
+            line.setAttribute(
+              "class",
+              isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line"
+            );
           } else {
             // 背景梁：統一灰色
             line.setAttribute("class", "beam-line");
@@ -2728,7 +2829,7 @@
         const outputData = {
           project: "ETABS梁編號專案",
           exportDate: new Date().toISOString(),
-          floors: []
+          floors: [],
         };
 
         // 依樓層分組
@@ -2744,7 +2845,7 @@
         floorGroups.forEach((beams, floorName) => {
           const floorData = {
             floorName: floorName,
-            beams: []
+            beams: [],
           };
 
           beams.forEach((beam) => {
@@ -2759,20 +2860,24 @@
               startPoint: {
                 id: beam.joint1,
                 x: j1.x,
-                y: j1.y
+                y: j1.y,
               },
               endPoint: {
                 id: beam.joint2,
                 x: j2.x,
-                y: j2.y
+                y: j2.y,
               },
               midPoint: {
                 x: (j1.x + j2.x) / 2,
-                y: (j1.y + j2.y) / 2
+                y: (j1.y + j2.y) / 2,
               },
-              length: Math.sqrt(Math.pow(j2.x - j1.x, 2) + Math.pow(j2.y - j1.y, 2)),
+              length: Math.sqrt(
+                Math.pow(j2.x - j1.x, 2) + Math.pow(j2.y - j1.y, 2)
+              ),
               section: beam.prop || "",
-              isMainBeam: !beam.newLabel.toLowerCase().startsWith("b") && !beam.newLabel.toLowerCase().startsWith("fb")
+              isMainBeam:
+                !beam.newLabel.toLowerCase().startsWith("b") &&
+                !beam.newLabel.toLowerCase().startsWith("fb"),
             });
           });
 
@@ -2808,14 +2913,20 @@
           // 找到最接近的 Y 軸線
           const avgY = (j1.y + j2.y) / 2;
           const closestYGrid = grids.y.reduce((prev, curr) => {
-            return Math.abs(curr.ordinate - avgY) < Math.abs(prev.ordinate - avgY) ? curr : prev;
+            return Math.abs(curr.ordinate - avgY) <
+              Math.abs(prev.ordinate - avgY)
+              ? curr
+              : prev;
           });
 
           // 找到梁跨越的 X 軸線
           const minX = Math.min(j1.x, j2.x);
           const maxX = Math.max(j1.x, j2.x);
           const betweenX = grids.x
-            .filter(g => g.ordinate >= minX - tolerance && g.ordinate <= maxX + tolerance)
+            .filter(
+              (g) =>
+                g.ordinate >= minX - tolerance && g.ordinate <= maxX + tolerance
+            )
             .sort((a, b) => a.ordinate - b.ordinate);
 
           if (betweenX.length >= 2) {
@@ -2824,20 +2935,26 @@
               between: [betweenX[0].name, betweenX[betweenX.length - 1].name],
               direction: "horizontal",
               offsetFromStart: Math.abs(avgY - closestYGrid.ordinate),
-              length: deltaX
+              length: deltaX,
             };
           }
         } else {
           // 垂直梁：沿著某條 X 軸線，在兩條 Y 軸線之間
           const avgX = (j1.x + j2.x) / 2;
           const closestXGrid = grids.x.reduce((prev, curr) => {
-            return Math.abs(curr.ordinate - avgX) < Math.abs(prev.ordinate - avgX) ? curr : prev;
+            return Math.abs(curr.ordinate - avgX) <
+              Math.abs(prev.ordinate - avgX)
+              ? curr
+              : prev;
           });
 
           const minY = Math.min(j1.y, j2.y);
           const maxY = Math.max(j1.y, j2.y);
           const betweenY = grids.y
-            .filter(g => g.ordinate >= minY - tolerance && g.ordinate <= maxY + tolerance)
+            .filter(
+              (g) =>
+                g.ordinate >= minY - tolerance && g.ordinate <= maxY + tolerance
+            )
             .sort((a, b) => a.ordinate - b.ordinate);
 
           if (betweenY.length >= 2) {
@@ -2846,7 +2963,7 @@
               between: [betweenY[0].name, betweenY[betweenY.length - 1].name],
               direction: "vertical",
               offsetFromStart: Math.abs(avgX - closestXGrid.ordinate),
-              length: deltaY
+              length: deltaY,
             };
           }
         }
@@ -2869,10 +2986,10 @@
           project: "ETABS梁編號專案",
           exportDate: new Date().toISOString(),
           gridSystem: {
-            xGrids: gridData.x.map(g => g.name),
-            yGrids: gridData.y.map(g => g.name)
+            xGrids: gridData.x.map((g) => g.name),
+            yGrids: gridData.y.map((g) => g.name),
           },
-          floors: []
+          floors: [],
         };
 
         // 依樓層分組
@@ -2888,11 +3005,15 @@
         floorGroups.forEach((beams, floorName) => {
           const floorData = {
             floorName: floorName,
-            beams: []
+            beams: [],
           };
 
           beams.forEach((beam) => {
-            const gridRelation = calculateGridRelation(beam, previewJoints, gridData);
+            const gridRelation = calculateGridRelation(
+              beam,
+              previewJoints,
+              gridData
+            );
 
             if (gridRelation) {
               floorData.beams.push({
@@ -2904,10 +3025,12 @@
                   direction: gridRelation.direction,
                   offsetFromStart: gridRelation.offsetFromStart,
                   length: gridRelation.length,
-                  tolerance: 0.1
+                  tolerance: 0.1,
                 },
                 section: beam.prop || "",
-                isMainBeam: !beam.newLabel.toLowerCase().startsWith("b") && !beam.newLabel.toLowerCase().startsWith("fb")
+                isMainBeam:
+                  !beam.newLabel.toLowerCase().startsWith("b") &&
+                  !beam.newLabel.toLowerCase().startsWith("fb"),
               });
             }
           });
@@ -3051,14 +3174,16 @@
         });
 
       // 檔案選擇時更新檔名顯示
-      document.getElementById("e2kFile").addEventListener("change", function(event) {
-        const fileNameDisplay = document.getElementById("file-name-display");
-        if (event.target.files.length > 0) {
-          fileNameDisplay.textContent = event.target.files[0].name;
-        } else {
-          fileNameDisplay.textContent = "尚未選擇檔案";
-        }
-      });
+      document
+        .getElementById("e2kFile")
+        .addEventListener("change", function (event) {
+          const fileNameDisplay = document.getElementById("file-name-display");
+          if (event.target.files.length > 0) {
+            fileNameDisplay.textContent = event.target.files[0].name;
+          } else {
+            fileNameDisplay.textContent = "尚未選擇檔案";
+          }
+        });
     </script>
   </body>
 </html>
