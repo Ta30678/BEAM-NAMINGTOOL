@@ -1535,15 +1535,22 @@
       }
 
       // [新增] 開啟梁編輯對話框
+      // [修改] 開啟梁編輯對話框
       function openBeamEditDialog(beam) {
         currentEditingBeam = beam;
         document.getElementById("edit-etabs-name").value = beam.name;
         document.getElementById("edit-story").value = beam.story;
-        document.getElementById("edit-new-label").value = beam.newLabel || "";
+
+        const newLabelInput = document.getElementById("edit-new-label");
+        newLabelInput.value = beam.newLabel || "";
+
         document.getElementById("beam-edit-dialog").style.display = "block";
         document.getElementById("dialog-overlay").style.display = "block";
-      }
 
+        // 自動對焦並選取文字
+        newLabelInput.focus();
+        newLabelInput.select();
+      }
       // [新增] 關閉梁編輯對話框
       function closeBeamEditDialog() {
         currentEditingBeam = null;
@@ -2639,6 +2646,18 @@
       }
 
       setupSelectWheelListeners();
+      // 為 "新編號" 輸入框新增 'keydown' 事件監聽
+      document
+        .getElementById("edit-new-label")
+        .addEventListener("keydown", function (event) {
+          // 檢查按下的鍵是否為 Enter (event.key 或 event.keyCode)
+          if (event.key === "Enter" || event.keyCode === 13) {
+            // 防止預設行為 (例如表單提交)
+            event.preventDefault();
+            // 呼叫儲存函式
+            saveBeamEdit();
+          }
+        });
     </script>
   </body>
 </html>
