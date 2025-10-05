@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
@@ -67,7 +67,8 @@
         padding: 20px;
         border-radius: 18px;
         border: 1px solid var(--theme-border);
-        box-shadow: 0 10px 25px -5px var(--theme-shadow),
+        box-shadow:
+          0 10px 25px -5px var(--theme-shadow),
           0 8px 10px -6px var(--theme-shadow);
         animation: fadeIn 0.8s ease-out forwards;
         position: relative;
@@ -459,12 +460,27 @@
         <div class="control-row">
           <div class="file-input-group">
             <label for="e2kFile" class="file-label">
-              <svg width="20" height="20" viewBox="0 0 20 20" fill="none" style="margin-right: 8px;">
-                <path d="M13 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-3-5z" stroke="currentColor" stroke-width="2"/>
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                style="margin-right: 8px"
+              >
+                <path
+                  d="M13 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-3-5z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
               </svg>
               請選擇 ETABS .e2k 檔案
             </label>
-            <input type="file" id="e2kFile" accept=".e2k" style="display: none;" />
+            <input
+              type="file"
+              id="e2kFile"
+              accept=".e2k"
+              style="display: none"
+            />
             <span id="fileName" class="file-name-display">未選擇檔案</span>
           </div>
           <div class="checkbox-group">
@@ -475,30 +491,105 @@
 
         <!-- 第二排：主要操作按鈕 -->
         <div class="button-row">
-          <button class="btn btn-primary" id="previewBtn" onclick="previewFile()">
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" stroke="currentColor" stroke-width="2"/>
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-primary"
+            id="previewBtn"
+            onclick="previewFile()"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             預覽結構
           </button>
-          <button class="btn btn-secondary" id="configBtn" onclick="showGridConfig()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/>
-              <path d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-secondary"
+            id="configBtn"
+            onclick="showGridConfig()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             設定規則並編號
           </button>
-          <button class="btn btn-success" id="exportBtn" onclick="exportToExcel()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" stroke="currentColor" stroke-width="2"/>
-              <polyline points="14,2 14,8 20,8" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-success"
+            id="exportBtn"
+            onclick="exportToExcel()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <polyline
+                points="14,2 14,8 20,8"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             匯出 Excel
           </button>
-          <button class="btn btn-autocad" id="exportJsonBtn" onclick="exportToJSONV2()" disabled>
-            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" style="margin-right: 6px;">
-              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12" stroke="currentColor" stroke-width="2"/>
+          <button
+            class="btn btn-autocad"
+            id="exportJsonBtn"
+            onclick="exportToJSONV2()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                stroke="currentColor"
+                stroke-width="2"
+              />
             </svg>
             匯出 AutoCAD
           </button>
@@ -508,11 +599,19 @@
         <div class="filter-row">
           <div class="filter-group">
             <label for="storySelector">樓層</label>
-            <select id="storySelector" onchange="handleStoryChange()" disabled></select>
+            <select
+              id="storySelector"
+              onchange="handleStoryChange()"
+              disabled
+            ></select>
           </div>
           <div class="filter-group">
             <label for="beamTypeSelector">類型</label>
-            <select id="beamTypeSelector" onchange="handleStoryChange()" disabled>
+            <select
+              id="beamTypeSelector"
+              onchange="handleStoryChange()"
+              disabled
+            >
               <option value="all">全部</option>
               <option value="main">大梁</option>
               <option value="secondary">小梁</option>
@@ -762,7 +861,7 @@
 
           // 解析樓層
           const storySectionMatch = previewFileContent.match(
-            /\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i
+            /\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i,
           );
           if (!storySectionMatch) throw new Error("找不到樓層定義");
 
@@ -845,7 +944,7 @@
               data-index="${index}"
             />
           </div>
-        `
+        `,
           )
           .join("");
 
@@ -869,7 +968,7 @@
               data-index="${index}"
             />
           </div>
-        `
+        `,
           )
           .join("");
 
@@ -882,7 +981,7 @@
       // [新增] 自動順號功能
       function attachAutoIncrementListeners() {
         const allInputs = document.querySelectorAll(
-          "#x-grid-config input, #y-grid-config input"
+          "#x-grid-config input, #y-grid-config input",
         );
 
         allInputs.forEach((input) => {
@@ -1048,15 +1147,15 @@
           const secondaryBeams = allBeamsAcrossStories.filter(
             (b) =>
               b.prop.toUpperCase().startsWith("SB") &&
-              !b.prop.toUpperCase().startsWith("FSB")
+              !b.prop.toUpperCase().startsWith("FSB"),
           );
           const secondaryFoundationBeams = allBeamsAcrossStories.filter((b) =>
-            b.prop.toUpperCase().startsWith("FSB")
+            b.prop.toUpperCase().startsWith("FSB"),
           );
           const specialBeams = allBeamsAcrossStories.filter(
             (b) =>
               b.prop.toUpperCase().startsWith("WB") ||
-              b.prop.toUpperCase().startsWith("FWB")
+              b.prop.toUpperCase().startsWith("FWB"),
           );
 
           let allLabeledBeams = [...specialBeams];
@@ -1064,7 +1163,7 @@
           for (const story of availableStories) {
             const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
             const secondaryBeamsInStory = secondaryBeams.filter(
-              (b) => b.story === story
+              (b) => b.story === story,
             );
             const secondaryFoundationBeamsInStory =
               secondaryFoundationBeams.filter((b) => b.story === story);
@@ -1073,7 +1172,7 @@
               const labelComponentMap = generateLabelsForStory(
                 mainBeamsInStory,
                 joints,
-                gridData
+                gridData,
               );
               labelComponentMap.forEach((components, beamKey) => {
                 const [name, joint1, joint2] = beamKey.split("|");
@@ -1081,7 +1180,7 @@
                   (b) =>
                     b.name === name &&
                     b.joint1 === joint1 &&
-                    b.joint2 === joint2
+                    b.joint2 === joint2,
                 );
                 if (!originalBeam) return;
 
@@ -1091,8 +1190,8 @@
                     ? "FB"
                     : "B"
                   : propUpper.startsWith("FB")
-                  ? "FG"
-                  : "G";
+                    ? "FG"
+                    : "G";
 
                 const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
                 const newLabel = `${finalPrefix}-${components.serial}`;
@@ -1106,7 +1205,7 @@
                 secondaryBeamsInStory,
                 mainBeamsInStory,
                 joints,
-                "b"
+                "b",
               );
               secondaryBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -1114,7 +1213,7 @@
                   (b) =>
                     b.name === name &&
                     b.joint1 === joint1 &&
-                    b.joint2 === joint2
+                    b.joint2 === joint2,
                 );
                 if (originalBeam) {
                   allLabeledBeams.push({
@@ -1130,7 +1229,7 @@
                 secondaryFoundationBeamsInStory,
                 mainBeamsInStory,
                 joints,
-                "fb"
+                "fb",
               );
               foundationBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -1138,7 +1237,7 @@
                   (b) =>
                     b.name === name &&
                     b.joint1 === joint1 &&
-                    b.joint2 === joint2
+                    b.joint2 === joint2,
                 );
                 if (originalBeam) {
                   allLabeledBeams.push({
@@ -1152,7 +1251,7 @@
 
           let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
           finalProcessedData = finalProcessedData.filter(
-            (beam) => beam.newLabel
+            (beam) => beam.newLabel,
           );
 
           finalProcessedData.sort((a, b) => {
@@ -1223,10 +1322,10 @@
 
         if (selectedStory !== "all") {
           beamsToDisplay = beamsToDisplay.filter(
-            (b) => b.story === selectedStory
+            (b) => b.story === selectedStory,
           );
           backgroundBeams = backgroundBeams.filter(
-            (b) => b.story === selectedStory
+            (b) => b.story === selectedStory,
           );
         }
 
@@ -1234,17 +1333,17 @@
           beamsToDisplay = beamsToDisplay.filter(
             (b) =>
               b.newLabel &&
-              !(b.newLabel.startsWith("b") || b.newLabel.startsWith("fb"))
+              !(b.newLabel.startsWith("b") || b.newLabel.startsWith("fb")),
           );
           backgroundBeams = backgroundBeams.filter(
-            (b) => b.prop && !/SB/.test(b.prop.toUpperCase())
+            (b) => b.prop && !/SB/.test(b.prop.toUpperCase()),
           );
         } else if (selectedBeamType === "secondary") {
           beamsToDisplay = beamsToDisplay.filter(
-            (b) => b.newLabel && b.newLabel && /^(b|fb)\d/.test(b.newLabel)
+            (b) => b.newLabel && b.newLabel && /^(b|fb)\d/.test(b.newLabel),
           );
           backgroundBeams = backgroundBeams.filter(
-            (b) => b.prop && /SB/.test(b.prop.toUpperCase())
+            (b) => b.prop && /SB/.test(b.prop.toUpperCase()),
           );
         }
 
@@ -1263,7 +1362,7 @@
               b.name === beam.name &&
               b.story === beam.story &&
               b.joint1 === beam.joint1 &&
-              b.joint2 === beam.joint2
+              b.joint2 === beam.joint2,
           );
           return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
         });
@@ -1273,7 +1372,7 @@
           backgroundBeams,
           svg,
           gridData,
-          isPreviewMode
+          isPreviewMode,
         );
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
@@ -1290,7 +1389,7 @@
             onZoom: function (newZoom) {
               // --- 更新梁標籤 ---
               const beamLabels = document.querySelectorAll(
-                "#drawing-svg .beam-label"
+                "#drawing-svg .beam-label",
               );
               beamLabels.forEach((label) => {
                 // 1. 反向縮放字體大小和外框
@@ -1314,7 +1413,7 @@
                   // 更新旋轉變換，確保旋轉中心正確
                   label.setAttribute(
                     "transform",
-                    `rotate(-90, ${newRotatedX}, ${baseY})`
+                    `rotate(-90, ${newRotatedX}, ${baseY})`,
                   );
                 } else if (orientation === "angled") {
                   const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
@@ -1324,7 +1423,7 @@
 
               // --- 更新網格氣泡 ---
               const gridBubbles = document.querySelectorAll(
-                "#drawing-svg .grid-bubble"
+                "#drawing-svg .grid-bubble",
               );
               gridBubbles.forEach((bubble) => {
                 bubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS / newZoom);
@@ -1334,7 +1433,7 @@
               });
 
               const gridBubbleTexts = document.querySelectorAll(
-                "#drawing-svg .grid-bubble-text"
+                "#drawing-svg .grid-bubble-text",
               );
               gridBubbleTexts.forEach((text) => {
                 text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
@@ -1349,7 +1448,7 @@
         if (floors.length === 1) return floors[0];
 
         const sortedFloors = [...floors].sort(
-          (a, b) => storyOrder[a] - storyOrder[b]
+          (a, b) => storyOrder[a] - storyOrder[b],
         );
         const ranges = [];
         let rangeStart = sortedFloors[0];
@@ -1407,7 +1506,7 @@
         allBeams,
         svg,
         grids,
-        isPreviewMode = false
+        isPreviewMode = false,
       ) {
         const beamCoords = allBeams
           .flatMap((b) => [b.j1, b.j2])
@@ -1436,7 +1535,7 @@
         let scale =
           Math.min(
             (svgWidth - 2 * padding) / (contentWidth || 1),
-            (svgHeight - 2 * padding) / (contentHeight || 1)
+            (svgHeight - 2 * padding) / (contentHeight || 1),
           ) * 0.9;
         if (!isFinite(scale) || scale === 0) scale = 1;
 
@@ -1449,7 +1548,7 @@
         allDrawableBeams.forEach((beam) => {
           const line = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "line"
+            "line",
           );
           line.setAttribute("x1", transformX(beam.j1.x));
           line.setAttribute("y1", transformY(beam.j1.y));
@@ -1462,7 +1561,10 @@
           // 根據梁類型設定顏色類別
           if (isPreviewMode) {
             // 預覽模式：大梁用藍色，小梁用橘色
-            line.setAttribute("class", isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line");
+            line.setAttribute(
+              "class",
+              isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line",
+            );
           } else {
             // 背景梁：統一灰色
             line.setAttribute("class", "beam-line");
@@ -1473,13 +1575,13 @@
         if (grids && grids.x && grids.y) {
           const gridGroup = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "g"
+            "g",
           );
           gridGroup.setAttribute("class", "grid-lines");
           grids.x.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
-              "line"
+              "line",
             );
             line.setAttribute("x1", transformX(gridLine.ordinate));
             // [修改] 讓垂直線的起點和終點對齊內容邊界
@@ -1492,7 +1594,7 @@
           grids.y.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
-              "line"
+              "line",
             );
             // [修改] 讓水平線的起點和終點對齊內容邊界
             line.setAttribute("x1", transformX(minX));
@@ -1507,7 +1609,7 @@
           // ... 之後繪製網格氣泡 (grid bubble) 的程式碼維持不變 ...
           const gridLabelsGroup = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "g"
+            "g",
           );
 
           grids.x.forEach((gridLine) => {
@@ -1521,7 +1623,7 @@
             if (loc === "End" || loc === "Both" || !loc) {
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "circle"
+                "circle",
               );
               topBubble.setAttribute("cx", cx);
               topBubble.setAttribute("cy", bubbleYTop); // 使用新座標
@@ -1529,7 +1631,7 @@
               topBubble.setAttribute("class", "grid-bubble");
               const topText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "text"
+                "text",
               );
               topText.setAttribute("x", cx);
               topText.setAttribute("y", bubbleYTop); // 使用新座標
@@ -1542,7 +1644,7 @@
             if (loc === "Start" || loc === "Both") {
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "circle"
+                "circle",
               );
               bottomBubble.setAttribute("cx", cx);
               bottomBubble.setAttribute("cy", bubbleYBottom); // 使用新座標
@@ -1550,7 +1652,7 @@
               bottomBubble.setAttribute("class", "grid-bubble");
               const bottomText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "text"
+                "text",
               );
               bottomText.setAttribute("x", cx);
               bottomText.setAttribute("y", bubbleYBottom); // 使用新座標
@@ -1572,7 +1674,7 @@
             if (loc === "Start" || loc === "Both" || !loc) {
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "circle"
+                "circle",
               );
               leftBubble.setAttribute("cx", bubbleXLeft); // 使用新座標
               leftBubble.setAttribute("cy", cy);
@@ -1580,7 +1682,7 @@
               leftBubble.setAttribute("class", "grid-bubble");
               const leftText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "text"
+                "text",
               );
               leftText.setAttribute("x", bubbleXLeft); // 使用新座標
               leftText.setAttribute("y", cy);
@@ -1593,7 +1695,7 @@
             if (loc === "End" || loc === "Both") {
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "circle"
+                "circle",
               );
               rightBubble.setAttribute("cx", bubbleXRight); // 使用新座標
               rightBubble.setAttribute("cy", cy);
@@ -1601,7 +1703,7 @@
               rightBubble.setAttribute("class", "grid-bubble");
               const rightText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
-                "text"
+                "text",
               );
               rightText.setAttribute("x", bubbleXRight); // 使用新座標
               rightText.setAttribute("y", cy);
@@ -1618,7 +1720,7 @@
         labeledDrawableBeams.forEach((beam) => {
           const line = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "line"
+            "line",
           );
           line.setAttribute("x1", transformX(beam.j1.x));
           line.setAttribute("y1", transformY(beam.j1.y));
@@ -1653,7 +1755,7 @@
 
           const text = document.createElementNS(
             "http://www.w3.org/2000/svg",
-            "text"
+            "text",
           );
 
           const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
@@ -1679,7 +1781,7 @@
             text.setAttribute("dominant-baseline", "middle");
             text.setAttribute(
               "transform",
-              `rotate(-90, ${rotatedX}, ${textY})`
+              `rotate(-90, ${rotatedX}, ${textY})`,
             );
           } else {
             text.dataset.orientation = "angled";
@@ -1700,7 +1802,7 @@
             text.setAttribute("dominant-baseline", "alphabetic");
             text.setAttribute(
               "transform",
-              `rotate(${angle}, ${textX}, ${textY})`
+              `rotate(${angle}, ${textX}, ${textY})`,
             );
             text.setAttribute("dy", -INITIAL_ANGLED_OFFSET);
           }
@@ -1754,7 +1856,7 @@
             b.name === currentEditingBeam.name &&
             b.story === currentEditingBeam.story &&
             b.joint1 === currentEditingBeam.joint1 &&
-            b.joint2 === currentEditingBeam.joint2
+            b.joint2 === currentEditingBeam.joint2,
         );
 
         if (beamIndex !== -1) {
@@ -1772,7 +1874,7 @@
           y: [],
         };
         const gridTableSection = content.match(
-          /TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/
+          /TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/,
         );
         if (gridTableSection) {
           let currentGrid = {};
@@ -1818,7 +1920,7 @@
             const lines = gridDollarSection[1].trim().split("\n");
             lines.forEach((line) => {
               const match = line.match(
-                /LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i
+                /LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i,
               );
               if (match) {
                 const [, name, type, ordinate] = match;
@@ -1853,7 +1955,7 @@
           /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
 
         const jointTableSection = content.match(
-          /TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/
+          /TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/,
         );
         if (jointTableSection) {
           const lines = jointTableSection[1].trim().split("\n");
@@ -1882,7 +1984,7 @@
         }
         if (Object.keys(joints).length === 0) {
           const jointDollarSection = content.match(
-            /\$ JOINTS([\s\S]*?)(?=\$|$)/s
+            /\$ JOINTS([\s\S]*?)(?=\$|$)/s,
           );
           if (jointDollarSection) {
             const lines = jointDollarSection[1].trim().split("\n");
@@ -1923,10 +2025,10 @@
         };
 
         const frameTableSection = content.match(
-          /TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/
+          /TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/,
         );
         const frameAssignSection = content.match(
-          /TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/
+          /TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/,
         );
         if (frameTableSection && frameAssignSection) {
           const connectivityLines = frameTableSection[1].trim().split("\n");
@@ -1961,10 +2063,10 @@
         }
         if (frames.length === 0) {
           const lineConnectivitySection = content.match(
-            /\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i
+            /\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i,
           );
           const lineAssignsSection = content.match(
-            /\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i
+            /\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i,
           );
           if (lineConnectivitySection && lineAssignsSection) {
             const connectLines = lineConnectivitySection[1].trim().split("\n");
@@ -1974,8 +2076,8 @@
               const assignMatch = line.match(
                 new RegExp(
                   `LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`,
-                  "i"
-                )
+                  "i",
+                ),
               );
               if (assignMatch) {
                 const [, name, propName] = assignMatch;
@@ -1986,7 +2088,7 @@
             });
             connectLines.forEach((line) => {
               const connMatch = line.match(
-                /LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i
+                /LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i,
               );
               if (connMatch) {
                 const [, name, joint1, joint2] = connMatch;
@@ -2032,7 +2134,7 @@
             if (userGridConfig) {
               const axisKey = gridArray === grids.x ? "x" : "y";
               const userConfig = userGridConfig[axisKey]?.find(
-                (c) => c.name === gridNameToFind
+                (c) => c.name === gridNameToFind,
               );
               if (userConfig && userConfig.serialValue !== undefined) {
                 // [修改] 如果 serialValue 是 null，表示要跳過這個格線
@@ -2059,7 +2161,7 @@
             } else {
               // 否則，回傳它在陣列中的 1-based 順序
               const index = gridArray.findIndex(
-                (g) => g.name === gridNameToFind
+                (g) => g.name === gridNameToFind,
               );
               return index !== -1 ? index + 1 : NaN;
             }
@@ -2139,7 +2241,7 @@
 
           if (beam.isVertical) {
             let onGridLine = grids.x.find(
-              (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE
+              (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE,
             );
 
             if (onGridLine) {
@@ -2161,9 +2263,9 @@
                         (b) =>
                           b.isVertical &&
                           b.centerX > gridBelow.ordinate &&
-                          b.centerX < gridAbove.ordinate
+                          b.centerX < gridAbove.ordinate,
                       )
-                      .map((b) => b.centerX.toFixed(2))
+                      .map((b) => b.centerX.toFixed(2)),
                   ),
                 ].sort((a, b) => parseFloat(a) - parseFloat(b));
 
@@ -2178,7 +2280,7 @@
             serial = getBeamSerial(beam, grids, false);
           } else {
             let onGridLine = grids.y.find(
-              (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE
+              (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE,
             );
 
             if (onGridLine) {
@@ -2200,9 +2302,9 @@
                         (b) =>
                           b.isHorizontal &&
                           b.centerY > gridBelow.ordinate &&
-                          b.centerY < gridAbove.ordinate
+                          b.centerY < gridAbove.ordinate,
                       )
-                      .map((b) => b.centerY.toFixed(2))
+                      .map((b) => b.centerY.toFixed(2)),
                   ),
                 ].sort((a, b) => parseFloat(a) - parseFloat(b));
 
@@ -2288,15 +2390,58 @@
       }
 
       /**
-       * 小梁編號核心函式 (最終版)
+       * 判斷梁是否在對稱軸上或跨越對稱軸
+       * @param {Object} beam - 梁對象
+       * @param {Object} joints - 節點座標對象
+       * @param {number} axisX - 對稱軸 X 座標
+       * @param {number} tolerance - 容許誤差
+       * @returns {boolean}
        */
-      // 【最終修正版 - 請複製並完整替換舊的函式】
-      // 【偵錯版 - 請複製並完整替換舊的函式】
+      function isBeamOnSymmetryAxis(beam, joints, axisX, tolerance) {
+        const p1 = joints[beam.joint1];
+        const p2 = joints[beam.joint2];
+        if (!p1 || !p2) return false;
+
+        // 計算梁的中點 X 座標
+        const midX = (p1.x + p2.x) / 2;
+
+        // 方法 1: 梁的中點在對稱軸上（容許誤差範圍內）
+        if (Math.abs(midX - axisX) < tolerance) {
+          return true;
+        }
+
+        // 方法 2: 梁的兩個端點分別在對稱軸兩側（跨越對稱軸）
+        const p1DistFromAxis = p1.x - axisX;
+        const p2DistFromAxis = p2.x - axisX;
+
+        // 如果兩個端點在軸的不同側（一個正一個負），且都不在容許範圍內
+        if (
+          Math.abs(p1DistFromAxis) > tolerance &&
+          Math.abs(p2DistFromAxis) > tolerance &&
+          p1DistFromAxis * p2DistFromAxis < 0
+        ) {
+          return true;
+        }
+
+        // 方法 3: 任一端點恰好在對稱軸上
+        if (
+          Math.abs(p1DistFromAxis) < tolerance ||
+          Math.abs(p2DistFromAxis) < tolerance
+        ) {
+          return true;
+        }
+
+        return false;
+      }
+
+      /**
+       * 小梁編號核心函式 (優化版 - 正確處理對稱軸上的梁)
+       */
       function generateSecondaryBeamLabels(
         secondaryBeamsToNumber,
         mainBeamsInStory,
         joints,
-        prefix
+        prefix,
       ) {
         const allLabels = new Map();
         const useMirrorMode =
@@ -2339,14 +2484,14 @@
               .sort(
                 (a, b) =>
                   joints[a.startJointName].y - joints[b.startJointName].y ||
-                  joints[a.startJointName].x - joints[b.startJointName].x
+                  joints[a.startJointName].x - joints[b.startJointName].x,
               ),
             beamsWithData
               .filter((b) => b.isVertical)
               .sort(
                 (a, b) =>
                   joints[a.startJointName].x - joints[b.startJointName].x ||
-                  joints[a.startJointName].y - joints[b.startJointName].y
+                  joints[a.startJointName].y - joints[b.startJointName].y,
               ),
           ];
           let isVerticalRun = false;
@@ -2375,7 +2520,7 @@
                 if (nextLink) {
                   chain.push(nextLink);
                   processed.add(
-                    `${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`
+                    `${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`,
                   );
                   currentLink = nextLink;
                 } else {
@@ -2391,7 +2536,7 @@
               } else {
                 labels.set(
                   `${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`,
-                  { newLabel: `${prefix}${counter}` }
+                  { newLabel: `${prefix}${counter}` },
                 );
               }
               counter++;
@@ -2408,8 +2553,8 @@
         const componentsRaw = findBuildingComponents(allBeamsOnStory, joints)
           .map((comp) =>
             comp.filter((b) =>
-              secondaryBeamsToNumber.some((sb) => sb.name === b.name)
-            )
+              secondaryBeamsToNumber.some((sb) => sb.name === b.name),
+            ),
           )
           .filter((comp) => comp.length > 0);
 
@@ -2427,34 +2572,67 @@
           for (const comp of components) {
             const { labels, nextCounter } = coreNumberingEngine(
               comp.component,
-              globalCounter
+              globalCounter,
             );
             labels.forEach((value, key) => allLabels.set(key, value));
             globalCounter = nextCounter;
           }
         } else {
+          // ========== 鏡像對稱模式（優化版） ==========
           const master = components[0];
           const slave = components[1];
 
+          // 步驟 1: 計算對稱軸
+          const axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
+          console.log(`=============================================`);
+          console.log(`[鏡像模式] 對稱軸 X 座標: ${axisX.toFixed(3)}`);
+          console.log(`=============================================`);
+
+          // 步驟 2: 識別對稱軸上的梁
+          const beamsOnAxis = [];
+          const slaveBeamsToMirror = [];
+
+          slave.component.forEach((beam) => {
+            if (isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE)) {
+              beamsOnAxis.push(beam);
+              console.log(
+                `[對稱軸梁] ${beam.name} 位於對稱軸上，歸入 master 編號`,
+              );
+            } else {
+              slaveBeamsToMirror.push(beam);
+            }
+          });
+
+          // 步驟 3: 將對稱軸上的梁併入 master
+          const masterWithAxisBeams = [...master.component, ...beamsOnAxis];
+          console.log(
+            `\n[Master 範圍] 原始梁數: ${master.component.length}, 對稱軸梁: ${beamsOnAxis.length}, 總計: ${masterWithAxisBeams.length}`,
+          );
+
+          // 步驟 4: 對 master（含對稱軸梁）統一編號
           const { labels: masterLabels, nextCounter } = coreNumberingEngine(
-            master.component,
-            1
+            masterWithAxisBeams,
+            1,
           );
           masterLabels.forEach((value, key) => allLabels.set(key, value));
 
-          const axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
-          console.log(`=============================================`);
-          console.log(`偵錯開始：鏡像軸 X 座標為 ${axisX}`);
-          console.log(`=============================================`);
+          console.log(`\n[Master 編號完成] 共編 ${masterLabels.size} 根小梁`);
 
-          // ★★★ 偵錯版鏡像配對邏輯 ★★★
-          masterLabels.forEach((labelInfo, masterKey) => {
-            const masterBeam = master.component.find(
-              (b) => `${b.name}|${b.joint1}|${b.joint2}` === masterKey
-            );
-            if (!masterBeam) return;
+          // 步驟 5: 識別哪些 master 梁需要進行鏡像配對（排除對稱軸上的梁）
+          const masterBeamsToMirror = master.component.filter(
+            (beam) =>
+              !isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE),
+          );
 
-            console.log(`\n--- [尋找 ${labelInfo.newLabel} 的鏡像] ---`);
+          console.log(
+            `\n[鏡像配對] 需配對的 master 梁: ${masterBeamsToMirror.length}, slave 梁: ${slaveBeamsToMirror.length}`,
+          );
+
+          // 步驟 6: 進行鏡像配對
+          masterBeamsToMirror.forEach((masterBeam) => {
+            const masterKey = `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`;
+            const labelInfo = masterLabels.get(masterKey);
+            if (!labelInfo) return;
 
             const master_p1 = joints[masterBeam.joint1];
             const master_p2 = joints[masterBeam.joint2];
@@ -2463,26 +2641,16 @@
               y: (master_p1.y + master_p2.y) / 2,
             };
             const masterLength = distance(master_p1, master_p2);
-            console.log(
-              `主梁 ${masterBeam.name}: 長度=${masterLength.toFixed(
-                3
-              )}, 中點=(${masterMidpoint.x.toFixed(
-                3
-              )}, ${masterMidpoint.y.toFixed(3)})`
-            );
 
             const mirroredMidpoint = mirrorPoint(masterMidpoint, axisX);
-            console.log(
-              `理論鏡像中點: (${mirroredMidpoint.x.toFixed(
-                3
-              )}, ${mirroredMidpoint.y.toFixed(3)})`
-            );
 
-            let foundSlave = null;
+            // 在 slave 中尋找最佳匹配
+            let bestMatch = null;
+            let bestScore = Infinity;
 
-            slave.component.forEach((b) => {
-              const slave_p1 = joints[b.joint1];
-              const slave_p2 = joints[b.joint2];
+            slaveBeamsToMirror.forEach((slaveBeam) => {
+              const slave_p1 = joints[slaveBeam.joint1];
+              const slave_p2 = joints[slaveBeam.joint2];
               if (!slave_p1 || !slave_p2) return;
 
               const slaveMidpoint = {
@@ -2494,42 +2662,61 @@
               const midDist = distance(slaveMidpoint, mirroredMidpoint);
               const lenDiff = Math.abs(slaveLength - masterLength);
 
-              // 為了偵錯，我們暫時只印出訊息，不直接 find
-              if (midDist < SYMMETRY_TOLERANCE * 2) {
-                // 稍微放寬偵錯範圍
-                console.log(
-                  `  -> 正在比對從梁 ${b.name}: 中點距離=${midDist.toFixed(
-                    3
-                  )}, 長度差異=${lenDiff.toFixed(3)} -> ${
-                    midDist < SYMMETRY_TOLERANCE && lenDiff < 0.01
-                      ? "✔️ 符合"
-                      : "❌ 不符"
-                  }`
-                );
-              }
+              // 計算配對分數（距離越小越好）
+              const score = midDist + lenDiff * 0.1;
 
-              if (midDist < SYMMETRY_TOLERANCE && lenDiff < 1) {
-                foundSlave = b;
+              // 判斷是否符合配對條件
+              if (
+                midDist < SYMMETRY_TOLERANCE &&
+                lenDiff < 1.0 &&
+                score < bestScore
+              ) {
+                bestMatch = slaveBeam;
+                bestScore = score;
               }
             });
 
-            if (foundSlave) {
+            // 如果找到配對，賦予相同編號
+            if (bestMatch) {
               console.log(
-                `[成功] ${labelInfo.newLabel} 配對成功！鏡像梁為 ${foundSlave.name}`
+                `[配對成功] ${labelInfo.newLabel}: ${masterBeam.name} ↔ ${bestMatch.name}`,
               );
               allLabels.set(
-                `${foundSlave.name}|${foundSlave.joint1}|${foundSlave.joint2}`,
-                { newLabel: labelInfo.newLabel }
+                `${bestMatch.name}|${bestMatch.joint1}|${bestMatch.joint2}`,
+                { newLabel: labelInfo.newLabel },
               );
             } else {
               console.log(
-                `[失敗] ${labelInfo.newLabel} 在右棟找不到符合條件的鏡像梁！`
+                `[配對失敗] ${labelInfo.newLabel}: ${masterBeam.name} 找不到鏡像梁`,
               );
             }
           });
 
+          // 步驟 7: 處理未配對的 slave 梁（如果有）
+          const unmatchedSlaveBeams = slaveBeamsToMirror.filter((beam) => {
+            const key = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+            return !allLabels.has(key);
+          });
+
+          let orphanCounter = nextCounter;
+
+          if (unmatchedSlaveBeams.length > 0) {
+            console.log(
+              `\n[未配對 Slave 梁] 共 ${unmatchedSlaveBeams.length} 根，從 ${prefix}${orphanCounter} 開始編號`,
+            );
+            const { labels: unmatchedLabels, nextCounter: updatedCounter } =
+              coreNumberingEngine(unmatchedSlaveBeams, orphanCounter);
+            unmatchedLabels.forEach((value, key) => allLabels.set(key, value));
+            orphanCounter = updatedCounter;
+          }
+
+          // 步驟 8: 處理第三個及以後的 component（如果有）
           if (components.length > 2) {
-            let orphanCounter = nextCounter;
+            console.log(
+              `\n[其他 Component] 處理額外的 ${
+                components.length - 2
+              } 個建築群組`,
+            );
             for (let i = 2; i < components.length; i++) {
               const { labels, nextCounter: updatedCounter } =
                 coreNumberingEngine(components[i].component, orphanCounter);
@@ -2537,6 +2724,9 @@
               orphanCounter = updatedCounter;
             }
           }
+
+          console.log(`\n[鏡像模式完成] 總共編號 ${allLabels.size} 根小梁`);
+          console.log(`=============================================\n`);
         }
 
         return allLabels;
@@ -2617,7 +2807,7 @@
       function applySpecialPrefixRules(allBeams) {
         const processPrefix = (prefix) => {
           const targetBeams = allBeams.filter(
-            (b) => b.prop && b.prop.toUpperCase().startsWith(prefix)
+            (b) => b.prop && b.prop.toUpperCase().startsWith(prefix),
           );
           if (targetBeams.length === 0) return null;
           const uniqueProps = [...new Set(targetBeams.map((b) => b.prop))];
@@ -2686,7 +2876,7 @@
         if (availableStories.length === 0) return [];
 
         const sortedStories = [...availableStories].sort(
-          (a, b) => storyOrderInfo[a] - storyOrderInfo[b]
+          (a, b) => storyOrderInfo[a] - storyOrderInfo[b],
         );
 
         const fingerprints = sortedStories.map((story) => ({
@@ -2728,7 +2918,7 @@
         const outputData = {
           project: "ETABS梁編號專案",
           exportDate: new Date().toISOString(),
-          floors: []
+          floors: [],
         };
 
         // 依樓層分組
@@ -2744,7 +2934,7 @@
         floorGroups.forEach((beams, floorName) => {
           const floorData = {
             floorName: floorName,
-            beams: []
+            beams: [],
           };
 
           beams.forEach((beam) => {
@@ -2759,20 +2949,24 @@
               startPoint: {
                 id: beam.joint1,
                 x: j1.x,
-                y: j1.y
+                y: j1.y,
               },
               endPoint: {
                 id: beam.joint2,
                 x: j2.x,
-                y: j2.y
+                y: j2.y,
               },
               midPoint: {
                 x: (j1.x + j2.x) / 2,
-                y: (j1.y + j2.y) / 2
+                y: (j1.y + j2.y) / 2,
               },
-              length: Math.sqrt(Math.pow(j2.x - j1.x, 2) + Math.pow(j2.y - j1.y, 2)),
+              length: Math.sqrt(
+                Math.pow(j2.x - j1.x, 2) + Math.pow(j2.y - j1.y, 2),
+              ),
               section: beam.prop || "",
-              isMainBeam: !beam.newLabel.toLowerCase().startsWith("b") && !beam.newLabel.toLowerCase().startsWith("fb")
+              isMainBeam:
+                !beam.newLabel.toLowerCase().startsWith("b") &&
+                !beam.newLabel.toLowerCase().startsWith("fb"),
             });
           });
 
@@ -2808,14 +3002,21 @@
           // 找到最接近的 Y 軸線
           const avgY = (j1.y + j2.y) / 2;
           const closestYGrid = grids.y.reduce((prev, curr) => {
-            return Math.abs(curr.ordinate - avgY) < Math.abs(prev.ordinate - avgY) ? curr : prev;
+            return Math.abs(curr.ordinate - avgY) <
+              Math.abs(prev.ordinate - avgY)
+              ? curr
+              : prev;
           });
 
           // 找到梁跨越的 X 軸線
           const minX = Math.min(j1.x, j2.x);
           const maxX = Math.max(j1.x, j2.x);
           const betweenX = grids.x
-            .filter(g => g.ordinate >= minX - tolerance && g.ordinate <= maxX + tolerance)
+            .filter(
+              (g) =>
+                g.ordinate >= minX - tolerance &&
+                g.ordinate <= maxX + tolerance,
+            )
             .sort((a, b) => a.ordinate - b.ordinate);
 
           if (betweenX.length >= 2) {
@@ -2824,20 +3025,27 @@
               between: [betweenX[0].name, betweenX[betweenX.length - 1].name],
               direction: "horizontal",
               offsetFromStart: Math.abs(avgY - closestYGrid.ordinate),
-              length: deltaX
+              length: deltaX,
             };
           }
         } else {
           // 垂直梁：沿著某條 X 軸線，在兩條 Y 軸線之間
           const avgX = (j1.x + j2.x) / 2;
           const closestXGrid = grids.x.reduce((prev, curr) => {
-            return Math.abs(curr.ordinate - avgX) < Math.abs(prev.ordinate - avgX) ? curr : prev;
+            return Math.abs(curr.ordinate - avgX) <
+              Math.abs(prev.ordinate - avgX)
+              ? curr
+              : prev;
           });
 
           const minY = Math.min(j1.y, j2.y);
           const maxY = Math.max(j1.y, j2.y);
           const betweenY = grids.y
-            .filter(g => g.ordinate >= minY - tolerance && g.ordinate <= maxY + tolerance)
+            .filter(
+              (g) =>
+                g.ordinate >= minY - tolerance &&
+                g.ordinate <= maxY + tolerance,
+            )
             .sort((a, b) => a.ordinate - b.ordinate);
 
           if (betweenY.length >= 2) {
@@ -2846,7 +3054,7 @@
               between: [betweenY[0].name, betweenY[betweenY.length - 1].name],
               direction: "vertical",
               offsetFromStart: Math.abs(avgX - closestXGrid.ordinate),
-              length: deltaY
+              length: deltaY,
             };
           }
         }
@@ -2869,10 +3077,10 @@
           project: "ETABS梁編號專案",
           exportDate: new Date().toISOString(),
           gridSystem: {
-            xGrids: gridData.x.map(g => g.name),
-            yGrids: gridData.y.map(g => g.name)
+            xGrids: gridData.x.map((g) => g.name),
+            yGrids: gridData.y.map((g) => g.name),
           },
-          floors: []
+          floors: [],
         };
 
         // 依樓層分組
@@ -2888,11 +3096,15 @@
         floorGroups.forEach((beams, floorName) => {
           const floorData = {
             floorName: floorName,
-            beams: []
+            beams: [],
           };
 
           beams.forEach((beam) => {
-            const gridRelation = calculateGridRelation(beam, previewJoints, gridData);
+            const gridRelation = calculateGridRelation(
+              beam,
+              previewJoints,
+              gridData,
+            );
 
             if (gridRelation) {
               floorData.beams.push({
@@ -2904,10 +3116,12 @@
                   direction: gridRelation.direction,
                   offsetFromStart: gridRelation.offsetFromStart,
                   length: gridRelation.length,
-                  tolerance: 0.1
+                  tolerance: 0.1,
                 },
                 section: beam.prop || "",
-                isMainBeam: !beam.newLabel.toLowerCase().startsWith("b") && !beam.newLabel.toLowerCase().startsWith("fb")
+                isMainBeam:
+                  !beam.newLabel.toLowerCase().startsWith("b") &&
+                  !beam.newLabel.toLowerCase().startsWith("fb"),
               });
             }
           });
@@ -2937,7 +3151,7 @@
 
         for (const group of standardFloorGroups) {
           const beamsInGroup = fullProcessedBeams.filter((b) =>
-            group.includes(b.story)
+            group.includes(b.story),
           );
 
           if (group.length === 1) {
@@ -3012,7 +3226,7 @@
 
       function setupSelectWheelListeners() {
         const selectors = document.querySelectorAll(
-          "#storySelector, #beamTypeSelector"
+          "#storySelector, #beamTypeSelector",
         );
 
         selectors.forEach((select) => {
@@ -3051,14 +3265,16 @@
         });
 
       // 檔案選擇時更新檔名顯示
-      document.getElementById("e2kFile").addEventListener("change", function(event) {
-        const fileNameDisplay = document.getElementById("file-name-display");
-        if (event.target.files.length > 0) {
-          fileNameDisplay.textContent = event.target.files[0].name;
-        } else {
-          fileNameDisplay.textContent = "尚未選擇檔案";
-        }
-      });
+      document
+        .getElementById("e2kFile")
+        .addEventListener("change", function (event) {
+          const fileNameDisplay = document.getElementById("file-name-display");
+          if (event.target.files.length > 0) {
+            fileNameDisplay.textContent = event.target.files[0].name;
+          } else {
+            fileNameDisplay.textContent = "尚未選擇檔案";
+          }
+        });
     </script>
   </body>
 </html>
