@@ -1,4 +1,4 @@
-<!doctype html>
+﻿<!doctype html>
 <html lang="zh-TW">
   <head>
     <meta charset="UTF-8" />
@@ -1160,6 +1160,63 @@
 
           let allLabeledBeams = [...specialBeams];
 
+          // [新增] 鏡像模式：使用智能偵測計算全域對稱軸
+          let globalSymmetryAxisX = null;
+          if (mirrorModeToggle.checked && secondaryBeams.length > 0) {
+            console.log("\n========== 智能偵測全域對稱軸 ==========");
+            const axisXCandidates = [];
+
+            // 對每個樓層使用智能偵測
+            for (const story of availableStories) {
+              const secondaryBeamsInStory = secondaryBeams.filter((b) => b.story === story);
+              const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
+              const allBeamsInStory = [...secondaryBeamsInStory, ...mainBeamsInStory];
+
+              if (allBeamsInStory.length < 10) continue;
+
+              console.log(`\n[${story}] 智能偵測對稱軸...`);
+              const detectedAxis = detectSymmetryAxis(allBeamsInStory, joints, gridData);
+
+              if (detectedAxis) {
+                axisXCandidates.push({ story, axisX: detectedAxis });
+                console.log(`[${story}] ✓ 偵測成功`);
+              } else {
+                console.log(`[${story}] ✗ 未偵測到對稱結構`);
+              }
+            }
+
+            // 找出最常出現的對稱軸（容許 ±0.5m 誤差）
+            if (axisXCandidates.length > 0) {
+              const AXIS_TOLERANCE = 0.5;
+              const groups = [];
+
+              axisXCandidates.forEach((candidate) => {
+                let foundGroup = false;
+                for (const group of groups) {
+                  if (Math.abs(group[0].axisX - candidate.axisX) < AXIS_TOLERANCE) {
+                    group.push(candidate);
+                    foundGroup = true;
+                    break;
+                  }
+                }
+                if (!foundGroup) {
+                  groups.push([candidate]);
+                }
+              });
+
+              // 選擇出現次數最多的群組
+              groups.sort((a, b) => b.length - a.length);
+              const bestGroup = groups[0];
+              globalSymmetryAxisX = bestGroup.reduce((sum, c) => sum + c.axisX, 0) / bestGroup.length;
+
+              console.log(`\n[全域對稱軸] X = ${globalSymmetryAxisX.toFixed(3)} (來自 ${bestGroup.length} 個樓層)`);
+              bestGroup.forEach((c) => console.log(`  - ${c.story}`));
+            } else {
+              console.log("\n[警告] 所有樓層都未偵測到對稱結構");
+            }
+            console.log("==========================================\n");
+          }
+
           for (const story of availableStories) {
             const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
             const secondaryBeamsInStory = secondaryBeams.filter(
@@ -1206,6 +1263,7 @@
                 mainBeamsInStory,
                 joints,
                 "b",
+                globalSymmetryAxisX,
               );
               secondaryBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -1230,6 +1288,7 @@
                 mainBeamsInStory,
                 joints,
                 "fb",
+                globalSymmetryAxisX,
               );
               foundationBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -2354,7 +2413,103 @@
       // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：開始 ###
       // =================================================================
 
-      const SYMMETRY_TOLERANCE = 1; // 幾何容許誤差 (10cm)
+      const SYMMETRY_TOLERANCE = 0.5; // 幾何容許誤差 (公尺) - 用於判斷梁是否在對稱軸上
+      const MATCHING_TOLERANCE = 0.8; // 配對容許誤差 (公尺) - 用於鏡像梁配對時的中點距離
+      const DIRECTION_TOLERANCE = 0.01; // 用於判斷梁的方向（水平/垂直）
+
+      /**
+       * [新增] 智能偵測對稱軸 - 基於 Opus 4.1 算法
+       * 通過計算每個候選軸的對稱匹配分數來自動偵測對稱軸
+       */
+      function detectSymmetryAxis(beams, joints, gridData) {
+        if (!beams || beams.length < 10) return null;
+
+        // 收集所有梁的 X 座標
+        const xCoords = [];
+        beams.forEach(beam => {
+          const j1 = joints[beam.joint1];
+          const j2 = joints[beam.joint2];
+          if (j1 && j2) {
+            xCoords.push(j1.x, j2.x);
+          }
+        });
+
+        if (xCoords.length === 0) return null;
+
+        // 計算 X 軸範圍和中心
+        const minX = Math.min(...xCoords);
+        const maxX = Math.max(...xCoords);
+        const centerX = (minX + maxX) / 2;
+
+        // 測試候選對稱軸（幾何中心 + 格線位置）
+        const candidates = [centerX];
+
+        if (gridData && gridData.x) {
+          gridData.x.forEach(grid => {
+            if (grid.ordinate > minX && grid.ordinate < maxX) {
+              candidates.push(grid.ordinate);
+            }
+          });
+        }
+
+        // 評估每個候選軸的對稱性
+        let bestAxis = null;
+        let bestScore = 0;
+
+        candidates.forEach(axisX => {
+          let matchCount = 0;
+          let totalCount = 0;
+
+          beams.forEach(beam => {
+            const j1 = joints[beam.joint1];
+            const j2 = joints[beam.joint2];
+            if (!j1 || !j2) return;
+
+            const midX = (j1.x + j2.x) / 2;
+            const midY = (j1.y + j2.y) / 2;
+            const length = distance(j1, j2);
+
+            // 跳過在軸上的梁
+            if (Math.abs(midX - axisX) < SYMMETRY_TOLERANCE) return;
+
+            totalCount++;
+
+            // 尋找鏡像梁
+            const mirroredX = 2 * axisX - midX;
+            const hasMatch = beams.some(otherBeam => {
+              if (otherBeam === beam) return false;
+              const oj1 = joints[otherBeam.joint1];
+              const oj2 = joints[otherBeam.joint2];
+              if (!oj1 || !oj2) return false;
+
+              const otherMidX = (oj1.x + oj2.x) / 2;
+              const otherMidY = (oj1.y + oj2.y) / 2;
+              const otherLength = distance(oj1, oj2);
+
+              return Math.abs(otherMidX - mirroredX) < MATCHING_TOLERANCE &&
+                     Math.abs(otherMidY - midY) < MATCHING_TOLERANCE &&
+                     Math.abs(otherLength - length) < 1.0;
+            });
+
+            if (hasMatch) matchCount++;
+          });
+
+          const score = totalCount > 0 ? matchCount / totalCount : 0;
+          if (score > bestScore) {
+            bestScore = score;
+            bestAxis = axisX;
+          }
+        });
+
+        // 如果對稱分數 > 70%，返回對稱軸
+        if (bestScore > 0.7) {
+          console.log(`[智能偵測] 找到對稱軸 X=${bestAxis.toFixed(3)}, 對稱分數: ${(bestScore * 100).toFixed(1)}%`);
+          return bestAxis;
+        }
+
+        console.log(`[智能偵測] 未找到明顯對稱結構 (最高分數: ${(bestScore * 100).toFixed(1)}%)`);
+        return null;
+      }
 
       /**
        * 計算一組梁的精確邊界和形心
@@ -2442,6 +2597,7 @@
         mainBeamsInStory,
         joints,
         prefix,
+        globalSymmetryAxisX = null,
       ) {
         const allLabels = new Map();
         const useMirrorMode =
@@ -2550,7 +2706,7 @@
           ...secondaryBeamsToNumber,
           ...mainBeamsInStory,
         ];
-        const componentsRaw = findBuildingComponents(allBeamsOnStory, joints)
+        const componentsRaw = findBuildingComponents(allBeamsOnStory, joints, useMirrorMode, globalSymmetryAxisX)
           .map((comp) =>
             comp.filter((b) =>
               secondaryBeamsToNumber.some((sb) => sb.name === b.name),
@@ -2582,10 +2738,16 @@
           const master = components[0];
           const slave = components[1];
 
-          // 步驟 1: 計算對稱軸
-          const axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
-          console.log(`=============================================`);
-          console.log(`[鏡像模式] 對稱軸 X 座標: ${axisX.toFixed(3)}`);
+          // 步驟 1: 使用全域對稱軸，如果沒有則回退到當前樓層計算
+          let axisX = globalSymmetryAxisX;
+          if (axisX === null) {
+            axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
+            console.log(`=============================================`);
+            console.log(`[鏡像模式 - ${secondaryBeamsToNumber[0]?.story || '未知樓層'}] 使用當前樓層計算對稱軸 X = ${axisX.toFixed(3)}`);
+          } else {
+            console.log(`=============================================`);
+            console.log(`[鏡像模式 - ${secondaryBeamsToNumber[0]?.story || '未知樓層'}] 使用全域對稱軸 X = ${axisX.toFixed(3)} ✓`);
+          }
           console.log(`=============================================`);
 
           // 步驟 2: 識別對稱軸上的梁
@@ -2628,7 +2790,9 @@
             `\n[鏡像配對] 需配對的 master 梁: ${masterBeamsToMirror.length}, slave 梁: ${slaveBeamsToMirror.length}`,
           );
 
-          // 步驟 6: 進行鏡像配對
+          // 步驟 6: 進行鏡像配對（使用匈牙利算法思想，確保一對一配對）
+          const matchedSlaves = new Set(); // 追蹤已配對的 slave 梁
+
           masterBeamsToMirror.forEach((masterBeam) => {
             const masterKey = `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`;
             const labelInfo = masterLabels.get(masterKey);
@@ -2642,16 +2806,34 @@
             };
             const masterLength = distance(master_p1, master_p2);
 
+            // [新增] 判斷 master 梁的方向
+            const masterIsHorizontal = Math.abs(master_p1.y - master_p2.y) < DIRECTION_TOLERANCE;
+            const masterIsVertical = Math.abs(master_p1.x - master_p2.x) < DIRECTION_TOLERANCE;
+
             const mirroredMidpoint = mirrorPoint(masterMidpoint, axisX);
 
-            // 在 slave 中尋找最佳匹配
+            // 在 slave 中尋找最佳匹配（排除已配對的）
             let bestMatch = null;
             let bestScore = Infinity;
 
             slaveBeamsToMirror.forEach((slaveBeam) => {
+              const slaveKey = `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`;
+
+              // 跳過已配對的 slave 梁
+              if (matchedSlaves.has(slaveKey)) return;
+
               const slave_p1 = joints[slaveBeam.joint1];
               const slave_p2 = joints[slaveBeam.joint2];
               if (!slave_p1 || !slave_p2) return;
+
+              // [新增] 判斷 slave 梁的方向
+              const slaveIsHorizontal = Math.abs(slave_p1.y - slave_p2.y) < DIRECTION_TOLERANCE;
+              const slaveIsVertical = Math.abs(slave_p1.x - slave_p2.x) < DIRECTION_TOLERANCE;
+
+              // [新增] 只有同方向的梁才能配對
+              if (masterIsHorizontal !== slaveIsHorizontal || masterIsVertical !== slaveIsVertical) {
+                return;
+              }
 
               const slaveMidpoint = {
                 x: (slave_p1.x + slave_p2.x) / 2,
@@ -2661,16 +2843,20 @@
 
               const midDist = distance(slaveMidpoint, mirroredMidpoint);
               const lenDiff = Math.abs(slaveLength - masterLength);
+              const yDiff = Math.abs(slaveMidpoint.y - masterMidpoint.y); // Y 座標應該相同
 
-              // 計算配對分數（距離越小越好）
-              const score = midDist + lenDiff * 0.1;
+              // 計算配對分數（距離越小越好，長度差異也要考慮）
+              const score = midDist + lenDiff * 0.5;
 
-              // 判斷是否符合配對條件
-              if (
-                midDist < SYMMETRY_TOLERANCE &&
-                lenDiff < 1.0 &&
-                score < bestScore
-              ) {
+              // [修改] 更嚴格的配對條件
+              // 1. Y 座標差異必須小於容許誤差（對稱梁 Y 應該相同）
+              // 2. 中點距離必須小於 MATCHING_TOLERANCE
+              // 3. 長度相近（容許 ±15% 或 ±0.5m）
+              const lenTolerance = Math.max(masterLength * 0.15, 0.5);
+              if (yDiff < MATCHING_TOLERANCE &&
+                  midDist < MATCHING_TOLERANCE * 2 &&
+                  lenDiff < lenTolerance &&
+                  score < bestScore) {
                 bestMatch = slaveBeam;
                 bestScore = score;
               }
@@ -2678,17 +2864,46 @@
 
             // 如果找到配對，賦予相同編號
             if (bestMatch) {
+              const slaveKey = `${bestMatch.name}|${bestMatch.joint1}|${bestMatch.joint2}`;
               console.log(
                 `[配對成功] ${labelInfo.newLabel}: ${masterBeam.name} ↔ ${bestMatch.name}`,
               );
-              allLabels.set(
-                `${bestMatch.name}|${bestMatch.joint1}|${bestMatch.joint2}`,
-                { newLabel: labelInfo.newLabel },
-              );
+              allLabels.set(slaveKey, { newLabel: labelInfo.newLabel });
+              matchedSlaves.add(slaveKey); // 標記為已配對
             } else {
+              // [增強] 顯示為什麼配對失敗
               console.log(
-                `[配對失敗] ${labelInfo.newLabel}: ${masterBeam.name} 找不到鏡像梁`,
+                `[配對失敗] ${labelInfo.newLabel}: ${masterBeam.name} (中點: ${masterMidpoint.x.toFixed(2)}, ${masterMidpoint.y.toFixed(2)})`,
               );
+              console.log(
+                `  → 鏡像目標位置: (${mirroredMidpoint.x.toFixed(2)}, ${mirroredMidpoint.y.toFixed(2)})`,
+              );
+
+              // 顯示最接近的 slave 梁資訊
+              let closestBeam = null;
+              let closestDist = Infinity;
+              slaveBeamsToMirror.forEach((slaveBeam) => {
+                const slave_p1 = joints[slaveBeam.joint1];
+                const slave_p2 = joints[slaveBeam.joint2];
+                if (!slave_p1 || !slave_p2) return;
+                const slaveMidpoint = {
+                  x: (slave_p1.x + slave_p2.x) / 2,
+                  y: (slave_p1.y + slave_p2.y) / 2,
+                };
+                const midDist = distance(slaveMidpoint, mirroredMidpoint);
+                if (midDist < closestDist) {
+                  closestDist = midDist;
+                  closestBeam = { beam: slaveBeam, midpoint: slaveMidpoint };
+                }
+              });
+
+              if (closestBeam) {
+                console.log(
+                  `  → 最近的 slave: ${closestBeam.beam.name} (中點: ${closestBeam.midpoint.x.toFixed(2)}, ${closestBeam.midpoint.y.toFixed(2)}, 距離: ${closestDist.toFixed(3)}m)`,
+                );
+              } else {
+                console.log(`  → 沒有任何 slave 梁可配對`);
+              }
             }
           });
 
@@ -2731,7 +2946,7 @@
 
         return allLabels;
       }
-      function findBuildingComponents(allBeamsOnStory, joints) {
+      function findBuildingComponents(allBeamsOnStory, joints, useMirrorMode = false, globalSymmetryAxisX = null) {
         if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
 
         const GEOMETRIC_TOLERANCE = 0.01;
@@ -2798,6 +3013,63 @@
             components.push(currentComponent);
           }
         }
+
+        // [新增] 鏡像模式下，對單一 component 強制分割成左右兩群
+        if (useMirrorMode && components.length === 1 && beamsWithCoords.length > 0) {
+          console.log(`\n[分群模式] 偵測到單一連通 component，啟用強制分割`);
+
+          const singleComponent = components[0];
+
+          // 使用全域對稱軸，如果沒有則回退到當前樓層計算
+          let symmetryAxisX = globalSymmetryAxisX;
+          if (symmetryAxisX === null) {
+            const allXCoords = [];
+            singleComponent.forEach((b) => {
+              allXCoords.push(b.p1.x, b.p2.x);
+            });
+            const minX = Math.min(...allXCoords);
+            const maxX = Math.max(...allXCoords);
+            symmetryAxisX = (minX + maxX) / 2;
+            console.log(`[分群模式] 使用當前樓層計算對稱軸 X ≈ ${symmetryAxisX.toFixed(3)}`);
+          } else {
+            console.log(`[分群模式] 使用全域對稱軸 X = ${symmetryAxisX.toFixed(3)} ✓`);
+          }
+
+          // 根據梁的中點 X 座標分成左、中、右
+          const leftBeams = [];
+          const centerBeams = [];
+          const rightBeams = [];
+
+          singleComponent.forEach((beam) => {
+            const midX = (beam.p1.x + beam.p2.x) / 2;
+            const distFromAxis = Math.abs(midX - symmetryAxisX);
+
+            if (distFromAxis < SYMMETRY_TOLERANCE) {
+              centerBeams.push(beam);
+              console.log(`[分群模式] ${beam.name} 位於對稱軸上 (中點 X=${midX.toFixed(2)})`);
+            } else if (midX < symmetryAxisX) {
+              leftBeams.push(beam);
+            } else {
+              rightBeams.push(beam);
+            }
+          });
+
+          console.log(`[分群結果] 左側: ${leftBeams.length}, 中央: ${centerBeams.length}, 右側: ${rightBeams.length}`);
+
+          // 重新組裝 components（對稱軸梁暫時歸入左側，後續由鏡像邏輯處理）
+          const newComponents = [];
+          if (leftBeams.length > 0 || centerBeams.length > 0) {
+            newComponents.push([...leftBeams, ...centerBeams]);
+          }
+          if (rightBeams.length > 0) {
+            newComponents.push(rightBeams);
+          }
+
+          console.log(`[分群模式] 強制分割完成，產生 ${newComponents.length} 個 component`);
+          return newComponents;
+        }
+
+        console.log(`[分群結果] 找到 ${components.length} 個建築 component`);
         return components;
       }
       // =================================================================
