@@ -9,8 +9,7 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "Bash(git checkout:*)",
-      "Read(//n/P2020-12E 三重五谷王段227地號15FB4/14_RCAD/2025-0919 大小梁配筋/**)"
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []
