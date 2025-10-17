@@ -1,0 +1,3866 @@
+﻿<!doctype html>
+<html lang="zh-TW">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>ETABS 梁自動編號工具</title>
+
+    <script src="https://cdn.sheetjs.com/xlsx-latest/package/dist/xlsx.full.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/svg-pan-zoom@3.6.1/dist/svg-pan-zoom.min.js"></script>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
+
+    <style>
+      /* --- 淺色主題 --- */
+      :root {
+        --theme-bg: #f1f5f9;
+        --theme-surface: #ffffff;
+        --theme-border: #e2e8f0;
+        --theme-shadow: rgba(0, 0, 0, 0.05);
+        --theme-text-primary: #1e293b;
+        --theme-text-secondary: #64748b;
+        --theme-accent: #f97316;
+        --theme-accent-hover: #ea580c;
+        --theme-success: #22c55e;
+        --theme-success-hover: #16a34a;
+        /* --- ↓↓↓ 將這段程式碼加到這裡 ↓↓↓ --- */
+        *,
+        *::before,
+        *::after {
+          box-sizing: border-box;
+        }
+        /* --- ↑↑↑ 將這段程式碼加到這裡 ↑↑↑ --- */
+      }
+
+      @keyframes fadeIn {
+        from {
+          opacity: 0;
+          transform: translateY(-10px);
+        }
+        to {
+          opacity: 1;
+          transform: translateY(0);
+        }
+      }
+
+      body {
+        font-family: "Inter", "Microsoft JhengHei", sans-serif;
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        min-height: 100vh;
+        padding: 26px 14px;
+        color: var(--theme-text-primary);
+        background-color: var(--theme-bg);
+        position: relative;
+      }
+
+      #container {
+        width: 90%;
+        max-width: none;
+        background: var(--theme-surface);
+        padding: 20px;
+        border-radius: 18px;
+        border: 1px solid var(--theme-border);
+        box-shadow:
+          0 10px 25px -5px var(--theme-shadow),
+          0 8px 10px -6px var(--theme-shadow);
+        animation: fadeIn 0.8s ease-out forwards;
+        position: relative;
+        z-index: 1;
+      }
+
+      h1 {
+        font-size: 2.25rem;
+        font-weight: 700;
+        color: var(--theme-text-primary);
+        text-align: center;
+        margin-bottom: 2.5rem;
+        position: relative;
+      }
+
+      h1::after {
+        content: "";
+        position: absolute;
+        bottom: -10px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 80px;
+        height: 3px;
+        background: var(--theme-accent);
+        border-radius: 2px;
+      }
+
+      h3 {
+        color: var(--theme-text-primary);
+        font-weight: 500;
+        border-bottom: 1px solid var(--theme-border);
+        padding-bottom: 0.5rem;
+        margin-bottom: 1rem;
+        opacity: 0.9;
+      }
+
+      .control-area {
+        margin-bottom: 25px;
+        padding: 20px;
+        border-radius: 12px;
+        background: var(--theme-bg);
+        border: 1px solid var(--theme-border);
+        display: flex;
+        flex-direction: column;
+        gap: 15px;
+      }
+
+      .control-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        width: 100%;
+      }
+
+      .control-group {
+        display: flex;
+        gap: 15px;
+        align-items: center;
+      }
+
+      label {
+        font-weight: 500;
+        color: var(--theme-text-secondary);
+      }
+
+      input[type="file"]::file-selector-button {
+        background-color: #ffffff;
+        color: var(--theme-text-secondary);
+        border: 1px solid var(--theme-border);
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      input[type="file"]::file-selector-button:hover {
+        background-color: var(--theme-bg);
+        border-color: var(--theme-accent);
+        color: var(--theme-accent);
+      }
+
+      select {
+        background-color: #ffffff;
+        color: var(--theme-text-primary);
+        border: 1px solid var(--theme-border);
+        padding: 8px 15px;
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      select:hover {
+        border-color: var(--theme-accent);
+      }
+
+      select option {
+        background-color: #ffffff;
+        color: #000000;
+      }
+
+      /* File Input Styles */
+      .file-input-group {
+        display: flex;
+        align-items: center;
+        gap: 16px;
+        margin-bottom: 20px;
+      }
+
+      .file-label {
+        display: inline-flex;
+        align-items: center;
+        gap: 10px;
+        padding: 12px 24px;
+        background-color: var(--theme-accent);
+        color: white;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .file-label:hover {
+        background-color: var(--theme-accent-hover);
+        transform: translateY(-2px);
+        box-shadow: 0 4px 12px rgba(251, 146, 60, 0.3);
+      }
+
+      .file-label svg {
+        width: 20px;
+        height: 20px;
+      }
+
+      .file-name-display {
+        color: var(--theme-text-secondary);
+        font-size: 14px;
+        flex: 1;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .checkbox-group {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        white-space: nowrap;
+      }
+
+      .checkbox-group input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+      }
+
+      .checkbox-group label {
+        cursor: pointer;
+        user-select: none;
+      }
+
+      /* Button Row Styles */
+      .button-row {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 12px;
+        margin-bottom: 20px;
+      }
+
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        padding: 14px 20px;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+        white-space: nowrap;
+      }
+
+      .btn svg {
+        width: 20px;
+        height: 20px;
+        flex-shrink: 0;
+      }
+
+      .btn:hover {
+        transform: translateY(-2px);
+      }
+
+      .btn:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+        transform: none;
+      }
+
+      .btn-primary {
+        background-color: #3b82f6;
+      }
+
+      .btn-primary:hover:not(:disabled) {
+        background-color: #2563eb;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+      }
+
+      .btn-secondary {
+        background-color: #8b5cf6;
+      }
+
+      .btn-secondary:hover:not(:disabled) {
+        background-color: #7c3aed;
+        box-shadow: 0 4px 12px rgba(139, 92, 246, 0.3);
+      }
+
+      .btn-success {
+        background-color: var(--theme-success);
+      }
+
+      .btn-success:hover:not(:disabled) {
+        background-color: var(--theme-success-hover);
+        box-shadow: 0 4px 12px rgba(34, 197, 94, 0.3);
+      }
+
+      .btn-autocad {
+        background-color: #dc2626;
+      }
+
+      .btn-autocad:hover:not(:disabled) {
+        background-color: #b91c1c;
+        box-shadow: 0 4px 12px rgba(220, 38, 38, 0.3);
+      }
+
+      /* Filter Row Styles */
+      .filter-row {
+        display: flex;
+        gap: 16px;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+
+      .filter-group {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .filter-group label {
+        font-weight: 500;
+        color: var(--theme-text-primary);
+        white-space: nowrap;
+      }
+
+      .filter-group select {
+        min-width: 120px;
+      }
+
+      /* Old button styles - keeping for backward compatibility */
+      button {
+        padding: 12px 24px;
+        color: white;
+        border: none;
+        border-radius: 10px;
+        cursor: pointer;
+        font-size: 16px;
+        font-weight: 500;
+        transition: all 0.2s ease;
+      }
+
+      .btn-process {
+        background-color: var(--theme-accent);
+      }
+
+      .btn-process:hover {
+        background-color: var(--theme-accent-hover);
+      }
+
+      .btn-export {
+        background-color: var(--theme-success);
+      }
+
+      .btn-export:hover {
+        background-color: var(--theme-success-hover);
+      }
+
+      .btn-export:disabled {
+        background-color: #9ca3af;
+        cursor: not-allowed;
+      }
+
+      #output {
+        margin-top: 20px;
+      }
+
+      #drawing {
+        width: 100%;
+        padding: 20px;
+        max-height: 65vh;
+        overflow: auto;
+        border-radius: 12px;
+        background: #ffffff;
+        border: 1px solid var(--theme-border);
+      }
+
+      #drawing-svg {
+        width: 100%;
+        height: 60vh;
+        border-radius: 8px;
+        background-color: #ffffff;
+        border: 1px solid var(--theme-border);
+        cursor: grab;
+      }
+
+      #drawing-svg:active {
+        cursor: grabbing;
+      }
+
+      .error {
+        color: #ef4444;
+        font-weight: bold;
+      }
+
+      /* --- SVG 樣式 --- */
+      .grid-lines line {
+        stroke: #475569;
+        stroke-width: 0.5px;
+        stroke-dasharray: 4 4;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .grid-bubble {
+        fill: var(--theme-surface);
+        stroke: var(--theme-text-secondary);
+        /* stroke-width is now controlled by JS */
+      }
+
+      .grid-bubble-text {
+        fill: var(--theme-text-primary);
+        font-weight: 500;
+        text-anchor: middle;
+        dominant-baseline: middle;
+        /* font-size is now controlled by JS */
+      }
+
+      .beam-line {
+        stroke: #d1d5db;
+        stroke-width: 1px;
+        vector-effect: non-scaling-stroke; /* 讓所有梁寬度固定 */
+      }
+
+      .labeled-beam-line {
+        stroke: #3b82f6; /* 大梁：藍色 */
+        stroke-width: 1.5px;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .secondary-beam-line {
+        stroke: #f97316; /* 小梁：橘色 */
+        stroke-width: 1px;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .special-beam-line {
+        stroke: var(--theme-accent);
+        stroke-width: 1.5px;
+        vector-effect: non-scaling-stroke;
+      }
+
+      .beam-label {
+        fill: #1e293b;
+        font-weight: 500;
+        paint-order: stroke;
+        stroke: #ffffff;
+        stroke-linejoin: round;
+        /* font-size and stroke-width are now controlled by JS */
+      }
+    </style>
+  </head>
+  <body>
+    <div id="container">
+      <h1>ETABS 梁自動編號工具</h1>
+
+      <div class="control-area">
+        <!-- 第一排：檔案選擇與選項 -->
+        <div class="control-row">
+          <div class="file-input-group">
+            <label for="e2kFile" class="file-label">
+              <svg
+                width="20"
+                height="20"
+                viewBox="0 0 20 20"
+                fill="none"
+                style="margin-right: 8px"
+              >
+                <path
+                  d="M13 2H6a2 2 0 0 0-2 2v12a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V7l-3-5z"
+                  stroke="currentColor"
+                  stroke-width="2"
+                />
+              </svg>
+              請選擇 ETABS .e2k 檔案
+            </label>
+            <input
+              type="file"
+              id="e2kFile"
+              accept=".e2k"
+              style="display: none"
+            />
+            <span id="fileName" class="file-name-display">未選擇檔案</span>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="mirrorModeToggle" />
+            <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
+          </div>
+          <div class="checkbox-group">
+            <input type="checkbox" id="fixedLabelToggle" onchange="toggleFixedLabelConfig()" />
+            <label for="fixedLabelToggle">啟用特定尺寸梁固定編號</label>
+          </div>
+        </div>
+
+        <!-- 固定編號設定區 -->
+        <div id="fixed-label-config" style="display: none; margin-top: 15px; padding: 15px; background: var(--theme-surface); border: 1px solid var(--theme-border); border-radius: 8px;">
+          <h4 style="margin-top: 0; margin-bottom: 10px; color: var(--theme-text-secondary);">固定編號設定</h4>
+          <p style="color: var(--theme-text-secondary); margin-bottom: 10px; font-size: 0.9em;">
+            💡 將特定尺寸的梁指定為固定編號（例如：樓梯梁 sb25x50 → g1），其他梁編號時會跳過這個號碼<br>
+            • 斷面名稱不區分大小寫（sb25x50 和 SB25X50 相同）<br>
+            • 固定編號請填寫完整編號（例如：g1, b1, ga1 等）
+          </p>
+          <div id="fixed-label-rules">
+            <div class="fixed-label-rule" style="display: flex; gap: 10px; align-items: center; margin-bottom: 10px;">
+              <input type="text" id="fixedSection0" placeholder="梁斷面 (例如: sb25x50)"
+                style="flex: 1; padding: 8px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-bg);" />
+              <input type="text" id="fixedLabel0" placeholder="完整編號 (例如: g1)"
+                style="width: 150px; padding: 8px; border: 1px solid var(--theme-border); border-radius: 6px; background: var(--theme-bg);" />
+              <button onclick="addFixedLabelRule()" class="btn btn-secondary" style="padding: 8px 15px;">+ 新增</button>
+            </div>
+            <div id="fixed-label-list"></div>
+          </div>
+        </div>
+
+        <!-- 第二排：主要操作按鈕 -->
+        <div class="button-row">
+          <button
+            class="btn btn-primary"
+            id="previewBtn"
+            onclick="previewFile()"
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+            預覽結構
+          </button>
+          <button
+            class="btn btn-secondary"
+            id="configBtn"
+            onclick="showGridConfig()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <circle
+                cx="12"
+                cy="12"
+                r="3"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <path
+                d="M12 1v6m0 6v6M5.6 5.6l4.2 4.2m4.4 4.4l4.2 4.2M1 12h6m6 0h6M5.6 18.4l4.2-4.2m4.4-4.4l4.2-4.2"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+            設定規則並編號
+          </button>
+          <button
+            class="btn btn-success"
+            id="exportBtn"
+            onclick="exportToExcel()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+              <polyline
+                points="14,2 14,8 20,8"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+            匯出 Excel
+          </button>
+          <button
+            class="btn btn-autocad"
+            id="exportJsonBtn"
+            onclick="exportToJSONV2()"
+            disabled
+          >
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              style="margin-right: 6px"
+            >
+              <path
+                d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M17 8l-5-5-5 5M12 3v12"
+                stroke="currentColor"
+                stroke-width="2"
+              />
+            </svg>
+            匯出 AutoCAD
+          </button>
+        </div>
+
+        <!-- 第三排：篩選器 -->
+        <div class="filter-row">
+          <div class="filter-group">
+            <label for="storySelector">樓層</label>
+            <select
+              id="storySelector"
+              onchange="handleStoryChange()"
+              disabled
+            ></select>
+          </div>
+          <div class="filter-group">
+            <label for="beamTypeSelector">類型</label>
+            <select
+              id="beamTypeSelector"
+              onchange="handleStoryChange()"
+              disabled
+            >
+              <option value="all">全部</option>
+              <option value="main">大梁</option>
+              <option value="secondary">小梁</option>
+            </select>
+          </div>
+        </div>
+      </div>
+      <div id="status"></div>
+
+      <!-- 格線編號配置面板 -->
+      <div id="grid-config-panel" style="display: none; margin-bottom: 20px">
+        <div class="control-area">
+          <h3>格線編號規則設定</h3>
+          <p
+            style="
+              color: var(--theme-text-secondary);
+              margin-bottom: 15px;
+              font-size: 0.95em;
+            "
+          >
+            💡 提示：<br />
+            • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b>（例如：設定
+            A=1，系統自動設定 B=2, C=3...）<br />
+            • 輸入
+            <code
+              style="
+                background: var(--theme-bg);
+                padding: 2px 6px;
+                border-radius: 3px;
+              "
+              >-</code
+            >
+            /
+            <code
+              style="
+                background: var(--theme-bg);
+                padding: 2px 6px;
+                border-radius: 3px;
+              "
+              >skip</code
+            >
+            / 留空 來跳過不編號的格線<br />
+            • 您隨時可以手動修改任何格線的編號
+          </p>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
+            <div>
+              <h4
+                style="color: var(--theme-text-secondary); margin-bottom: 10px"
+              >
+                X 軸格線 (垂直方向)
+              </h4>
+              <div
+                id="x-grid-config"
+                style="max-height: 300px; overflow-y: auto"
+              ></div>
+            </div>
+            <div>
+              <h4
+                style="color: var(--theme-text-secondary); margin-bottom: 10px"
+              >
+                Y 軸格線 (水平方向)
+              </h4>
+              <div
+                id="y-grid-config"
+                style="max-height: 300px; overflow-y: auto"
+              ></div>
+            </div>
+          </div>
+          <div style="margin-top: 15px; text-align: right">
+            <button class="btn-process" onclick="applyGridConfig()">
+              套用設定並執行編號
+            </button>
+            <button class="btn-export" onclick="cancelGridConfig()">
+              取消
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <div id="output">
+        <div id="drawing">
+          <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
+          <svg id="drawing-svg"></svg>
+        </div>
+      </div>
+    </div>
+
+    <!-- 梁編號編輯對話框 (移到 container 外面，相對於整個視窗定位) -->
+    <div
+      id="beam-edit-dialog"
+      style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        background: var(--theme-surface);
+        border: 1px solid var(--theme-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 400px;
+      "
+    >
+      <h3 style="margin-top: 0">編輯梁編號</h3>
+      <div style="margin-bottom: 15px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >ETABS 編號:</label
+        >
+        <input
+          type="text"
+          id="edit-etabs-name"
+          readonly
+          style="
+            width: 100%;
+            padding: 8px;
+            background: var(--theme-bg);
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+        />
+      </div>
+      <div style="margin-bottom: 15px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >樓層:</label
+        >
+        <input
+          type="text"
+          id="edit-story"
+          readonly
+          style="
+            width: 100%;
+            padding: 8px;
+            background: var(--theme-bg);
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+        />
+      </div>
+      <div style="margin-bottom: 20px">
+        <label
+          style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          "
+          >新編號:</label
+        >
+        <input
+          type="text"
+          id="edit-new-label"
+          style="
+            width: 100%;
+            padding: 8px;
+            border: 1px solid var(--theme-border);
+            border-radius: 6px;
+          "
+          placeholder="輸入新的編號"
+        />
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end">
+        <button class="btn-export" onclick="closeBeamEditDialog()">取消</button>
+        <button class="btn-process" onclick="saveBeamEdit()">儲存</button>
+      </div>
+    </div>
+    <!-- 遮罩層 -->
+    <div
+      id="dialog-overlay"
+      style="
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100%;
+        height: 100%;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      "
+      onclick="closeBeamEditDialog()"
+    ></div>
+
+    <script>
+      // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
+      const INITIAL_BEAM_FONT_SIZE = 12;
+      const INITIAL_GRID_FONT_SIZE = 10;
+      const INITIAL_GRID_BUBBLE_RADIUS = 12;
+      const INITIAL_BEAM_LABEL_STROKE = 1.5;
+      const INITIAL_GRID_BUBBLE_STROKE = 1;
+      // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
+      const INITIAL_HORIZONTAL_OFFSET = 12;
+      const INITIAL_VERTICAL_OFFSET = 8;
+      const INITIAL_ANGLED_OFFSET = 6;
+
+      let panZoomInstance = null;
+      let fullProcessedBeams = [];
+      let fullDrawableBeams = [];
+      let availableStories = [];
+      let gridData = {};
+      let storyOrderInfo = {};
+      const TOLERANCE = 0.1;
+
+      // [新增] 預覽模式用的全域變數
+      let previewFileContent = null;
+      let previewJoints = null;
+      let userGridConfig = null; // 使用者自訂的格線編號配置
+
+      // [新增] 梁編輯功能用的全域變數
+      let currentEditingBeam = null;
+
+      // [新增] 固定編號設定
+      let fixedLabelRules = []; // 儲存 { section: "sb25x50", label: "g1" }
+
+      // [新增] 從 localStorage 載入固定編號規則
+      function loadFixedLabelRules() {
+        try {
+          const saved = localStorage.getItem('fixedLabelRules');
+          if (saved) {
+            fixedLabelRules = JSON.parse(saved);
+            updateFixedLabelList();
+            console.log('✓ 已載入固定編號規則:', fixedLabelRules);
+          }
+        } catch (e) {
+          console.error('載入固定編號規則失敗:', e);
+        }
+      }
+
+      // [新增] 儲存固定編號規則到 localStorage
+      function saveFixedLabelRules() {
+        try {
+          localStorage.setItem('fixedLabelRules', JSON.stringify(fixedLabelRules));
+          console.log('✓ 已儲存固定編號規則');
+        } catch (e) {
+          console.error('儲存固定編號規則失敗:', e);
+        }
+      }
+
+      // [新增] 固定編號功能函數
+      function toggleFixedLabelConfig() {
+        const toggle = document.getElementById("fixedLabelToggle");
+        const configDiv = document.getElementById("fixed-label-config");
+        configDiv.style.display = toggle.checked ? "block" : "none";
+      }
+
+      function addFixedLabelRule() {
+        const sectionInput = document.getElementById("fixedSection0");
+        const labelInput = document.getElementById("fixedLabel0");
+
+        const section = sectionInput.value.trim().toLowerCase(); // 統一轉小寫儲存
+        const label = labelInput.value.trim().toLowerCase(); // 統一轉小寫儲存
+
+        if (!section || !label) {
+          alert("請填寫梁斷面和固定編號");
+          return;
+        }
+
+        // 檢查編號格式（至少要有一個字母和數字）
+        if (!/^[a-z]+\d+/.test(label)) {
+          alert("固定編號格式錯誤，請填寫完整編號（例如：g1, b1, ga1）");
+          return;
+        }
+
+        // 檢查是否已存在
+        if (fixedLabelRules.some(r => r.section === section)) {
+          alert(`斷面 "${section}" 已設定過固定編號`);
+          return;
+        }
+
+        fixedLabelRules.push({ section, label });
+
+        // 儲存到 localStorage
+        saveFixedLabelRules();
+
+        // 清空輸入框
+        sectionInput.value = "";
+        labelInput.value = "";
+
+        // 更新顯示列表
+        updateFixedLabelList();
+      }
+
+      function removeFixedLabelRule(index) {
+        fixedLabelRules.splice(index, 1);
+        saveFixedLabelRules(); // 儲存變更
+        updateFixedLabelList();
+      }
+
+      function updateFixedLabelList() {
+        const listDiv = document.getElementById("fixed-label-list");
+
+        if (fixedLabelRules.length === 0) {
+          listDiv.innerHTML = '<p style="color: var(--theme-text-secondary); font-size: 0.9em;">尚未新增任何規則</p>';
+          return;
+        }
+
+        listDiv.innerHTML = fixedLabelRules.map((rule, index) => `
+          <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
+            <span style="flex: 1; color: var(--theme-text);">${rule.section}</span>
+            <span style="width: 150px; color: var(--theme-accent);">→ ${rule.label}</span>
+            <button onclick="removeFixedLabelRule(${index})" style="padding: 4px 10px; background: #e74c3c; color: white; border: none; border-radius: 4px; cursor: pointer;">刪除</button>
+          </div>
+        `).join('');
+      }
+
+      // [新增] 預覽檔案函式
+      async function previewFile() {
+        const fileInput = document.getElementById("e2kFile");
+        const statusDiv = document.getElementById("status");
+        const storySelector = document.getElementById("storySelector");
+        const beamTypeSelector = document.getElementById("beamTypeSelector");
+
+        statusDiv.innerHTML = "";
+        document.getElementById("drawing-svg").innerHTML = "";
+        document.getElementById("grid-config-panel").style.display = "none";
+
+        if (panZoomInstance) {
+          panZoomInstance.destroy();
+          panZoomInstance = null;
+        }
+
+        if (fileInput.files.length === 0) {
+          statusDiv.innerHTML = '<p class="error">請先選擇 .e2k 檔案</p>';
+          return;
+        }
+
+        const file = fileInput.files[0];
+        statusDiv.innerHTML = `<p>正在讀取檔案 "${file.name}"...</p>`;
+
+        try {
+          previewFileContent = await file.text();
+
+          // 解析樓層
+          const storySectionMatch = previewFileContent.match(
+            /\$ STORIES - IN SEQUENCE FROM TOP([\s\S]*?)(?=\$|$)/i,
+          );
+          if (!storySectionMatch) throw new Error("找不到樓層定義");
+
+          const allStoryNames = storySectionMatch[1]
+            .trim()
+            .split("\n")
+            .map((line) => line.match(/STORY\s+"([^"]+)"/i)?.[1])
+            .filter(Boolean);
+          if (allStoryNames.length === 0) throw new Error("樓層定義為空");
+
+          availableStories = allStoryNames;
+          populateStorySelector();
+
+          // 解析格線和節點
+          gridData = parseGrids(previewFileContent);
+          previewJoints = parseJoints(previewFileContent);
+
+          // [新增] 載入已儲存的格線配置
+          try {
+            const saved = localStorage.getItem('userGridConfig');
+            if (saved) {
+              userGridConfig = JSON.parse(saved);
+              console.log('✓ 已載入格線編號規則');
+            }
+          } catch (e) {
+            console.error('載入格線編號規則失敗:', e);
+          }
+
+          // 解析所有梁並顯示
+          let allBeamsAcrossStories = [];
+          for (const story of availableStories) {
+            const frames = parseFrames(previewFileContent, story);
+            if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+          }
+
+          fullDrawableBeams = allBeamsAcrossStories.map((f) => ({
+            ...f,
+            j1: previewJoints[f.joint1],
+            j2: previewJoints[f.joint2],
+          }));
+
+          storyOrderInfo = availableStories.reduce((acc, story, index) => {
+            acc[story] = index;
+            return acc;
+          }, {});
+
+          // 顯示預覽圖
+          if (availableStories.includes("2F")) {
+            storySelector.value = "2F";
+          }
+          handleStoryChange();
+
+          statusDiv.innerHTML = `<p>✅ 預覽完成！找到 ${availableStories.length} 個樓層，${allBeamsAcrossStories.length} 根梁</p>`;
+
+          // 啟用「設定編號規則並執行」按鈕
+          document.getElementById("configBtn").disabled = false;
+        } catch (error) {
+          statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p>`;
+          console.error(error);
+        }
+      }
+
+      // [新增] 顯示格線配置介面
+      function showGridConfig() {
+        if (!gridData || (!gridData.x.length && !gridData.y.length)) {
+          alert("請先預覽檔案");
+          return;
+        }
+
+        const panel = document.getElementById("grid-config-panel");
+        const xConfigDiv = document.getElementById("x-grid-config");
+        const yConfigDiv = document.getElementById("y-grid-config");
+
+        // [新增] 獲取已儲存的格線配置值
+        const getSavedValue = (axis, gridName, defaultIndex) => {
+          if (userGridConfig && userGridConfig[axis]) {
+            const savedConfig = userGridConfig[axis].find(c => c.name === gridName);
+            if (savedConfig) {
+              if (savedConfig.serialValue === null) {
+                return '-'; // 跳過的格線
+              }
+              return savedConfig.serialValue;
+            }
+          }
+          return defaultIndex + 1; // 預設值
+        };
+
+        // 生成 X 軸格線配置
+        xConfigDiv.innerHTML = gridData.x
+          .map(
+            (grid, index) => {
+              const savedValue = getSavedValue('x', grid.name, index);
+              return `
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
+            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
+            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
+              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
+            </span>
+            <label style="font-size: 0.9em;">編號為:</label>
+            <input type="text"
+              id="x-grid-${index}"
+              value="${savedValue}"
+              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
+              placeholder="- 跳過"
+              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
+              data-axis="x"
+              data-index="${index}"
+            />
+          </div>
+        `;
+            }
+          )
+          .join("");
+
+        // 生成 Y 軸格線配置
+        yConfigDiv.innerHTML = gridData.y
+          .map(
+            (grid, index) => {
+              const savedValue = getSavedValue('y', grid.name, index);
+              return `
+          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
+            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
+            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
+              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
+            </span>
+            <label style="font-size: 0.9em;">編號為:</label>
+            <input type="text"
+              id="y-grid-${index}"
+              value="${savedValue}"
+              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
+              placeholder="- 跳過"
+              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
+              data-axis="y"
+              data-index="${index}"
+            />
+          </div>
+        `;
+            }
+          )
+          .join("");
+
+        // [新增] 為所有輸入框添加自動順號事件
+        attachAutoIncrementListeners();
+
+        panel.style.display = "block";
+      }
+
+      // [新增] 自動順號功能
+      function attachAutoIncrementListeners() {
+        const allInputs = document.querySelectorAll(
+          "#x-grid-config input, #y-grid-config input",
+        );
+
+        allInputs.forEach((input) => {
+          input.addEventListener("change", function () {
+            const axis = this.dataset.axis; // 'x' 或 'y'
+            const currentIndex = parseInt(this.dataset.index);
+            const currentValue = this.value.trim();
+
+            // 如果輸入的是數字，才自動順號
+            const parsedNum = parseInt(currentValue, 10);
+            if (
+              isNaN(parsedNum) ||
+              currentValue === "" ||
+              currentValue === "-" ||
+              currentValue.toLowerCase() === "skip"
+            ) {
+              return; // 非數字或跳過標記，不自動順號
+            }
+
+            // 自動更新後面的格線編號
+            const totalGrids =
+              axis === "x" ? gridData.x.length : gridData.y.length;
+            let nextValue = parsedNum + 1;
+
+            for (let i = currentIndex + 1; i < totalGrids; i++) {
+              const nextInput = document.getElementById(`${axis}-grid-${i}`);
+              if (nextInput) {
+                const nextInputValue = nextInput.value.trim();
+                // 只更新數字類型的輸入框（保留使用者手動設定的非數字值）
+                const nextParsedNum = parseInt(nextInputValue, 10);
+                if (
+                  !isNaN(nextParsedNum) &&
+                  nextInputValue !== "" &&
+                  nextInputValue !== "-" &&
+                  nextInputValue.toLowerCase() !== "skip"
+                ) {
+                  nextInput.value = nextValue;
+                  nextValue++;
+                } else {
+                  // 遇到非數字或跳過標記，停止自動順號
+                  break;
+                }
+              }
+            }
+          });
+        });
+      }
+
+      // [新增] 套用使用者配置
+      function applyGridConfig() {
+        // 收集使用者輸入
+        userGridConfig = {
+          x: gridData.x.map((grid, index) => {
+            const inputValue = document
+              .getElementById(`x-grid-${index}`)
+              .value.trim();
+            // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
+            if (
+              inputValue === "" ||
+              inputValue === "-" ||
+              inputValue.toLowerCase() === "skip"
+            ) {
+              return {
+                name: grid.name,
+                serialValue: null, // null 表示跳過，不會被用於編號
+                lineType: grid.lineType,
+              };
+            }
+            return {
+              name: grid.name,
+              serialValue: isNaN(inputValue)
+                ? inputValue
+                : parseInt(inputValue, 10),
+              lineType: grid.lineType,
+            };
+          }),
+          y: gridData.y.map((grid, index) => {
+            const inputValue = document
+              .getElementById(`y-grid-${index}`)
+              .value.trim();
+            // [修改] 支援空值、"-" 或 "skip" 來跳過該格線
+            if (
+              inputValue === "" ||
+              inputValue === "-" ||
+              inputValue.toLowerCase() === "skip"
+            ) {
+              return {
+                name: grid.name,
+                serialValue: null, // null 表示跳過，不會被用於編號
+                lineType: grid.lineType,
+              };
+            }
+            return {
+              name: grid.name,
+              serialValue: isNaN(inputValue)
+                ? inputValue
+                : parseInt(inputValue, 10),
+              lineType: grid.lineType,
+            };
+          }),
+        };
+
+        // [新增] 儲存格線配置到 localStorage
+        try {
+          localStorage.setItem('userGridConfig', JSON.stringify(userGridConfig));
+          console.log('✓ 已儲存格線編號規則');
+        } catch (e) {
+          console.error('儲存格線編號規則失敗:', e);
+        }
+
+        document.getElementById("grid-config-panel").style.display = "none";
+
+        // 自動執行編號
+        processE2k();
+      }
+
+      // [新增] 取消配置
+      function cancelGridConfig() {
+        document.getElementById("grid-config-panel").style.display = "none";
+      }
+
+      async function processE2k() {
+        const statusDiv = document.getElementById("status");
+        const mirrorModeToggle = document.getElementById("mirrorModeToggle");
+
+        // [修改] 檢查是否已有預覽資料
+        if (!previewFileContent || !previewJoints) {
+          statusDiv.innerHTML = '<p class="error">請先點擊「預覽結構」按鈕</p>';
+          return;
+        }
+
+        statusDiv.innerHTML = "<p>正在執行編號...</p>";
+        fullProcessedBeams = [];
+
+        try {
+          // 使用預覽時已解析好的資料
+          const fileContent = previewFileContent;
+          const joints = previewJoints;
+
+          let allBeamsAcrossStories = [];
+          for (const story of availableStories) {
+            const frames = parseFrames(fileContent, story);
+            if (frames.length > 0) allBeamsAcrossStories.push(...frames);
+          }
+          if (allBeamsAcrossStories.length === 0)
+            throw new Error("No qualifying beams found on any story.");
+
+          fullDrawableBeams = allBeamsAcrossStories.map((f) => ({
+            ...f,
+            j1: joints[f.joint1],
+            j2: joints[f.joint2],
+          }));
+          storyOrderInfo = availableStories.reduce((acc, story, index) => {
+            acc[story] = index;
+            return acc;
+          }, {});
+
+          const mainBeams = allBeamsAcrossStories.filter((b) => {
+            const prop = b.prop.toUpperCase();
+            const isNumericBeam = /^\d+(\.\d+)?B/.test(prop);
+            return (
+              (isNumericBeam ||
+                prop.startsWith("B") ||
+                prop.startsWith("G") ||
+                prop.startsWith("FB") ||
+                prop.startsWith("FGB")) &&
+              !prop.startsWith("SB") &&
+              !prop.startsWith("FSB")
+            );
+          });
+          const secondaryBeams = allBeamsAcrossStories.filter(
+            (b) =>
+              b.prop.toUpperCase().startsWith("SB") &&
+              !b.prop.toUpperCase().startsWith("FSB"),
+          );
+          const secondaryFoundationBeams = allBeamsAcrossStories.filter((b) =>
+            b.prop.toUpperCase().startsWith("FSB"),
+          );
+          const specialBeams = allBeamsAcrossStories.filter(
+            (b) =>
+              b.prop.toUpperCase().startsWith("WB") ||
+              b.prop.toUpperCase().startsWith("FWB"),
+          );
+
+          let allLabeledBeams = [...specialBeams];
+
+          // [新增] 處理固定編號的梁
+          const fixedLabelBeams = [];
+          const reservedSerials = new Set(); // 記錄被固定編號佔用的序號
+
+          if (document.getElementById("fixedLabelToggle").checked && fixedLabelRules.length > 0) {
+            console.log("\n========== 處理固定編號梁 ==========");
+
+            for (const story of availableStories) {
+              // [修改] 包含所有梁類型（大梁和小梁都可以設定固定編號）
+              const allBeamsInStory = allBeamsAcrossStories.filter((b) => b.story === story);
+
+              allBeamsInStory.forEach(beam => {
+                const beamSection = beam.prop.toLowerCase();
+                const matchedRule = fixedLabelRules.find(rule =>
+                  beamSection.includes(rule.section) || beamSection === rule.section
+                );
+
+                if (matchedRule) {
+                  const j1 = joints[beam.joint1];
+                  const j2 = joints[beam.joint2];
+
+                  if (j1 && j2) {
+                    // [修改] 直接使用完整的固定編號（如 "g1", "b1"）
+                    const newLabel = matchedRule.label;
+
+                    // [修改] 根據編號前綴判斷是大梁還是小梁
+                    // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
+                    // 小梁：b 開頭（小寫）
+                    // 只要第一個字母是小寫 b，就是小梁；其他都是大梁
+                    const isSecondaryBeam = matchedRule.label.charAt(0) === 'b';
+
+                    fixedLabelBeams.push({
+                      ...beam,
+                      newLabel,
+                      isFixedLabel: true,
+                      isSecondaryBeam // [新增] 標記是否為小梁
+                    });
+
+                    // [修改] 從完整編號中提取序號部分（如 "g1" → "1", "ga2" → "2"）
+                    const serialMatch = matchedRule.label.match(/\d+$/);
+                    if (serialMatch) {
+                      reservedSerials.add(serialMatch[0]);
+                    }
+
+                    const beamType = isSecondaryBeam ? '小梁' : '大梁';
+                    console.log(`[${story}] ${beam.name} (${beam.prop}) → ${newLabel} [${beamType}]`);
+                  }
+                }
+              });
+            }
+
+            allLabeledBeams.push(...fixedLabelBeams);
+            console.log(`✓ 共處理 ${fixedLabelBeams.length} 根固定編號梁`);
+            console.log(`✓ 預留序號: ${Array.from(reservedSerials).join(', ')}`);
+            console.log("==========================================\n");
+          }
+
+          // [新增] 鏡像模式：使用智能偵測計算全域對稱軸
+          let globalSymmetryAxisX = null;
+          if (mirrorModeToggle.checked && secondaryBeams.length > 0) {
+            console.log("\n========== 智能偵測全域對稱軸 ==========");
+            const axisXCandidates = [];
+
+            // 對每個樓層使用智能偵測
+            for (const story of availableStories) {
+              const secondaryBeamsInStory = secondaryBeams.filter((b) => b.story === story);
+              const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
+              const allBeamsInStory = [...secondaryBeamsInStory, ...mainBeamsInStory];
+
+              if (allBeamsInStory.length < 10) continue;
+
+              console.log(`\n[${story}] 智能偵測對稱軸...`);
+              const detectedAxis = detectSymmetryAxis(allBeamsInStory, joints, gridData);
+
+              if (detectedAxis) {
+                axisXCandidates.push({ story, axisX: detectedAxis });
+                console.log(`[${story}] ✓ 偵測成功`);
+              } else {
+                console.log(`[${story}] ✗ 未偵測到對稱結構`);
+              }
+            }
+
+            // 找出最常出現的對稱軸（容許 ±0.5m 誤差）
+            if (axisXCandidates.length > 0) {
+              const AXIS_TOLERANCE = 0.5;
+              const groups = [];
+
+              axisXCandidates.forEach((candidate) => {
+                let foundGroup = false;
+                for (const group of groups) {
+                  if (Math.abs(group[0].axisX - candidate.axisX) < AXIS_TOLERANCE) {
+                    group.push(candidate);
+                    foundGroup = true;
+                    break;
+                  }
+                }
+                if (!foundGroup) {
+                  groups.push([candidate]);
+                }
+              });
+
+              // 選擇出現次數最多的群組
+              groups.sort((a, b) => b.length - a.length);
+              const bestGroup = groups[0];
+              globalSymmetryAxisX = bestGroup.reduce((sum, c) => sum + c.axisX, 0) / bestGroup.length;
+
+              console.log(`\n[全域對稱軸] X = ${globalSymmetryAxisX.toFixed(3)} (來自 ${bestGroup.length} 個樓層)`);
+              bestGroup.forEach((c) => console.log(`  - ${c.story}`));
+            } else {
+              console.log("\n[警告] 所有樓層都未偵測到對稱結構");
+            }
+            console.log("==========================================\n");
+          }
+
+          for (const story of availableStories) {
+            const mainBeamsInStory = mainBeams.filter((b) => b.story === story);
+            const secondaryBeamsInStory = secondaryBeams.filter(
+              (b) => b.story === story,
+            );
+            const secondaryFoundationBeamsInStory =
+              secondaryFoundationBeams.filter((b) => b.story === story);
+
+            if (mainBeamsInStory.length > 0) {
+              // [修改] 排除已經被固定編號的梁
+              const beamsToNumber = mainBeamsInStory.filter(beam => {
+                const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+                return !fixedLabelBeams.some(fb =>
+                  `${fb.name}|${fb.joint1}|${fb.joint2}` === beamKey
+                );
+              });
+
+              const labelComponentMap = generateLabelsForStory(
+                beamsToNumber,
+                joints,
+                gridData,
+                reservedSerials, // [新增] 傳入預留的序號
+              );
+              labelComponentMap.forEach((components, beamKey) => {
+                const [name, joint1, joint2] = beamKey.split("|");
+                const originalBeam = beamsToNumber.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2,
+                );
+                if (!originalBeam) return;
+
+                const propUpper = originalBeam.prop.toUpperCase();
+                const prefix = components.isVertical
+                  ? propUpper.startsWith("FB")
+                    ? "FB"
+                    : "B"
+                  : propUpper.startsWith("FB")
+                    ? "FG"
+                    : "G";
+
+                const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
+                const newLabel = `${finalPrefix}-${components.serial}`;
+
+                allLabeledBeams.push({ ...originalBeam, newLabel });
+              });
+            }
+
+            if (secondaryBeamsInStory.length > 0) {
+              // [新增] 排除已經被固定編號的小梁
+              const secondaryBeamsToNumber = secondaryBeamsInStory.filter(beam => {
+                const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+                return !fixedLabelBeams.some(fb =>
+                  `${fb.name}|${fb.joint1}|${fb.joint2}` === beamKey
+                );
+              });
+
+              const secondaryBeamLabels = generateSecondaryBeamLabels(
+                secondaryBeamsToNumber,
+                mainBeamsInStory,
+                joints,
+                "b",
+                globalSymmetryAxisX,
+                reservedSerials, // [新增] 傳入預留的序號
+              );
+              secondaryBeamLabels.forEach((value, key) => {
+                const [name, joint1, joint2] = key.split("|");
+                const originalBeam = secondaryBeamsInStory.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2,
+                );
+                if (originalBeam) {
+                  allLabeledBeams.push({
+                    ...originalBeam,
+                    newLabel: value.newLabel,
+                  });
+                }
+              });
+            }
+
+            if (secondaryFoundationBeamsInStory.length > 0) {
+              // [新增] 排除已經被固定編號的基礎小梁
+              const foundationBeamsToNumber = secondaryFoundationBeamsInStory.filter(beam => {
+                const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+                return !fixedLabelBeams.some(fb =>
+                  `${fb.name}|${fb.joint1}|${fb.joint2}` === beamKey
+                );
+              });
+
+              const foundationBeamLabels = generateSecondaryBeamLabels(
+                foundationBeamsToNumber,
+                mainBeamsInStory,
+                joints,
+                "fb",
+                globalSymmetryAxisX,
+                reservedSerials, // [新增] 傳入預留的序號
+              );
+              foundationBeamLabels.forEach((value, key) => {
+                const [name, joint1, joint2] = key.split("|");
+                const originalBeam = secondaryFoundationBeamsInStory.find(
+                  (b) =>
+                    b.name === name &&
+                    b.joint1 === joint1 &&
+                    b.joint2 === joint2,
+                );
+                if (originalBeam) {
+                  allLabeledBeams.push({
+                    ...originalBeam,
+                    newLabel: value.newLabel,
+                  });
+                }
+              });
+            }
+          }
+
+          let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
+          finalProcessedData = finalProcessedData.filter(
+            (beam) => beam.newLabel,
+          );
+
+          finalProcessedData.sort((a, b) => {
+            const storyCompare =
+              storyOrderInfo[a.story] - storyOrderInfo[b.story];
+            if (storyCompare !== 0) return storyCompare;
+
+            const aIsSecondary =
+              a.newLabel.toLowerCase().startsWith("b") ||
+              a.newLabel.toLowerCase().startsWith("fb");
+            const bIsSecondary =
+              b.newLabel.toLowerCase().startsWith("b") ||
+              b.newLabel.toLowerCase().startsWith("fb");
+
+            if (aIsSecondary && !bIsSecondary) return 1;
+            if (!aIsSecondary && bIsSecondary) return -1;
+
+            return (a.newLabel || "").localeCompare(b.newLabel || "", "en", {
+              numeric: true,
+            });
+          });
+
+          fullProcessedBeams = finalProcessedData;
+
+          if (availableStories.includes("2F")) {
+            storySelector.value = "2F";
+          }
+          handleStoryChange();
+
+          statusDiv.innerHTML = `<p>✅ 編號完成！共處理 ${fullProcessedBeams.length} 根梁</p>`;
+          if (fullProcessedBeams.length > 0) {
+            exportBtn.disabled = false;
+            exportJsonBtn.disabled = false;
+          }
+        } catch (error) {
+          statusDiv.innerHTML = `<p class="error">Processing failed: ${error.message}</p>`;
+          console.error(error);
+        }
+      }
+
+      function populateStorySelector() {
+        const selector = document.getElementById("storySelector");
+        selector.innerHTML = '<option value="all">All Floors</option>';
+        availableStories.forEach((story) => {
+          const option = document.createElement("option");
+          option.value = story;
+          option.textContent = story;
+          selector.appendChild(option);
+        });
+        selector.disabled = false;
+        document.getElementById("beamTypeSelector").disabled = false;
+        // 【在最後一行後面加上】
+        document.getElementById("mirrorModeToggle").disabled = false;
+      }
+
+      function handleStoryChange() {
+        const storySelector = document.getElementById("storySelector");
+        const beamTypeSelector = document.getElementById("beamTypeSelector");
+        const selectedStory = storySelector.value;
+        const selectedBeamType = beamTypeSelector.value;
+        const svg = document.getElementById("drawing-svg");
+
+        document.getElementById("plan-story-name").textContent =
+          selectedStory === "all" ? "All Floors Combined" : selectedStory;
+
+        let beamsToDisplay = fullProcessedBeams;
+        let backgroundBeams = fullDrawableBeams;
+
+        if (selectedStory !== "all") {
+          beamsToDisplay = beamsToDisplay.filter(
+            (b) => b.story === selectedStory,
+          );
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.story === selectedStory,
+          );
+        }
+
+        if (selectedBeamType === "main") {
+          beamsToDisplay = beamsToDisplay.filter((b) => {
+            if (!b.newLabel) return false;
+            // [修改] 如果是固定編號梁，使用 isSecondaryBeam 標記
+            if (b.isFixedLabel) {
+              return !b.isSecondaryBeam;
+            }
+            // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
+            // 小梁：b 開頭（小寫）
+            // 只要第一個字母是小寫 b，就是小梁；其他都是大梁
+            return b.newLabel.charAt(0) !== 'b';
+          });
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.prop && !/SB/.test(b.prop.toUpperCase()),
+          );
+        } else if (selectedBeamType === "secondary") {
+          beamsToDisplay = beamsToDisplay.filter((b) => {
+            if (!b.newLabel) return false;
+            // [修改] 如果是固定編號梁，使用 isSecondaryBeam 標記
+            if (b.isFixedLabel) {
+              return b.isSecondaryBeam;
+            }
+            // 小梁：第一個字母是小寫 b
+            return b.newLabel.charAt(0) === 'b';
+          });
+          backgroundBeams = backgroundBeams.filter(
+            (b) => b.prop && /SB/.test(b.prop.toUpperCase()),
+          );
+        }
+
+        if (panZoomInstance) {
+          panZoomInstance.destroy();
+          panZoomInstance = null;
+        }
+
+        // [修改] 預覽模式：如果沒有編號資料，直接顯示所有梁（當作背景梁但用藍色顯示）
+        const isPreviewMode =
+          fullProcessedBeams.length === 0 && backgroundBeams.length > 0;
+
+        const labeledBeamsWithCoords = beamsToDisplay.map((beam) => {
+          const originalBeam = fullDrawableBeams.find(
+            (b) =>
+              b.name === beam.name &&
+              b.story === beam.story &&
+              b.joint1 === beam.joint1 &&
+              b.joint2 === beam.joint2,
+          );
+          return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
+        });
+
+        displayResults(
+          labeledBeamsWithCoords,
+          backgroundBeams,
+          svg,
+          gridData,
+          isPreviewMode,
+        );
+
+        if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
+          panZoomInstance = svgPanZoom("#drawing-svg", {
+            panEnabled: true,
+            zoomEnabled: true,
+            dblClickZoomEnabled: true,
+            controlIconsEnabled: true,
+            fit: true,
+            center: true,
+            minZoom: 0.1,
+            maxZoom: 50,
+            // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
+            onZoom: function (newZoom) {
+              // --- 更新梁標籤 ---
+              const beamLabels = document.querySelectorAll(
+                "#drawing-svg .beam-label",
+              );
+              beamLabels.forEach((label) => {
+                // 1. 反向縮放字體大小和外框
+                label.style.fontSize = `${INITIAL_BEAM_FONT_SIZE / newZoom}px`;
+                label.style.strokeWidth = `${
+                  INITIAL_BEAM_LABEL_STROKE / newZoom
+                }px`;
+
+                // 2. 反向縮放位置偏移
+                const baseX = parseFloat(label.dataset.baseX);
+                const baseY = parseFloat(label.dataset.baseY);
+                const orientation = label.dataset.orientation;
+
+                if (orientation === "horizontal") {
+                  const newOffsetY = INITIAL_HORIZONTAL_OFFSET / newZoom;
+                  label.setAttribute("y", baseY + newOffsetY);
+                } else if (orientation === "vertical") {
+                  const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
+                  const newRotatedX = baseX - newOffsetX;
+                  label.setAttribute("x", newRotatedX);
+                  // 更新旋轉變換，確保旋轉中心正確
+                  label.setAttribute(
+                    "transform",
+                    `rotate(-90, ${newRotatedX}, ${baseY})`,
+                  );
+                } else if (orientation === "angled") {
+                  const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
+                  label.setAttribute("dy", -newOffsetY);
+                }
+              });
+
+              // --- 更新網格氣泡 ---
+              const gridBubbles = document.querySelectorAll(
+                "#drawing-svg .grid-bubble",
+              );
+              gridBubbles.forEach((bubble) => {
+                bubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS / newZoom);
+                bubble.style.strokeWidth = `${
+                  INITIAL_GRID_BUBBLE_STROKE / newZoom
+                }px`;
+              });
+
+              const gridBubbleTexts = document.querySelectorAll(
+                "#drawing-svg .grid-bubble-text",
+              );
+              gridBubbleTexts.forEach((text) => {
+                text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
+              });
+            },
+          });
+        }
+      }
+
+      function summarizeFloors(floors, storyOrder) {
+        if (!floors || floors.length === 0) return "";
+        if (floors.length === 1) return floors[0];
+
+        const sortedFloors = [...floors].sort(
+          (a, b) => storyOrder[a] - storyOrder[b],
+        );
+        const ranges = [];
+        let rangeStart = sortedFloors[0];
+
+        for (let i = 1; i < sortedFloors.length; i++) {
+          const currentStoryOrder = storyOrder[sortedFloors[i]];
+          const prevStoryOrder = storyOrder[sortedFloors[i - 1]];
+
+          if (currentStoryOrder !== prevStoryOrder + 1) {
+            if (rangeStart === sortedFloors[i - 1]) {
+              ranges.push(rangeStart);
+            } else {
+              ranges.push(`${rangeStart}~${sortedFloors[i - 1]}`);
+            }
+            rangeStart = sortedFloors[i];
+          }
+        }
+
+        if (rangeStart === sortedFloors[sortedFloors.length - 1]) {
+          ranges.push(rangeStart);
+        } else {
+          ranges.push(`${rangeStart}~${sortedFloors[sortedFloors.length - 1]}`);
+        }
+        return ranges.join(", ");
+      }
+
+      function summarizeProperties(floorProps, storyOrder) {
+        if (!floorProps || floorProps.length === 0) return "";
+
+        const propsToFloorsMap = new Map();
+        for (const { story, prop } of floorProps) {
+          if (!propsToFloorsMap.has(prop)) {
+            propsToFloorsMap.set(prop, []);
+          }
+          propsToFloorsMap.get(prop).push(story);
+        }
+
+        const summaryParts = [];
+        propsToFloorsMap.forEach((floors, prop) => {
+          const floorRange = summarizeFloors(floors, storyOrder);
+          summaryParts.push(`${floorRange}: ${prop}`);
+        });
+
+        summaryParts.sort((a, b) => {
+          const firstStoryA = a.split(":")[0].trim().split("~")[0];
+          const firstStoryB = b.split(":")[0].trim().split("~")[0];
+          return storyOrder[firstStoryA] - storyOrder[firstStoryB];
+        });
+
+        return summaryParts.join("; ");
+      }
+
+      function displayResults(
+        labeledBeams,
+        allBeams,
+        svg,
+        grids,
+        isPreviewMode = false,
+      ) {
+        const beamCoords = allBeams
+          .flatMap((b) => [b.j1, b.j2])
+          .filter(Boolean);
+        if (beamCoords.length === 0 && (!grids || grids.x.length === 0)) {
+          svg.innerHTML =
+            '<text x="50%" y="50%" text-anchor="middle" fill="var(--theme-text-secondary)">No data to display</text>';
+          return;
+        }
+
+        const gridCoordsX = grids.x ? grids.x.map((g) => g.ordinate) : [];
+        const gridCoordsY = grids.y ? grids.y.map((g) => g.ordinate) : [];
+        const allX = beamCoords.map((p) => p.x).concat(gridCoordsX);
+        const allY = beamCoords.map((p) => p.y).concat(gridCoordsY);
+        const minX = Math.min(...allX);
+        const maxX = Math.max(...allX);
+        const minY = Math.min(...allY);
+        const maxY = Math.max(...allY);
+
+        const padding = 60;
+        const svgWidth = svg.clientWidth;
+        const svgHeight = svg.clientHeight;
+        const contentWidth = maxX - minX;
+        const contentHeight = maxY - minY;
+
+        let scale =
+          Math.min(
+            (svgWidth - 2 * padding) / (contentWidth || 1),
+            (svgHeight - 2 * padding) / (contentHeight || 1),
+          ) * 0.9;
+        if (!isFinite(scale) || scale === 0) scale = 1;
+
+        const transformX = (x) => padding + (x - minX) * scale;
+        const transformY = (y) => svgHeight - padding - (y - minY) * scale;
+
+        svg.innerHTML = "";
+
+        const allDrawableBeams = allBeams.filter((b) => b.j1 && b.j2);
+        allDrawableBeams.forEach((beam) => {
+          const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line",
+          );
+          line.setAttribute("x1", transformX(beam.j1.x));
+          line.setAttribute("y1", transformY(beam.j1.y));
+          line.setAttribute("x2", transformX(beam.j2.x));
+          line.setAttribute("y2", transformY(beam.j2.y));
+
+          // 判斷是否為小梁 (SB 或 FSB 開頭的斷面)
+          const isSecondaryBeam = beam.prop && /^(SB|FSB)/i.test(beam.prop);
+
+          // 根據梁類型設定顏色類別
+          if (isPreviewMode) {
+            // 預覽模式：大梁用藍色，小梁用橘色
+            line.setAttribute(
+              "class",
+              isSecondaryBeam ? "secondary-beam-line" : "labeled-beam-line",
+            );
+          } else {
+            // 背景梁：統一灰色
+            line.setAttribute("class", "beam-line");
+          }
+          svg.appendChild(line);
+        });
+
+        if (grids && grids.x && grids.y) {
+          const gridGroup = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g",
+          );
+          gridGroup.setAttribute("class", "grid-lines");
+          grids.x.forEach((gridLine) => {
+            const line = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "line",
+            );
+            line.setAttribute("x1", transformX(gridLine.ordinate));
+            // [修改] 讓垂直線的起點和終點對齊內容邊界
+            line.setAttribute("y1", transformY(maxY));
+            line.setAttribute("x2", transformX(gridLine.ordinate));
+            // [修改] 讓垂直線的起點和終點對齊內容邊界
+            line.setAttribute("y2", transformY(minY));
+            gridGroup.appendChild(line);
+          });
+          grids.y.forEach((gridLine) => {
+            const line = document.createElementNS(
+              "http://www.w3.org/2000/svg",
+              "line",
+            );
+            // [修改] 讓水平線的起點和終點對齊內容邊界
+            line.setAttribute("x1", transformX(minX));
+            line.setAttribute("y1", transformY(gridLine.ordinate));
+            // [修改] 讓水平線的起點和終點對齊內容邊界
+            line.setAttribute("x2", transformX(maxX));
+            line.setAttribute("y2", transformY(gridLine.ordinate));
+            gridGroup.appendChild(line);
+          });
+          svg.appendChild(gridGroup);
+
+          // ... 之後繪製網格氣泡 (grid bubble) 的程式碼維持不變 ...
+          const gridLabelsGroup = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "g",
+          );
+
+          grids.x.forEach((gridLine) => {
+            const cx = transformX(gridLine.ordinate);
+            const loc = gridLine.bubbleLoc;
+
+            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
+            const bubbleYTop = transformY(maxY) - padding / 2;
+            const bubbleYBottom = transformY(minY) + padding / 2;
+
+            if (loc === "End" || loc === "Both" || !loc) {
+              const topBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              topBubble.setAttribute("cx", cx);
+              topBubble.setAttribute("cy", bubbleYTop); // 使用新座標
+              topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              topBubble.setAttribute("class", "grid-bubble");
+              const topText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text",
+              );
+              topText.setAttribute("x", cx);
+              topText.setAttribute("y", bubbleYTop); // 使用新座標
+              topText.setAttribute("class", "grid-bubble-text");
+              topText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(topBubble);
+              gridLabelsGroup.appendChild(topText);
+            }
+
+            if (loc === "Start" || loc === "Both") {
+              const bottomBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              bottomBubble.setAttribute("cx", cx);
+              bottomBubble.setAttribute("cy", bubbleYBottom); // 使用新座標
+              bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              bottomBubble.setAttribute("class", "grid-bubble");
+              const bottomText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text",
+              );
+              bottomText.setAttribute("x", cx);
+              bottomText.setAttribute("y", bubbleYBottom); // 使用新座標
+              bottomText.setAttribute("class", "grid-bubble-text");
+              bottomText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(bottomBubble);
+              gridLabelsGroup.appendChild(bottomText);
+            }
+          });
+
+          grids.y.forEach((gridLine) => {
+            const cy = transformY(gridLine.ordinate);
+            const loc = gridLine.bubbleLoc;
+
+            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
+            const bubbleXLeft = transformX(minX) - padding / 2;
+            const bubbleXRight = transformX(maxX) + padding / 2;
+
+            if (loc === "Start" || loc === "Both" || !loc) {
+              const leftBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              leftBubble.setAttribute("cx", bubbleXLeft); // 使用新座標
+              leftBubble.setAttribute("cy", cy);
+              leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              leftBubble.setAttribute("class", "grid-bubble");
+              const leftText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text",
+              );
+              leftText.setAttribute("x", bubbleXLeft); // 使用新座標
+              leftText.setAttribute("y", cy);
+              leftText.setAttribute("class", "grid-bubble-text");
+              leftText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(leftBubble);
+              gridLabelsGroup.appendChild(leftText);
+            }
+
+            if (loc === "End" || loc === "Both") {
+              const rightBubble = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              rightBubble.setAttribute("cx", bubbleXRight); // 使用新座標
+              rightBubble.setAttribute("cy", cy);
+              rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
+              rightBubble.setAttribute("class", "grid-bubble");
+              const rightText = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "text",
+              );
+              rightText.setAttribute("x", bubbleXRight); // 使用新座標
+              rightText.setAttribute("y", cy);
+              rightText.setAttribute("class", "grid-bubble-text");
+              rightText.textContent = gridLine.name;
+              gridLabelsGroup.appendChild(rightBubble);
+              gridLabelsGroup.appendChild(rightText);
+            }
+          });
+          svg.appendChild(gridLabelsGroup);
+        }
+        // ... 之後繪製梁 (beam) 和標籤 (label) 的程式碼維持不變 ...
+        const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
+        labeledDrawableBeams.forEach((beam) => {
+          const line = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "line",
+          );
+          line.setAttribute("x1", transformX(beam.j1.x));
+          line.setAttribute("y1", transformY(beam.j1.y));
+          line.setAttribute("x2", transformX(beam.j2.x));
+          line.setAttribute("y2", transformY(beam.j2.y));
+
+          let className = "labeled-beam-line";
+          if (
+            beam.newLabel.startsWith("b") ||
+            beam.newLabel.startsWith("fb") ||
+            beam.newLabel === "g1"
+          ) {
+            className = "special-beam-line";
+          } else if (
+            beam.prop.toUpperCase().startsWith("WB") ||
+            beam.prop.toUpperCase().startsWith("FWB")
+          ) {
+            className = "special-beam-line";
+          }
+
+          line.setAttribute("class", className);
+          // [新增] 儲存梁資料到 data 屬性，用於點擊編輯
+          line.dataset.beamName = beam.name;
+          line.dataset.beamStory = beam.story;
+          line.dataset.beamJoint1 = beam.joint1;
+          line.dataset.beamJoint2 = beam.joint2;
+          line.dataset.beamLabel = beam.newLabel;
+          // [新增] 設定梁為可點擊
+          line.style.cursor = "pointer";
+          line.addEventListener("click", () => openBeamEditDialog(beam));
+          svg.appendChild(line);
+
+          const text = document.createElementNS(
+            "http://www.w3.org/2000/svg",
+            "text",
+          );
+
+          const textX = (transformX(beam.j1.x) + transformX(beam.j2.x)) / 2;
+          const textY = (transformY(beam.j1.y) + transformY(beam.j2.y)) / 2;
+
+          text.dataset.baseX = textX;
+          text.dataset.baseY = textY;
+
+          const isHorizontal = Math.abs(beam.j1.y - beam.j2.y) < TOLERANCE;
+          const isVertical = Math.abs(beam.j1.x - beam.j2.x) < TOLERANCE;
+
+          if (isHorizontal) {
+            text.dataset.orientation = "horizontal";
+            text.setAttribute("x", textX);
+            text.setAttribute("y", textY + INITIAL_HORIZONTAL_OFFSET);
+            text.setAttribute("text-anchor", "middle");
+          } else if (isVertical) {
+            text.dataset.orientation = "vertical";
+            const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
+            text.setAttribute("x", rotatedX);
+            text.setAttribute("y", textY);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "middle");
+            text.setAttribute(
+              "transform",
+              `rotate(-90, ${rotatedX}, ${textY})`,
+            );
+          } else {
+            text.dataset.orientation = "angled";
+            const x1_svg = transformX(beam.j1.x);
+            const y1_svg = transformY(beam.j1.y);
+            const x2_svg = transformX(beam.j2.x);
+            const y2_svg = transformY(beam.j2.y);
+            let angle =
+              (Math.atan2(y2_svg - y1_svg, x2_svg - x1_svg) * 180) / Math.PI;
+
+            if (angle > 90 || angle < -90) {
+              angle += 180;
+            }
+
+            text.setAttribute("x", textX);
+            text.setAttribute("y", textY);
+            text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "alphabetic");
+            text.setAttribute(
+              "transform",
+              `rotate(${angle}, ${textX}, ${textY})`,
+            );
+            text.setAttribute("dy", -INITIAL_ANGLED_OFFSET);
+          }
+
+          text.setAttribute("class", "beam-label");
+          text.textContent = beam.newLabel;
+          // [新增] 標籤也可點擊編輯
+          text.style.cursor = "pointer";
+          text.addEventListener("click", () => openBeamEditDialog(beam));
+          svg.appendChild(text);
+        });
+      }
+
+      // [新增] 開啟梁編輯對話框
+      // [修改] 開啟梁編輯對話框
+      function openBeamEditDialog(beam) {
+        currentEditingBeam = beam;
+        document.getElementById("edit-etabs-name").value = beam.name;
+        document.getElementById("edit-story").value = beam.story;
+
+        const newLabelInput = document.getElementById("edit-new-label");
+        newLabelInput.value = beam.newLabel || "";
+
+        document.getElementById("beam-edit-dialog").style.display = "block";
+        document.getElementById("dialog-overlay").style.display = "block";
+
+        // 自動對焦並選取文字
+        newLabelInput.focus();
+        newLabelInput.select();
+      }
+      // [新增] 關閉梁編輯對話框
+      function closeBeamEditDialog() {
+        currentEditingBeam = null;
+        document.getElementById("beam-edit-dialog").style.display = "none";
+        document.getElementById("dialog-overlay").style.display = "none";
+      }
+
+      // [新增] 儲存梁編號編輯
+      function saveBeamEdit() {
+        if (!currentEditingBeam) return;
+
+        const newLabel = document.getElementById("edit-new-label").value.trim();
+        if (!newLabel) {
+          alert("請輸入新的編號");
+          return;
+        }
+
+        // 更新 fullProcessedBeams 中的資料
+        const beamIndex = fullProcessedBeams.findIndex(
+          (b) =>
+            b.name === currentEditingBeam.name &&
+            b.story === currentEditingBeam.story &&
+            b.joint1 === currentEditingBeam.joint1 &&
+            b.joint2 === currentEditingBeam.joint2,
+        );
+
+        if (beamIndex !== -1) {
+          fullProcessedBeams[beamIndex].newLabel = newLabel;
+          // 重新繪製
+          handleStoryChange();
+          closeBeamEditDialog();
+          // [移除] 不再顯示 alert 提示
+        }
+      }
+      // --- Core Parsing & Labeling Functions (No changes below this line) ---
+      function parseGrids(content) {
+        const grids = {
+          x: [],
+          y: [],
+        };
+        const gridTableSection = content.match(
+          /TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/,
+        );
+        if (gridTableSection) {
+          let currentGrid = {};
+          const lines = gridTableSection[1].trim().split("\n");
+          lines.forEach((line) => {
+            const trimmedLine = line.trim();
+            if (trimmedLine === "") {
+              if (
+                currentGrid.name &&
+                currentGrid.type &&
+                currentGrid.ordinate !== undefined
+              ) {
+                if (currentGrid.type.toUpperCase() === "X")
+                  grids.x.push(currentGrid);
+                else if (currentGrid.type.toUpperCase() === "Y")
+                  grids.y.push(currentGrid);
+              }
+              currentGrid = {};
+            } else {
+              const match = trimmedLine.match(/(\S+)\s*=\s*"?([^"]*)"?/);
+              if (match) {
+                const [, key, value] = match;
+                if (key === "GridID") currentGrid.name = value;
+                if (key === "GridType") currentGrid.type = value;
+                if (key === "Ordinate")
+                  currentGrid.ordinate = parseFloat(value);
+                if (key === "BubbleLoc") currentGrid.bubbleLoc = value;
+                // [新增] 解析格線類型 (Primary/Secondary)
+                if (key === "LineType") currentGrid.lineType = value;
+              }
+            }
+          });
+          if (currentGrid.name) {
+            if (currentGrid.type.toUpperCase() === "X")
+              grids.x.push(currentGrid);
+            else if (currentGrid.type.toUpperCase() === "Y")
+              grids.y.push(currentGrid);
+          }
+        }
+        if (grids.x.length === 0 && grids.y.length === 0) {
+          const gridDollarSection = content.match(/\$ GRIDS([\s\S]*?)(?=\$|$)/);
+          if (gridDollarSection) {
+            const lines = gridDollarSection[1].trim().split("\n");
+            lines.forEach((line) => {
+              const match = line.match(
+                /LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i,
+              );
+              if (match) {
+                const [, name, type, ordinate] = match;
+                const gridInfo = {
+                  name,
+                  type,
+                  ordinate: parseFloat(ordinate),
+                };
+                if (type.toUpperCase() === "X") grids.x.push(gridInfo);
+                else if (type.toUpperCase() === "Y") grids.y.push(gridInfo);
+              }
+            });
+          }
+        }
+        if (grids.x.length === 0 && grids.y.length === 0) {
+          throw new Error("Could not find grid definitions.");
+        }
+        grids.x = [
+          ...new Map(grids.x.map((item) => [item.name, item])).values(),
+        ].sort((a, b) => a.ordinate - b.ordinate);
+        grids.y = [
+          ...new Map(grids.y.map((item) => [item.name, item])).values(),
+        ].sort((a, b) => a.ordinate - b.ordinate);
+        return grids;
+      }
+
+      function parseJoints(content) {
+        const joints = {};
+        const sciNotationRegex = /"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+        const pointRegex = /^POINT\s+"([^"]+)"\s+([-\d\.E]+)\s+([-\d\.E]+)/;
+        const nameRegex =
+          /NAME\s*=\s*(\S+)\s*X\s*=\s*([-\d\.E]+)\s*Y\s*=\s*([-\d\.E]+)/;
+
+        const jointTableSection = content.match(
+          /TABLE:\s+"JOINT COORDINATES"([\s\S]*?)(?=TABLE:|$)/,
+        );
+        if (jointTableSection) {
+          const lines = jointTableSection[1].trim().split("\n");
+          lines.forEach((line) => {
+            if (line.trim().startsWith("JOINT")) return;
+            const match = line.trim().match(sciNotationRegex);
+            if (match) {
+              joints[match[1]] = {
+                x: parseFloat(match[2]),
+                y: parseFloat(match[3]),
+              };
+            }
+          });
+        }
+        if (Object.keys(joints).length === 0) {
+          const lines = content.split("\n");
+          lines.forEach((line) => {
+            const match = line.trim().match(pointRegex);
+            if (match) {
+              joints[match[1]] = {
+                x: parseFloat(match[2]),
+                y: parseFloat(match[3]),
+              };
+            }
+          });
+        }
+        if (Object.keys(joints).length === 0) {
+          const jointDollarSection = content.match(
+            /\$ JOINTS([\s\S]*?)(?=\$|$)/s,
+          );
+          if (jointDollarSection) {
+            const lines = jointDollarSection[1].trim().split("\n");
+            lines.forEach((line) => {
+              const match = line.match(nameRegex);
+              if (match) {
+                joints[match[1]] = {
+                  x: parseFloat(match[2]),
+                  y: parseFloat(match[3]),
+                };
+              }
+            });
+          }
+        }
+        if (Object.keys(joints).length === 0) {
+          throw new Error("Could not find joint coordinate definitions.");
+        }
+        return joints;
+      }
+
+      function parseFrames(content, story) {
+        const frames = [];
+        const isBeamProp = (propName) => {
+          if (!propName) return false;
+          const p = propName.toUpperCase();
+          const isNumericBeam = /^\d+(\.\d+)?B/.test(p);
+          return (
+            isNumericBeam ||
+            p.startsWith("B") ||
+            p.startsWith("G") ||
+            p.startsWith("SB") ||
+            p.startsWith("WB") ||
+            p.startsWith("FB") ||
+            p.startsWith("FGB") ||
+            p.startsWith("FSB") ||
+            p.startsWith("FWB")
+          );
+        };
+
+        const frameTableSection = content.match(
+          /TABLE:\s+"CONNECTIVITY - FRAME"([\s\S]*?)(?=TABLE:|$)/,
+        );
+        const frameAssignSection = content.match(
+          /TABLE:\s+"FRAME ASSIGNS - SECTION"([\s\S]*?)(?=TABLE:|$)/,
+        );
+        if (frameTableSection && frameAssignSection) {
+          const connectivityLines = frameTableSection[1].trim().split("\n");
+          const assignLines = frameAssignSection[1].trim().split("\n");
+          const frameProperties = new Map();
+          assignLines.forEach((line) => {
+            const match = line
+              .trim()
+              .match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+            if (match && match[2] === story) {
+              frameProperties.set(match[1], match[3]);
+            }
+          });
+          connectivityLines.forEach((line) => {
+            const match = line
+              .trim()
+              .match(/^"([^"]+)"\s+"([^"]+)"\s+"([^"]+)"/);
+            if (match) {
+              const [, name, joint1, joint2] = match;
+              const propName = frameProperties.get(name);
+              if (isBeamProp(propName)) {
+                frames.push({
+                  name,
+                  prop: propName,
+                  joint1,
+                  joint2,
+                  story,
+                });
+              }
+            }
+          });
+        }
+        if (frames.length === 0) {
+          const lineConnectivitySection = content.match(
+            /\$ LINE CONNECTIVITIES([\s\S]*?)(?=\$|$)/i,
+          );
+          const lineAssignsSection = content.match(
+            /\$ LINE ASSIGNS([\s\S]*?)(?=\$|$)/i,
+          );
+          if (lineConnectivitySection && lineAssignsSection) {
+            const connectLines = lineConnectivitySection[1].trim().split("\n");
+            const assignLines = lineAssignsSection[1].trim().split("\n");
+            const beamAssigns = new Map();
+            assignLines.forEach((line) => {
+              const assignMatch = line.match(
+                new RegExp(
+                  `LINEASSIGN\\s+"([^"]+)"\\s+"${story}"\\s+SECTION\\s+"([^"]+)"`,
+                  "i",
+                ),
+              );
+              if (assignMatch) {
+                const [, name, propName] = assignMatch;
+                if (isBeamProp(propName)) {
+                  beamAssigns.set(name, propName);
+                }
+              }
+            });
+            connectLines.forEach((line) => {
+              const connMatch = line.match(
+                /LINE\s+"([^"]+)"\s+BEAM\s+"([^"]+)"\s+"([^"]+)"/i,
+              );
+              if (connMatch) {
+                const [, name, joint1, joint2] = connMatch;
+                if (beamAssigns.has(name)) {
+                  frames.push({
+                    name,
+                    prop: beamAssigns.get(name),
+                    joint1,
+                    joint2,
+                    story,
+                  });
+                }
+              }
+            });
+          }
+        }
+        return frames;
+      }
+
+      function findClosestGrid(coordinate, grids) {
+        if (!grids || grids.length === 0) return null;
+        return grids.reduce((closest, current) => {
+          const closestDiff = Math.abs(coordinate - closest.ordinate);
+          const currentDiff = Math.abs(coordinate - current.ordinate);
+          return currentDiff < closestDiff ? current : closest;
+        });
+      }
+
+      function generateLabelsForStory(beamsInStory, joints, grids, reservedSerials = new Set()) {
+        const labelComponentMap = new Map();
+
+        // --- 開始：這是【最終修正版】的 getBeamSerial 函式 ---
+        function getBeamSerial(segment, grids, isHorizontal) {
+          const ON_GRID_TOLERANCE = 0.1;
+
+          // [修改] 優先使用使用者配置，只對 Primary 格線轉換為數字
+          const getSerialValue = (gridNameToFind, gridArray) => {
+            // 找到對應的格線物件
+            const gridObj = gridArray.find((g) => g.name === gridNameToFind);
+            if (!gridObj) return NaN;
+
+            // [新增] 優先使用使用者自訂配置
+            if (userGridConfig) {
+              const axisKey = gridArray === grids.x ? "x" : "y";
+              const userConfig = userGridConfig[axisKey]?.find(
+                (c) => c.name === gridNameToFind,
+              );
+              if (userConfig && userConfig.serialValue !== undefined) {
+                // [修改] 如果 serialValue 是 null，表示要跳過這個格線
+                if (userConfig.serialValue === null) {
+                  return NaN; // 回傳 NaN 讓該梁不被編號
+                }
+                return userConfig.serialValue;
+              }
+            }
+
+            // 如果是 Secondary 格線，直接返回格線名稱
+            if (
+              gridObj.lineType &&
+              gridObj.lineType.toUpperCase() === "SECONDARY"
+            ) {
+              return gridNameToFind; // 返回原始名稱
+            }
+
+            // Primary 格線：使用原有邏輯
+            const parsedNum = parseInt(gridNameToFind, 10);
+            if (!isNaN(parsedNum) && String(parsedNum) === gridNameToFind) {
+              // 如果格線名稱本身就是純數字，直接回傳該數字
+              return parsedNum;
+            } else {
+              // 否則，回傳它在陣列中的 1-based 順序
+              const index = gridArray.findIndex(
+                (g) => g.name === gridNameToFind,
+              );
+              return index !== -1 ? index + 1 : NaN;
+            }
+          };
+
+          if (isHorizontal) {
+            const endGrid = findClosestGrid(segment.maxX, grids.x);
+            if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              // **【水平梁規則1】** 終點格線編號 - 1
+              const serial = getSerialValue(endGrid.name, grids.x);
+              return typeof serial === "number" ? serial - 1 : serial;
+            }
+            const startGrid = findClosestGrid(segment.minX, grids.x);
+            // **【水平梁規則2】** 起點格線編號（不減 1）
+            return getSerialValue(startGrid.name, grids.x);
+          } else {
+            // 垂直梁的規則：與水平梁相同
+            const endGrid = findClosestGrid(segment.maxY, grids.y);
+            if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
+              // **【垂直梁規則1】** 終點格線編號 - 1
+              const serial = getSerialValue(endGrid.name, grids.y);
+              return typeof serial === "number" ? serial - 1 : serial;
+            }
+            const startGrid = findClosestGrid(segment.minY, grids.y);
+            // **【垂直梁規則2】** 起點格線編號（不減 1）
+            return getSerialValue(startGrid.name, grids.y);
+          }
+          return NaN;
+        }
+        // --- 結束：getBeamSerial 函式修改完畢 ---
+
+        function parseGridName(gridName) {
+          if (!gridName) return "";
+          const upperGridName = gridName.toUpperCase();
+          if (upperGridName.startsWith("X") || upperGridName.startsWith("Y")) {
+            const match = gridName.match(/^[XY](.*)/i);
+            return match ? match[1] : gridName;
+          }
+          return gridName;
+        }
+
+        const beamsWithCoords = beamsInStory
+          .map((b) => {
+            const j1 = joints[b.joint1],
+              j2 = joints[b.joint2];
+            if (!j1 || !j2) return null;
+            return {
+              ...b,
+              j1,
+              j2,
+              minX: Math.min(j1.x, j2.x),
+              maxX: Math.max(j1.x, j2.x),
+              minY: Math.min(j1.y, j2.y),
+              maxY: Math.max(j1.y, j2.y),
+              centerX: (j1.x + j2.x) / 2,
+              centerY: (j1.y + j2.y) / 2,
+              isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
+              isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
+            };
+          })
+          .filter(Boolean);
+
+        const processedBeams = new Set();
+        beamsWithCoords.forEach((beam) => {
+          const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+          if (
+            processedBeams.has(beamKey) ||
+            (!beam.isHorizontal && !beam.isVertical)
+          )
+            return;
+
+          processedBeams.add(beamKey);
+
+          let serial;
+          let primaryGridName;
+          let subGridMarker = "";
+
+          if (beam.isVertical) {
+            let onGridLine = grids.x.find(
+              (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE,
+            );
+
+            if (onGridLine) {
+              primaryGridName = parseGridName(onGridLine.name);
+              subGridMarker = "";
+            } else {
+              const gridBelow = grids.x
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerX);
+              const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
+
+              if (gridBelow && gridAbove) {
+                primaryGridName = parseGridName(gridBelow.name);
+                const uniqueXCoords = [
+                  ...new Set(
+                    beamsWithCoords
+                      .filter(
+                        (b) =>
+                          b.isVertical &&
+                          b.centerX > gridBelow.ordinate &&
+                          b.centerX < gridAbove.ordinate,
+                      )
+                      .map((b) => b.centerX.toFixed(2)),
+                  ),
+                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+                if (rank !== -1) {
+                  subGridMarker = String.fromCharCode(97 + rank);
+                }
+              } else {
+                return;
+              }
+            }
+            serial = getBeamSerial(beam, grids, false);
+          } else {
+            let onGridLine = grids.y.find(
+              (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE,
+            );
+
+            if (onGridLine) {
+              primaryGridName = parseGridName(onGridLine.name);
+              subGridMarker = "";
+            } else {
+              const gridBelow = grids.y
+                .slice()
+                .reverse()
+                .find((g) => g.ordinate < beam.centerY);
+              const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
+
+              if (gridBelow && gridAbove) {
+                primaryGridName = parseGridName(gridBelow.name);
+                const uniqueYCoords = [
+                  ...new Set(
+                    beamsWithCoords
+                      .filter(
+                        (b) =>
+                          b.isHorizontal &&
+                          b.centerY > gridBelow.ordinate &&
+                          b.centerY < gridAbove.ordinate,
+                      )
+                      .map((b) => b.centerY.toFixed(2)),
+                  ),
+                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+                if (rank !== -1) {
+                  subGridMarker = String.fromCharCode(97 + rank);
+                }
+              } else {
+                return;
+              }
+            }
+            serial = getBeamSerial(beam, grids, true);
+          }
+
+          // [修改] 支援字串型序號 (Secondary 格線)，並處理預留序號
+          if (
+            serial !== undefined &&
+            serial !== -1 &&
+            (typeof serial === "string" || !isNaN(serial))
+          ) {
+            // [新增] 如果序號與預留序號衝突，自動跳過
+            let finalSerial = serial;
+            if (typeof serial === "number" && reservedSerials.has(String(serial))) {
+              // 找到下一個未被預留的序號
+              let nextSerial = serial;
+              while (reservedSerials.has(String(nextSerial))) {
+                nextSerial++;
+              }
+              finalSerial = nextSerial;
+              console.log(`[跳過預留] 梁 ${beam.name} 原序號 ${serial} → ${finalSerial}`);
+            }
+
+            labelComponentMap.set(beamKey, {
+              isVertical: beam.isVertical,
+              primaryGridName,
+              subGridMarker,
+              serial: finalSerial,
+            });
+          }
+        });
+        return labelComponentMap;
+      }
+
+      function distance(p1, p2) {
+        if (!p1 || !p2) return Infinity;
+        return Math.sqrt(Math.pow(p1.x - p2.x, 2) + Math.pow(p1.y - p2.y, 2));
+      }
+
+      function isPointOnSegment(point, segP1, segP2, tolerance) {
+        if (!point || !segP1 || !segP2) return false;
+        const segLength = distance(segP1, segP2);
+        if (segLength < tolerance) {
+          return distance(point, segP1) < tolerance;
+        }
+        const distSum = distance(point, segP1) + distance(point, segP2);
+        return Math.abs(distSum - segLength) < tolerance;
+      }
+      // =================================================================
+      // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：開始 ###
+      // =================================================================
+
+      const SYMMETRY_TOLERANCE = 0.5; // 幾何容許誤差 (公尺) - 用於判斷梁是否在對稱軸上
+      const MATCHING_TOLERANCE = 0.8; // 配對容許誤差 (公尺) - 用於鏡像梁配對時的中點距離
+      const DIRECTION_TOLERANCE = 0.01; // 用於判斷梁的方向（水平/垂直）
+
+      /**
+       * [新增] 智能偵測對稱軸 - 基於 Opus 4.1 算法
+       * 通過計算每個候選軸的對稱匹配分數來自動偵測對稱軸
+       */
+      function detectSymmetryAxis(beams, joints, gridData) {
+        if (!beams || beams.length < 10) return null;
+
+        // 收集所有梁的 X 座標
+        const xCoords = [];
+        beams.forEach(beam => {
+          const j1 = joints[beam.joint1];
+          const j2 = joints[beam.joint2];
+          if (j1 && j2) {
+            xCoords.push(j1.x, j2.x);
+          }
+        });
+
+        if (xCoords.length === 0) return null;
+
+        // 計算 X 軸範圍和中心
+        const minX = Math.min(...xCoords);
+        const maxX = Math.max(...xCoords);
+        const centerX = (minX + maxX) / 2;
+
+        // 測試候選對稱軸（幾何中心 + 格線位置）
+        const candidates = [centerX];
+
+        if (gridData && gridData.x) {
+          gridData.x.forEach(grid => {
+            if (grid.ordinate > minX && grid.ordinate < maxX) {
+              candidates.push(grid.ordinate);
+            }
+          });
+        }
+
+        // 評估每個候選軸的對稱性
+        let bestAxis = null;
+        let bestScore = 0;
+
+        candidates.forEach(axisX => {
+          let matchCount = 0;
+          let totalCount = 0;
+
+          beams.forEach(beam => {
+            const j1 = joints[beam.joint1];
+            const j2 = joints[beam.joint2];
+            if (!j1 || !j2) return;
+
+            const midX = (j1.x + j2.x) / 2;
+            const midY = (j1.y + j2.y) / 2;
+            const length = distance(j1, j2);
+
+            // 跳過在軸上的梁
+            if (Math.abs(midX - axisX) < SYMMETRY_TOLERANCE) return;
+
+            totalCount++;
+
+            // 尋找鏡像梁
+            const mirroredX = 2 * axisX - midX;
+            const hasMatch = beams.some(otherBeam => {
+              if (otherBeam === beam) return false;
+              const oj1 = joints[otherBeam.joint1];
+              const oj2 = joints[otherBeam.joint2];
+              if (!oj1 || !oj2) return false;
+
+              const otherMidX = (oj1.x + oj2.x) / 2;
+              const otherMidY = (oj1.y + oj2.y) / 2;
+              const otherLength = distance(oj1, oj2);
+
+              return Math.abs(otherMidX - mirroredX) < MATCHING_TOLERANCE &&
+                     Math.abs(otherMidY - midY) < MATCHING_TOLERANCE &&
+                     Math.abs(otherLength - length) < 1.0;
+            });
+
+            if (hasMatch) matchCount++;
+          });
+
+          const score = totalCount > 0 ? matchCount / totalCount : 0;
+          if (score > bestScore) {
+            bestScore = score;
+            bestAxis = axisX;
+          }
+        });
+
+        // 如果對稱分數 > 70%，返回對稱軸
+        if (bestScore > 0.7) {
+          console.log(`[智能偵測] 找到對稱軸 X=${bestAxis.toFixed(3)}, 對稱分數: ${(bestScore * 100).toFixed(1)}%`);
+          return bestAxis;
+        }
+
+        console.log(`[智能偵測] 未找到明顯對稱結構 (最高分數: ${(bestScore * 100).toFixed(1)}%)`);
+        return null;
+      }
+
+      /**
+       * 計算一組梁的精確邊界和形心
+       */
+      function getComponentBounds(component, joints) {
+        if (!component || component.length === 0) return null;
+        let minX = Infinity,
+          maxX = -Infinity,
+          minY = Infinity,
+          maxY = -Infinity;
+        const uniquePoints = new Set();
+        component.forEach((beam) => {
+          const p1 = joints[beam.joint1];
+          const p2 = joints[beam.joint2];
+          if (p1) uniquePoints.add(p1);
+          if (p2) uniquePoints.add(p2);
+        });
+        if (uniquePoints.size === 0) return null;
+        uniquePoints.forEach((p) => {
+          minX = Math.min(minX, p.x);
+          maxX = Math.max(maxX, p.x);
+          minY = Math.min(minY, p.y);
+          maxY = Math.max(maxY, p.y);
+        });
+        return { minX, maxX, minY, maxY };
+      }
+
+      /**
+       * 鏡像反射一個點
+       */
+      function mirrorPoint(point, axisX) {
+        return { x: 2 * axisX - point.x, y: point.y };
+      }
+
+      /**
+       * 判斷梁是否在對稱軸上或跨越對稱軸
+       * @param {Object} beam - 梁對象
+       * @param {Object} joints - 節點座標對象
+       * @param {number} axisX - 對稱軸 X 座標
+       * @param {number} tolerance - 容許誤差
+       * @returns {boolean}
+       */
+      function isBeamOnSymmetryAxis(beam, joints, axisX, tolerance) {
+        const p1 = joints[beam.joint1];
+        const p2 = joints[beam.joint2];
+        if (!p1 || !p2) return false;
+
+        // 計算梁的中點 X 座標
+        const midX = (p1.x + p2.x) / 2;
+
+        // 方法 1: 梁的中點在對稱軸上（容許誤差範圍內）
+        if (Math.abs(midX - axisX) < tolerance) {
+          return true;
+        }
+
+        // 方法 2: 梁的兩個端點分別在對稱軸兩側（跨越對稱軸）
+        const p1DistFromAxis = p1.x - axisX;
+        const p2DistFromAxis = p2.x - axisX;
+
+        // 如果兩個端點在軸的不同側（一個正一個負），且都不在容許範圍內
+        if (
+          Math.abs(p1DistFromAxis) > tolerance &&
+          Math.abs(p2DistFromAxis) > tolerance &&
+          p1DistFromAxis * p2DistFromAxis < 0
+        ) {
+          return true;
+        }
+
+        // 方法 3: 任一端點恰好在對稱軸上
+        if (
+          Math.abs(p1DistFromAxis) < tolerance ||
+          Math.abs(p2DistFromAxis) < tolerance
+        ) {
+          return true;
+        }
+
+        return false;
+      }
+
+      /**
+       * 小梁編號核心函式 (優化版 - 正確處理對稱軸上的梁)
+       */
+      function generateSecondaryBeamLabels(
+        secondaryBeamsToNumber,
+        mainBeamsInStory,
+        joints,
+        prefix,
+        globalSymmetryAxisX = null,
+        reservedSerials = new Set(), // [新增] 預留的序號
+      ) {
+        const allLabels = new Map();
+        const useMirrorMode =
+          document.getElementById("mirrorModeToggle").checked;
+
+        const coreNumberingEngine = (beamsToNumber, startCounter = 1) => {
+          // ... (這段循序編號函式維持不變) ...
+          const labels = new Map();
+          let counter = startCounter;
+          const beamsWithData = beamsToNumber
+            .map((b) => {
+              const j1_coords = joints[b.joint1],
+                j2_coords = joints[b.joint2];
+              if (!j1_coords || !j2_coords) return null;
+              const isHorizontal =
+                Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
+              const isVertical =
+                Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
+              let startJointName = b.joint1,
+                endJointName = b.joint2;
+              if (isHorizontal && j1_coords.x > j2_coords.x) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              if (isVertical && j1_coords.y > j2_coords.y) {
+                [startJointName, endJointName] = [b.joint2, b.joint1];
+              }
+              return {
+                ...b,
+                startJointName,
+                endJointName,
+                isHorizontal,
+                isVertical,
+              };
+            })
+            .filter(Boolean);
+          const processed = new Set();
+          const beamGroups = [
+            beamsWithData
+              .filter((b) => b.isHorizontal)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].y - joints[b.startJointName].y ||
+                  joints[a.startJointName].x - joints[b.startJointName].x,
+              ),
+            beamsWithData
+              .filter((b) => b.isVertical)
+              .sort(
+                (a, b) =>
+                  joints[a.startJointName].x - joints[b.startJointName].x ||
+                  joints[a.startJointName].y - joints[b.startJointName].y,
+              ),
+          ];
+          let isVerticalRun = false;
+          beamGroups.forEach((group) => {
+            if (isVerticalRun && counter > 1) {
+              const lastNum = counter - 1;
+              counter =
+                lastNum % 10 === 0
+                  ? lastNum + 1
+                  : Math.ceil(lastNum / 10) * 10 + 1;
+            }
+            for (const startBeam of group) {
+              const startKey = `${startBeam.name}|${startBeam.joint1}|${startBeam.joint2}`;
+              if (processed.has(startKey)) continue;
+              let chain = [startBeam];
+              processed.add(startKey);
+              let currentLink = startBeam;
+              while (true) {
+                const nextLink = group.find((b) => {
+                  const nextKey = `${b.name}|${b.joint1}|${b.joint2}`;
+                  return (
+                    !processed.has(nextKey) &&
+                    b.startJointName === currentLink.endJointName
+                  );
+                });
+                if (nextLink) {
+                  chain.push(nextLink);
+                  processed.add(
+                    `${nextLink.name}|${nextLink.joint1}|${nextLink.joint2}`,
+                  );
+                  currentLink = nextLink;
+                } else {
+                  break;
+                }
+              }
+              // [新增] 跳過預留的序號
+              while (reservedSerials.has(String(counter))) {
+                counter++;
+              }
+
+              if (chain.length > 1) {
+                chain.forEach((beam, index) => {
+                  labels.set(`${beam.name}|${beam.joint1}|${beam.joint2}`, {
+                    newLabel: `${prefix}${counter}-${index + 1}`,
+                  });
+                });
+              } else {
+                labels.set(
+                  `${chain[0].name}|${chain[0].joint1}|${chain[0].joint2}`,
+                  { newLabel: `${prefix}${counter}` },
+                );
+              }
+              counter++;
+            }
+            isVerticalRun = true;
+          });
+          return { labels, nextCounter: counter };
+        };
+
+        const allBeamsOnStory = [
+          ...secondaryBeamsToNumber,
+          ...mainBeamsInStory,
+        ];
+        const componentsRaw = findBuildingComponents(allBeamsOnStory, joints, useMirrorMode, globalSymmetryAxisX)
+          .map((comp) =>
+            comp.filter((b) =>
+              secondaryBeamsToNumber.some((sb) => sb.name === b.name),
+            ),
+          )
+          .filter((comp) => comp.length > 0);
+
+        if (componentsRaw.length === 0) return allLabels;
+
+        const components = componentsRaw
+          .map((comp) => ({
+            component: comp,
+            bounds: getComponentBounds(comp, joints),
+          }))
+          .sort((a, b) => a.bounds.minX - b.bounds.minX);
+
+        if (!useMirrorMode || components.length < 2) {
+          let globalCounter = 1;
+          for (const comp of components) {
+            const { labels, nextCounter } = coreNumberingEngine(
+              comp.component,
+              globalCounter,
+            );
+            labels.forEach((value, key) => allLabels.set(key, value));
+            globalCounter = nextCounter;
+          }
+        } else {
+          // ========== 鏡像對稱模式（優化版） ==========
+          const master = components[0];
+          const slave = components[1];
+
+          // 步驟 1: 使用全域對稱軸，如果沒有則回退到當前樓層計算
+          let axisX = globalSymmetryAxisX;
+          if (axisX === null) {
+            axisX = (master.bounds.maxX + slave.bounds.minX) / 2;
+            console.log(`=============================================`);
+            console.log(`[鏡像模式 - ${secondaryBeamsToNumber[0]?.story || '未知樓層'}] 使用當前樓層計算對稱軸 X = ${axisX.toFixed(3)}`);
+          } else {
+            console.log(`=============================================`);
+            console.log(`[鏡像模式 - ${secondaryBeamsToNumber[0]?.story || '未知樓層'}] 使用全域對稱軸 X = ${axisX.toFixed(3)} ✓`);
+          }
+          console.log(`=============================================`);
+
+          // 步驟 2: 識別對稱軸上的梁
+          const beamsOnAxis = [];
+          const slaveBeamsToMirror = [];
+
+          slave.component.forEach((beam) => {
+            if (isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE)) {
+              beamsOnAxis.push(beam);
+              console.log(
+                `[對稱軸梁] ${beam.name} 位於對稱軸上，歸入 master 編號`,
+              );
+            } else {
+              slaveBeamsToMirror.push(beam);
+            }
+          });
+
+          // 步驟 3: 將對稱軸上的梁併入 master
+          const masterWithAxisBeams = [...master.component, ...beamsOnAxis];
+          console.log(
+            `\n[Master 範圍] 原始梁數: ${master.component.length}, 對稱軸梁: ${beamsOnAxis.length}, 總計: ${masterWithAxisBeams.length}`,
+          );
+
+          // 步驟 4: 對 master（含對稱軸梁）統一編號
+          const { labels: masterLabels, nextCounter } = coreNumberingEngine(
+            masterWithAxisBeams,
+            1,
+          );
+          masterLabels.forEach((value, key) => allLabels.set(key, value));
+
+          console.log(`\n[Master 編號完成] 共編 ${masterLabels.size} 根小梁`);
+
+          // 步驟 5: 識別哪些 master 梁需要進行鏡像配對（排除對稱軸上的梁）
+          const masterBeamsToMirror = master.component.filter(
+            (beam) =>
+              !isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE),
+          );
+
+          console.log(
+            `\n[鏡像配對] 需配對的 master 梁: ${masterBeamsToMirror.length}, slave 梁: ${slaveBeamsToMirror.length}`,
+          );
+
+          // 步驟 6: 進行鏡像配對（使用匈牙利算法思想，確保一對一配對）
+          const matchedSlaves = new Set(); // 追蹤已配對的 slave 梁
+
+          masterBeamsToMirror.forEach((masterBeam) => {
+            const masterKey = `${masterBeam.name}|${masterBeam.joint1}|${masterBeam.joint2}`;
+            const labelInfo = masterLabels.get(masterKey);
+            if (!labelInfo) return;
+
+            const master_p1 = joints[masterBeam.joint1];
+            const master_p2 = joints[masterBeam.joint2];
+            const masterMidpoint = {
+              x: (master_p1.x + master_p2.x) / 2,
+              y: (master_p1.y + master_p2.y) / 2,
+            };
+            const masterLength = distance(master_p1, master_p2);
+
+            // [新增] 判斷 master 梁的方向
+            const masterIsHorizontal = Math.abs(master_p1.y - master_p2.y) < DIRECTION_TOLERANCE;
+            const masterIsVertical = Math.abs(master_p1.x - master_p2.x) < DIRECTION_TOLERANCE;
+
+            const mirroredMidpoint = mirrorPoint(masterMidpoint, axisX);
+
+            // 在 slave 中尋找最佳匹配（排除已配對的）
+            let bestMatch = null;
+            let bestScore = Infinity;
+
+            slaveBeamsToMirror.forEach((slaveBeam) => {
+              const slaveKey = `${slaveBeam.name}|${slaveBeam.joint1}|${slaveBeam.joint2}`;
+
+              // 跳過已配對的 slave 梁
+              if (matchedSlaves.has(slaveKey)) return;
+
+              const slave_p1 = joints[slaveBeam.joint1];
+              const slave_p2 = joints[slaveBeam.joint2];
+              if (!slave_p1 || !slave_p2) return;
+
+              // [新增] 判斷 slave 梁的方向
+              const slaveIsHorizontal = Math.abs(slave_p1.y - slave_p2.y) < DIRECTION_TOLERANCE;
+              const slaveIsVertical = Math.abs(slave_p1.x - slave_p2.x) < DIRECTION_TOLERANCE;
+
+              // [新增] 只有同方向的梁才能配對
+              if (masterIsHorizontal !== slaveIsHorizontal || masterIsVertical !== slaveIsVertical) {
+                return;
+              }
+
+              const slaveMidpoint = {
+                x: (slave_p1.x + slave_p2.x) / 2,
+                y: (slave_p1.y + slave_p2.y) / 2,
+              };
+              const slaveLength = distance(slave_p1, slave_p2);
+
+              const midDist = distance(slaveMidpoint, mirroredMidpoint);
+              const lenDiff = Math.abs(slaveLength - masterLength);
+              const yDiff = Math.abs(slaveMidpoint.y - masterMidpoint.y); // Y 座標應該相同
+
+              // 計算配對分數（距離越小越好，長度差異也要考慮）
+              const score = midDist + lenDiff * 0.5;
+
+              // [修改] 更嚴格的配對條件
+              // 1. Y 座標差異必須小於容許誤差（對稱梁 Y 應該相同）
+              // 2. 中點距離必須小於 MATCHING_TOLERANCE
+              // 3. 長度相近（容許 ±15% 或 ±0.5m）
+              const lenTolerance = Math.max(masterLength * 0.15, 0.5);
+              if (yDiff < MATCHING_TOLERANCE &&
+                  midDist < MATCHING_TOLERANCE * 2 &&
+                  lenDiff < lenTolerance &&
+                  score < bestScore) {
+                bestMatch = slaveBeam;
+                bestScore = score;
+              }
+            });
+
+            // 如果找到配對，賦予相同編號
+            if (bestMatch) {
+              const slaveKey = `${bestMatch.name}|${bestMatch.joint1}|${bestMatch.joint2}`;
+              console.log(
+                `[配對成功] ${labelInfo.newLabel}: ${masterBeam.name} ↔ ${bestMatch.name}`,
+              );
+              allLabels.set(slaveKey, { newLabel: labelInfo.newLabel });
+              matchedSlaves.add(slaveKey); // 標記為已配對
+            } else {
+              // [增強] 顯示為什麼配對失敗
+              console.log(
+                `[配對失敗] ${labelInfo.newLabel}: ${masterBeam.name} (中點: ${masterMidpoint.x.toFixed(2)}, ${masterMidpoint.y.toFixed(2)})`,
+              );
+              console.log(
+                `  → 鏡像目標位置: (${mirroredMidpoint.x.toFixed(2)}, ${mirroredMidpoint.y.toFixed(2)})`,
+              );
+
+              // 顯示最接近的 slave 梁資訊
+              let closestBeam = null;
+              let closestDist = Infinity;
+              slaveBeamsToMirror.forEach((slaveBeam) => {
+                const slave_p1 = joints[slaveBeam.joint1];
+                const slave_p2 = joints[slaveBeam.joint2];
+                if (!slave_p1 || !slave_p2) return;
+                const slaveMidpoint = {
+                  x: (slave_p1.x + slave_p2.x) / 2,
+                  y: (slave_p1.y + slave_p2.y) / 2,
+                };
+                const midDist = distance(slaveMidpoint, mirroredMidpoint);
+                if (midDist < closestDist) {
+                  closestDist = midDist;
+                  closestBeam = { beam: slaveBeam, midpoint: slaveMidpoint };
+                }
+              });
+
+              if (closestBeam) {
+                console.log(
+                  `  → 最近的 slave: ${closestBeam.beam.name} (中點: ${closestBeam.midpoint.x.toFixed(2)}, ${closestBeam.midpoint.y.toFixed(2)}, 距離: ${closestDist.toFixed(3)}m)`,
+                );
+              } else {
+                console.log(`  → 沒有任何 slave 梁可配對`);
+              }
+            }
+          });
+
+          // 步驟 7: 處理未配對的 slave 梁（如果有）
+          const unmatchedSlaveBeams = slaveBeamsToMirror.filter((beam) => {
+            const key = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+            return !allLabels.has(key);
+          });
+
+          let orphanCounter = nextCounter;
+
+          if (unmatchedSlaveBeams.length > 0) {
+            console.log(
+              `\n[未配對 Slave 梁] 共 ${unmatchedSlaveBeams.length} 根，從 ${prefix}${orphanCounter} 開始編號`,
+            );
+            const { labels: unmatchedLabels, nextCounter: updatedCounter } =
+              coreNumberingEngine(unmatchedSlaveBeams, orphanCounter);
+            unmatchedLabels.forEach((value, key) => allLabels.set(key, value));
+            orphanCounter = updatedCounter;
+          }
+
+          // 步驟 8: 處理第三個及以後的 component（如果有）
+          if (components.length > 2) {
+            console.log(
+              `\n[其他 Component] 處理額外的 ${
+                components.length - 2
+              } 個建築群組`,
+            );
+            for (let i = 2; i < components.length; i++) {
+              const { labels, nextCounter: updatedCounter } =
+                coreNumberingEngine(components[i].component, orphanCounter);
+              labels.forEach((value, key) => allLabels.set(key, value));
+              orphanCounter = updatedCounter;
+            }
+          }
+
+          console.log(`\n[鏡像模式完成] 總共編號 ${allLabels.size} 根小梁`);
+          console.log(`=============================================\n`);
+        }
+
+        return allLabels;
+      }
+      function findBuildingComponents(allBeamsOnStory, joints, useMirrorMode = false, globalSymmetryAxisX = null) {
+        if (!allBeamsOnStory || allBeamsOnStory.length === 0) return [];
+
+        const GEOMETRIC_TOLERANCE = 0.01;
+        const components = [];
+        const processedBeams = new Set();
+
+        const beamsWithCoords = allBeamsOnStory
+          .map((b) => ({
+            ...b,
+            p1: joints[b.joint1],
+            p2: joints[b.joint2],
+          }))
+          .filter((b) => b.p1 && b.p2);
+
+        function areBeamsConnected(beamA, beamB) {
+          if (distance(beamA.p1, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p1, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p1) < GEOMETRIC_TOLERANCE) return true;
+          if (distance(beamA.p2, beamB.p2) < GEOMETRIC_TOLERANCE) return true;
+          if (
+            isPointOnSegment(beamA.p1, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamA.p2, beamB.p1, beamB.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p1, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          if (
+            isPointOnSegment(beamB.p2, beamA.p1, beamA.p2, GEOMETRIC_TOLERANCE)
+          )
+            return true;
+          return false;
+        }
+
+        for (const startBeam of beamsWithCoords) {
+          if (processedBeams.has(startBeam.name)) {
+            continue;
+          }
+
+          const currentComponent = [];
+          const q = [startBeam];
+          processedBeams.add(startBeam.name);
+
+          while (q.length > 0) {
+            const currentBeam = q.shift();
+            currentComponent.push(currentBeam);
+
+            for (const otherBeam of beamsWithCoords) {
+              if (processedBeams.has(otherBeam.name)) {
+                continue;
+              }
+              if (areBeamsConnected(currentBeam, otherBeam)) {
+                processedBeams.add(otherBeam.name);
+                q.push(otherBeam);
+              }
+            }
+          }
+
+          if (currentComponent.length > 0) {
+            components.push(currentComponent);
+          }
+        }
+
+        // [新增] 鏡像模式下，對單一 component 強制分割成左右兩群
+        if (useMirrorMode && components.length === 1 && beamsWithCoords.length > 0) {
+          console.log(`\n[分群模式] 偵測到單一連通 component，啟用強制分割`);
+
+          const singleComponent = components[0];
+
+          // 使用全域對稱軸，如果沒有則回退到當前樓層計算
+          let symmetryAxisX = globalSymmetryAxisX;
+          if (symmetryAxisX === null) {
+            const allXCoords = [];
+            singleComponent.forEach((b) => {
+              allXCoords.push(b.p1.x, b.p2.x);
+            });
+            const minX = Math.min(...allXCoords);
+            const maxX = Math.max(...allXCoords);
+            symmetryAxisX = (minX + maxX) / 2;
+            console.log(`[分群模式] 使用當前樓層計算對稱軸 X ≈ ${symmetryAxisX.toFixed(3)}`);
+          } else {
+            console.log(`[分群模式] 使用全域對稱軸 X = ${symmetryAxisX.toFixed(3)} ✓`);
+          }
+
+          // 根據梁的中點 X 座標分成左、中、右
+          const leftBeams = [];
+          const centerBeams = [];
+          const rightBeams = [];
+
+          singleComponent.forEach((beam) => {
+            const midX = (beam.p1.x + beam.p2.x) / 2;
+            const distFromAxis = Math.abs(midX - symmetryAxisX);
+
+            if (distFromAxis < SYMMETRY_TOLERANCE) {
+              centerBeams.push(beam);
+              console.log(`[分群模式] ${beam.name} 位於對稱軸上 (中點 X=${midX.toFixed(2)})`);
+            } else if (midX < symmetryAxisX) {
+              leftBeams.push(beam);
+            } else {
+              rightBeams.push(beam);
+            }
+          });
+
+          console.log(`[分群結果] 左側: ${leftBeams.length}, 中央: ${centerBeams.length}, 右側: ${rightBeams.length}`);
+
+          // 重新組裝 components（對稱軸梁暫時歸入左側，後續由鏡像邏輯處理）
+          const newComponents = [];
+          if (leftBeams.length > 0 || centerBeams.length > 0) {
+            newComponents.push([...leftBeams, ...centerBeams]);
+          }
+          if (rightBeams.length > 0) {
+            newComponents.push(rightBeams);
+          }
+
+          console.log(`[分群模式] 強制分割完成，產生 ${newComponents.length} 個 component`);
+          return newComponents;
+        }
+
+        console.log(`[分群結果] 找到 ${components.length} 個建築 component`);
+        return components;
+      }
+      // =================================================================
+      // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：結束 ###
+      // =================================================================
+
+      function applySpecialPrefixRules(allBeams) {
+        const processPrefix = (prefix) => {
+          const targetBeams = allBeams.filter(
+            (b) => b.prop && b.prop.toUpperCase().startsWith(prefix),
+          );
+          if (targetBeams.length === 0) return null;
+          const uniqueProps = [...new Set(targetBeams.map((b) => b.prop))];
+          const propRanks = uniqueProps
+            .map((prop) => {
+              const match = prop.match(/(\d+)[xX](\d+)/);
+              if (match) {
+                return {
+                  propName: prop,
+                  area: parseInt(match[1], 10) * parseInt(match[2], 10),
+                };
+              }
+              return {
+                propName: prop,
+                area: Infinity,
+              };
+            })
+            .sort((a, b) => a.area - b.area);
+          const propToLabelMap = new Map();
+          propRanks.forEach((propInfo, index) => {
+            propToLabelMap.set(propInfo.propName, `${prefix}${index + 1}`);
+          });
+          return propToLabelMap;
+        };
+        const wbLabelMap = processPrefix("WB");
+        const fwbLabelMap = processPrefix("FWB");
+        return allBeams.map((beam) => {
+          if (wbLabelMap && wbLabelMap.has(beam.prop)) {
+            return { ...beam, newLabel: wbLabelMap.get(beam.prop) };
+          }
+          if (fwbLabelMap && fwbLabelMap.has(beam.prop)) {
+            return { ...beam, newLabel: fwbLabelMap.get(beam.prop) };
+          }
+          return beam;
+        });
+      }
+
+      function generateFloorFingerprint(story, allBeams, precision = 2) {
+        const beamsOnStory = allBeams.filter((b) => b.story === story);
+        if (beamsOnStory.length === 0) {
+          return "";
+        }
+
+        const beamSignatures = beamsOnStory
+          .map((beam) => {
+            if (!beam.j1 || !beam.j2) return "";
+
+            const x1 = beam.j1.x.toFixed(precision);
+            const y1 = beam.j1.y.toFixed(precision);
+            const x2 = beam.j2.x.toFixed(precision);
+            const y2 = beam.j2.y.toFixed(precision);
+
+            const point1Str = `${x1},${y1}`;
+            const point2Str = `${x2},${y2}`;
+
+            return point1Str < point2Str
+              ? `${point1Str}|${point2Str}`
+              : `${point2Str}|${point1Str}`;
+          })
+          .filter(Boolean);
+
+        return beamSignatures.sort().join(";");
+      }
+
+      function createStandardFloorGroups() {
+        if (availableStories.length === 0) return [];
+
+        const sortedStories = [...availableStories].sort(
+          (a, b) => storyOrderInfo[a] - storyOrderInfo[b],
+        );
+
+        const fingerprints = sortedStories.map((story) => ({
+          story,
+          fingerprint: generateFloorFingerprint(story, fullDrawableBeams, 2),
+        }));
+
+        if (fingerprints.length === 0) return [];
+
+        const groups = [];
+        let currentGroup = [fingerprints[0].story];
+
+        for (let i = 1; i < fingerprints.length; i++) {
+          if (
+            fingerprints[i].fingerprint === fingerprints[i - 1].fingerprint &&
+            fingerprints[i].fingerprint !== ""
+          ) {
+            currentGroup.push(fingerprints[i].story);
+          } else {
+            groups.push(currentGroup);
+            currentGroup = [fingerprints[i].story];
+          }
+        }
+        groups.push(currentGroup);
+
+        return groups;
+      }
+
+      function exportToJSON() {
+        if (fullProcessedBeams.length === 0) {
+          alert("沒有可匯出的資料。");
+          return;
+        }
+        if (!previewJoints) {
+          alert("無法取得座標資訊，請確認已載入 E2K 檔案。");
+          return;
+        }
+
+        const outputData = {
+          project: "ETABS梁編號專案",
+          exportDate: new Date().toISOString(),
+          floors: [],
+        };
+
+        // 依樓層分組
+        const floorGroups = new Map();
+        fullProcessedBeams.forEach((beam) => {
+          if (!floorGroups.has(beam.story)) {
+            floorGroups.set(beam.story, []);
+          }
+          floorGroups.get(beam.story).push(beam);
+        });
+
+        // 為每個樓層生成資料
+        floorGroups.forEach((beams, floorName) => {
+          const floorData = {
+            floorName: floorName,
+            beams: [],
+          };
+
+          beams.forEach((beam) => {
+            const j1 = previewJoints[beam.joint1];
+            const j2 = previewJoints[beam.joint2];
+
+            if (!j1 || !j2) return;
+
+            floorData.beams.push({
+              etabsId: beam.name,
+              newLabel: beam.newLabel,
+              startPoint: {
+                id: beam.joint1,
+                x: j1.x,
+                y: j1.y,
+              },
+              endPoint: {
+                id: beam.joint2,
+                x: j2.x,
+                y: j2.y,
+              },
+              midPoint: {
+                x: (j1.x + j2.x) / 2,
+                y: (j1.y + j2.y) / 2,
+              },
+              length: Math.sqrt(
+                Math.pow(j2.x - j1.x, 2) + Math.pow(j2.y - j1.y, 2),
+              ),
+              section: beam.prop || "",
+              isMainBeam:
+                !beam.newLabel.toLowerCase().startsWith("b") &&
+                !beam.newLabel.toLowerCase().startsWith("fb"),
+            });
+          });
+
+          outputData.floors.push(floorData);
+        });
+
+        // 下載 JSON 檔案
+        const jsonStr = JSON.stringify(outputData, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "ETABS_梁座標資料_AutoCAD.json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      // 計算梁與軸線的相對位置關係
+      function calculateGridRelation(beam, joints, grids) {
+        const j1 = joints[beam.joint1];
+        const j2 = joints[beam.joint2];
+        if (!j1 || !j2) return null;
+
+        const tolerance = 0.1; // 容許誤差 0.1 公尺
+
+        // 判斷梁的方向
+        const deltaX = Math.abs(j2.x - j1.x);
+        const deltaY = Math.abs(j2.y - j1.y);
+        const isHorizontal = deltaX > deltaY;
+
+        if (isHorizontal) {
+          // 水平梁：沿著某條 Y 軸線，在兩條 X 軸線之間
+          // 找到最接近的 Y 軸線
+          const avgY = (j1.y + j2.y) / 2;
+          const closestYGrid = grids.y.reduce((prev, curr) => {
+            return Math.abs(curr.ordinate - avgY) <
+              Math.abs(prev.ordinate - avgY)
+              ? curr
+              : prev;
+          });
+
+          // 找到梁跨越的 X 軸線
+          const minX = Math.min(j1.x, j2.x);
+          const maxX = Math.max(j1.x, j2.x);
+          const betweenX = grids.x
+            .filter(
+              (g) =>
+                g.ordinate >= minX - tolerance &&
+                g.ordinate <= maxX + tolerance,
+            )
+            .sort((a, b) => a.ordinate - b.ordinate);
+
+          if (betweenX.length >= 2) {
+            return {
+              alongGrid: closestYGrid.name,
+              between: [betweenX[0].name, betweenX[betweenX.length - 1].name],
+              direction: "horizontal",
+              offsetFromStart: Math.abs(avgY - closestYGrid.ordinate),
+              length: deltaX,
+            };
+          }
+        } else {
+          // 垂直梁：沿著某條 X 軸線，在兩條 Y 軸線之間
+          const avgX = (j1.x + j2.x) / 2;
+          const closestXGrid = grids.x.reduce((prev, curr) => {
+            return Math.abs(curr.ordinate - avgX) <
+              Math.abs(prev.ordinate - avgX)
+              ? curr
+              : prev;
+          });
+
+          const minY = Math.min(j1.y, j2.y);
+          const maxY = Math.max(j1.y, j2.y);
+          const betweenY = grids.y
+            .filter(
+              (g) =>
+                g.ordinate >= minY - tolerance &&
+                g.ordinate <= maxY + tolerance,
+            )
+            .sort((a, b) => a.ordinate - b.ordinate);
+
+          if (betweenY.length >= 2) {
+            return {
+              alongGrid: closestXGrid.name,
+              between: [betweenY[0].name, betweenY[betweenY.length - 1].name],
+              direction: "vertical",
+              offsetFromStart: Math.abs(avgX - closestXGrid.ordinate),
+              length: deltaY,
+            };
+          }
+        }
+
+        return null;
+      }
+
+      // V2 版本：基於軸線相對位置的 JSON 匯出
+      function exportToJSONV2() {
+        if (fullProcessedBeams.length === 0) {
+          alert("沒有可匯出的資料。");
+          return;
+        }
+        if (!previewJoints || !gridData) {
+          alert("無法取得座標或軸線資訊，請確認已載入 E2K 檔案。");
+          return;
+        }
+
+        const outputData = {
+          project: "ETABS梁編號專案",
+          exportDate: new Date().toISOString(),
+          gridSystem: {
+            xGrids: gridData.x.map((g) => g.name),
+            yGrids: gridData.y.map((g) => g.name),
+          },
+          floors: [],
+        };
+
+        // 依樓層分組
+        const floorGroups = new Map();
+        fullProcessedBeams.forEach((beam) => {
+          if (!floorGroups.has(beam.story)) {
+            floorGroups.set(beam.story, []);
+          }
+          floorGroups.get(beam.story).push(beam);
+        });
+
+        // 為每個樓層生成資料
+        floorGroups.forEach((beams, floorName) => {
+          const floorData = {
+            floorName: floorName,
+            beams: [],
+          };
+
+          beams.forEach((beam) => {
+            const gridRelation = calculateGridRelation(
+              beam,
+              previewJoints,
+              gridData,
+            );
+
+            if (gridRelation) {
+              // [修改] 判斷是否為大梁
+              let isMainBeam = true;
+              if (beam.isFixedLabel) {
+                // 如果是固定編號梁，使用 isSecondaryBeam 標記
+                isMainBeam = !beam.isSecondaryBeam;
+              } else {
+                // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
+                // 小梁：b 開頭（小寫）
+                // 只要第一個字母是小寫 b，就是小梁；其他都是大梁
+                isMainBeam = beam.newLabel.charAt(0) !== 'b';
+              }
+
+              floorData.beams.push({
+                etabsId: beam.name,
+                newLabel: beam.newLabel,
+                gridInfo: {
+                  alongGrid: gridRelation.alongGrid,
+                  between: gridRelation.between,
+                  direction: gridRelation.direction,
+                  offsetFromStart: gridRelation.offsetFromStart,
+                  length: gridRelation.length,
+                  tolerance: 0.1,
+                },
+                section: beam.prop || "",
+                isMainBeam: isMainBeam,
+              });
+            }
+          });
+
+          outputData.floors.push(floorData);
+        });
+
+        // 下載 JSON 檔案
+        const jsonStr = JSON.stringify(outputData, null, 2);
+        const blob = new Blob([jsonStr], { type: "application/json" });
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = "ETABS_梁編號_AutoCAD.json";
+        link.click();
+        URL.revokeObjectURL(url);
+      }
+
+      function exportToExcel() {
+        if (fullProcessedBeams.length === 0) {
+          alert("沒有可匯出的資料。");
+          return;
+        }
+
+        const standardFloorGroups = createStandardFloorGroups();
+        const preppedData = [];
+
+        for (const group of standardFloorGroups) {
+          const beamsInGroup = fullProcessedBeams.filter((b) =>
+            group.includes(b.story),
+          );
+
+          if (group.length === 1) {
+            beamsInGroup.forEach((beam) => {
+              preppedData.push({
+                floor: beam.story,
+                etabsLabel: beam.name,
+                newLabel: beam.newLabel,
+                isFixedLabel: beam.isFixedLabel, // [新增] 保留固定編號標記
+                isSecondaryBeam: beam.isSecondaryBeam, // [新增] 保留小梁標記
+              });
+            });
+          } else {
+            const mergedBeamsInGroup = new Map();
+            beamsInGroup.forEach((beam) => {
+              const key = beam.newLabel;
+              if (!mergedBeamsInGroup.has(key)) {
+                mergedBeamsInGroup.set(key, {
+                  name: beam.name,
+                  newLabel: beam.newLabel,
+                  isFixedLabel: beam.isFixedLabel, // [新增] 保留固定編號標記
+                  isSecondaryBeam: beam.isSecondaryBeam, // [新增] 保留小梁標記
+                  floorProps: [],
+                });
+              }
+              mergedBeamsInGroup.get(key).floorProps.push({
+                story: beam.story,
+                prop: beam.prop,
+              });
+            });
+
+            mergedBeamsInGroup.forEach((mergedBeam) => {
+              const floorString = summarizeFloors(group, storyOrderInfo);
+              preppedData.push({
+                floor: floorString,
+                etabsLabel: mergedBeam.name,
+                newLabel: mergedBeam.newLabel,
+                isFixedLabel: mergedBeam.isFixedLabel, // [新增] 保留固定編號標記
+                isSecondaryBeam: mergedBeam.isSecondaryBeam, // [新增] 保留小梁標記
+              });
+            });
+          }
+        }
+
+        const mainBeamsData = [];
+        const secondaryBeamsData = [];
+
+        preppedData.forEach((item) => {
+          // [修改] 判斷大小梁的正確邏輯
+          let isSecondaryBeam = false;
+
+          if (item.isFixedLabel) {
+            // 如果是固定編號梁，使用 isSecondaryBeam 標記
+            isSecondaryBeam = item.isSecondaryBeam || false;
+          } else if (item.newLabel) {
+            // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
+            // 小梁：b 開頭（小寫）
+            const label = item.newLabel;
+            const upperLabel = label.toUpperCase();
+
+            // 檢查是否為大梁前綴（大寫）
+            const isMainBeamPrefix =
+              upperLabel.startsWith('G') ||
+              upperLabel.startsWith('B') ||
+              upperLabel.startsWith('FB') ||
+              upperLabel.startsWith('FG') ||
+              upperLabel.startsWith('FWB') ||
+              upperLabel.startsWith('WB');
+
+            // 檢查第一個字母是否為小寫 b（小梁）
+            const isSecondaryPrefix = label.charAt(0) === 'b';
+
+            // 如果是小寫 b 開頭，才是小梁
+            isSecondaryBeam = isSecondaryPrefix;
+          }
+
+          if (isSecondaryBeam) {
+            secondaryBeamsData.push({
+              ETABS編號: item.etabsLabel,
+              編號: item.newLabel,
+              樓層: item.floor,
+            });
+          } else {
+            mainBeamsData.push({
+              ETABS編號: item.etabsLabel,
+              編號: item.newLabel,
+              樓層: item.floor,
+            });
+          }
+        });
+
+        const workbook = XLSX.utils.book_new();
+
+        const mainWs = XLSX.utils.json_to_sheet(mainBeamsData);
+        XLSX.utils.book_append_sheet(workbook, mainWs, "大梁");
+
+        const secondaryWs = XLSX.utils.json_to_sheet(secondaryBeamsData);
+        XLSX.utils.book_append_sheet(workbook, secondaryWs, "小梁");
+
+        XLSX.writeFile(workbook, "ETABS_梁編號_分頁.xlsx");
+      }
+
+      function setupSelectWheelListeners() {
+        const selectors = document.querySelectorAll(
+          "#storySelector, #beamTypeSelector",
+        );
+
+        selectors.forEach((select) => {
+          select.addEventListener("wheel", (event) => {
+            if (select.options.length === 0 || select.disabled) {
+              return;
+            }
+            event.preventDefault();
+            const currentIndex = select.selectedIndex;
+            let newIndex = currentIndex;
+            if (event.deltaY < 0) {
+              newIndex = Math.max(0, currentIndex - 1);
+            } else {
+              newIndex = Math.min(select.options.length - 1, currentIndex + 1);
+            }
+            if (newIndex !== currentIndex) {
+              select.selectedIndex = newIndex;
+              select.dispatchEvent(new Event("change"));
+            }
+          });
+        });
+      }
+
+      setupSelectWheelListeners();
+      // 為 "新編號" 輸入框新增 'keydown' 事件監聽
+      document
+        .getElementById("edit-new-label")
+        .addEventListener("keydown", function (event) {
+          // 檢查按下的鍵是否為 Enter (event.key 或 event.keyCode)
+          if (event.key === "Enter" || event.keyCode === 13) {
+            // 防止預設行為 (例如表單提交)
+            event.preventDefault();
+            // 呼叫儲存函式
+            saveBeamEdit();
+          }
+        });
+
+      // 檔案選擇時更新檔名顯示
+      document
+        .getElementById("e2kFile")
+        .addEventListener("change", function (event) {
+          const fileNameDisplay = document.getElementById("file-name-display");
+          if (event.target.files.length > 0) {
+            fileNameDisplay.textContent = event.target.files[0].name;
+          } else {
+            fileNameDisplay.textContent = "尚未選擇檔案";
+          }
+        });
+
+        // [新增] 頁面載入時載入固定編號規則
+        loadFixedLabelRules();
+    </script>
+  </body>
+</html>
