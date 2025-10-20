@@ -9,8 +9,7 @@
       "Bash(git branch:*)",
       "Bash(git push:*)",
       "Bash(git pull:*)",
-      "Bash(git checkout:*)",
-      "Bash(git config:*)"
+      "Bash(git checkout:*)"
     ],
     "deny": [],
     "ask": []

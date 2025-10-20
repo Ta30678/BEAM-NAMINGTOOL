@@ -3682,13 +3682,46 @@
           outputData.floors.push(floorData);
         });
 
-        // 下載 JSON 檔案
-        const jsonStr = JSON.stringify(outputData, null, 2);
-        const blob = new Blob([jsonStr], { type: "application/json" });
+        // 產生 CSV 內容
+        let csvContent = "\ufeff"; // UTF-8 BOM 防止被識別為 Excel
+
+        // CSV 標題行
+        csvContent += "樓層,ETABS編號,新編號,沿著軸線,跨越軸線起,跨越軸線終,方向,起點偏移,長度,斷面,是否大梁\n";
+
+        // 每一行資料
+        outputData.floors.forEach(floor => {
+          floor.beams.forEach(beam => {
+            const row = [
+              floor.floorName,
+              beam.etabsId,
+              beam.newLabel,
+              beam.gridInfo.alongGrid,
+              beam.gridInfo.between[0] || "",
+              beam.gridInfo.between[1] || "",
+              beam.gridInfo.direction,
+              beam.gridInfo.offsetFromStart.toFixed(3),
+              beam.gridInfo.length.toFixed(3),
+              beam.section,
+              beam.isMainBeam ? "是" : "否"
+            ];
+            // 處理欄位中的逗號和引號
+            const escapedRow = row.map(field => {
+              const fieldStr = String(field);
+              if (fieldStr.includes(',') || fieldStr.includes('"') || fieldStr.includes('\n')) {
+                return '"' + fieldStr.replace(/"/g, '""') + '"';
+              }
+              return fieldStr;
+            });
+            csvContent += escapedRow.join(',') + '\n';
+          });
+        });
+
+        // 下載 CSV 檔案
+        const blob = new Blob([csvContent], { type: "text/csv;charset=utf-8;" });
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "ETABS_梁編號_AutoCAD.json";
+        link.download = "ETABS_梁編號_AutoCAD.csv";
         link.click();
         URL.revokeObjectURL(url);
       }
