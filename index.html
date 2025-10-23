@@ -2822,32 +2822,33 @@
         const p2 = joints[beam.joint2];
         if (!p1 || !p2) return false;
 
-        // 計算梁的中點 X 座標
+        // 計算梁的中點 X 座標和端點距軸距離
         const midX = (p1.x + p2.x) / 2;
-
-        // 方法 1: 梁的中點在對稱軸上（容許誤差範圍內）
-        if (Math.abs(midX - axisX) < tolerance) {
-          return true;
-        }
-
-        // 方法 2: 梁的兩個端點分別在對稱軸兩側（跨越對稱軸）
         const p1DistFromAxis = p1.x - axisX;
         const p2DistFromAxis = p2.x - axisX;
 
-        // 如果兩個端點在軸的不同側（一個正一個負），且都不在容許範圍內
-        if (
-          Math.abs(p1DistFromAxis) > tolerance &&
-          Math.abs(p2DistFromAxis) > tolerance &&
-          p1DistFromAxis * p2DistFromAxis < 0
-        ) {
+        // 方法 1: 中點判定（門檻條件）
+        // 如果中點不在對稱軸上，直接返回 false，不檢查方法 2、3
+        if (Math.abs(midX - axisX) >= tolerance) {
+          return false;
+        }
+
+        // 中點在軸上，繼續檢查方法 2 和方法 3
+
+        // 方法 2: 對稱性判定（新邏輯）
+        // 檢查左右端點距軸的距離差是否小於 tolerance（確保對稱跨越）
+        const leftDist = Math.abs(p1DistFromAxis);
+        const rightDist = Math.abs(p2DistFromAxis);
+        const distDiff = Math.abs(leftDist - rightDist);
+        const isOpposite = p1DistFromAxis * p2DistFromAxis < 0;
+
+        if (distDiff < tolerance && isOpposite) {
           return true;
         }
 
-        // 方法 3: 任一端點恰好在對稱軸上
-        if (
-          Math.abs(p1DistFromAxis) < tolerance ||
-          Math.abs(p2DistFromAxis) < tolerance
-        ) {
+        // 方法 3: 端點判定
+        // 任一端點恰好在對稱軸上
+        if (leftDist < tolerance || rightDist < tolerance) {
           return true;
         }
 
@@ -3535,6 +3536,10 @@
 
         const tolerance = 0.1; // 容許誤差 0.1 公尺
 
+        // 計算梁的中點座標（絕對座標，公尺）
+        const midX = (j1.x + j2.x) / 2;
+        const midY = (j1.y + j2.y) / 2;
+
         // 判斷梁的方向
         const deltaX = Math.abs(j2.x - j1.x);
         const deltaY = Math.abs(j2.y - j1.y);
@@ -3569,6 +3574,8 @@
               direction: "horizontal",
               offsetFromStart: Math.abs(avgY - closestYGrid.ordinate),
               length: deltaX,
+              midX: midX,  // 新增：中點 X 座標（公尺）
+              midY: midY,  // 新增：中點 Y 座標（公尺）
             };
           }
         } else {
@@ -3598,6 +3605,8 @@
               direction: "vertical",
               offsetFromStart: Math.abs(avgX - closestXGrid.ordinate),
               length: deltaY,
+              midX: midX,  // 新增：中點 X 座標（公尺）
+              midY: midY,  // 新增：中點 Y 座標（公尺）
             };
           }
         }
@@ -3671,6 +3680,8 @@
                   direction: gridRelation.direction,
                   offsetFromStart: gridRelation.offsetFromStart,
                   length: gridRelation.length,
+                  midX: gridRelation.midX,  // 新增：中點 X 座標
+                  midY: gridRelation.midY,  // 新增：中點 Y 座標
                   tolerance: 0.1,
                 },
                 section: beam.prop || "",
@@ -3682,28 +3693,38 @@
           outputData.floors.push(floorData);
         });
 
-        // 產生 CSV 內容
-        let csvContent = "\ufeff"; // UTF-8 BOM 防止被識別為 Excel
+        // 產生 CSV 內容（AutoCAD 外掛格式）
+        let csvContent = "\ufeff"; // UTF-8 BOM
 
-        // CSV 標題行
-        csvContent += "樓層,ETABS編號,新編號,沿著軸線,跨越軸線起,跨越軸線終,方向,起點偏移,長度,斷面,是否大梁\n";
+        // CSV 標題行（AutoCAD 外掛需要的 8 欄格式）
+        csvContent += "Story,NewLabel,EtabsLabel,BaseGridX,BaseGridY,MidpointX,MidpointY,IsMainBeam\n";
 
         // 每一行資料
         outputData.floors.forEach(floor => {
           floor.beams.forEach(beam => {
+            // 根據方向判斷 BaseGridX 和 BaseGridY
+            let baseGridX, baseGridY;
+            if (beam.gridInfo.direction === "horizontal") {
+              // 水平梁：沿著 Y 軸線，跨越 X 軸線
+              baseGridX = beam.gridInfo.alongGrid;  // 例如 "A"
+              baseGridY = beam.gridInfo.between[0]; // 例如 "2"
+            } else {
+              // 垂直梁：沿著 X 軸線，跨越 Y 軸線
+              baseGridX = beam.gridInfo.between[0]; // 例如 "2"
+              baseGridY = beam.gridInfo.alongGrid;  // 例如 "A"
+            }
+
             const row = [
-              floor.floorName,
-              beam.etabsId,
-              beam.newLabel,
-              beam.gridInfo.alongGrid,
-              beam.gridInfo.between[0] || "",
-              beam.gridInfo.between[1] || "",
-              beam.gridInfo.direction,
-              beam.gridInfo.offsetFromStart.toFixed(3),
-              beam.gridInfo.length.toFixed(3),
-              beam.section,
-              beam.isMainBeam ? "是" : "否"
+              floor.floorName,           // Story
+              beam.newLabel,             // NewLabel
+              beam.etabsId,              // EtabsLabel
+              baseGridX,                 // BaseGridX
+              baseGridY,                 // BaseGridY
+              beam.gridInfo.midX.toFixed(3),  // MidpointX（公尺，3位小數）
+              beam.gridInfo.midY.toFixed(3),  // MidpointY（公尺，3位小數）
+              beam.isMainBeam ? "true" : "false"  // IsMainBeam（轉換為 true/false）
             ];
+
             // 處理欄位中的逗號和引號
             const escapedRow = row.map(field => {
               const fieldStr = String(field);
@@ -3721,7 +3742,7 @@
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
         link.href = url;
-        link.download = "ETABS_梁編號_AutoCAD.csv";
+        link.download = "ETABS_梁編號_AutoCAD.txt";
         link.click();
         URL.revokeObjectURL(url);
       }
