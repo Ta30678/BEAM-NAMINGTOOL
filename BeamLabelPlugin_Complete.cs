@@ -3,13 +3,12 @@ using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
 using System.Linq;
+using System.Windows.Forms;
 using Autodesk.AutoCAD.ApplicationServices;
 using Autodesk.AutoCAD.DatabaseServices;
 using Autodesk.AutoCAD.EditorInput;
 using Autodesk.AutoCAD.Geometry;
 using Autodesk.AutoCAD.Runtime;
-using Application = Autodesk.AutoCAD.ApplicationServices.Application;
-using WinForms = System.Windows.Forms;
 
 [assembly: CommandClass(typeof(BeamLabelPlugin.BeamLabelCommands))]
 
@@ -85,7 +84,7 @@ namespace BeamLabelPlugin
                 beamDataList = ReadBeamDataFromCsv(csvPath);
                 ed.WriteMessage($"\n✓ 成功讀取 {beamDataList.Count} 筆梁資料");
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 ed.WriteMessage($"\n✗ 讀取 CSV 失敗: {ex.Message}");
                 return;
@@ -155,7 +154,7 @@ namespace BeamLabelPlugin
                     ed.WriteMessage($"\n║  ✓ 完成! 成功放置 {successCount} 個梁編號  ║");
                     ed.WriteMessage("\n╚══════════════════════════════════════╝");
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     ed.WriteMessage($"\n✗ 執行失敗: {ex.Message}");
                     ed.WriteMessage($"\n  詳細資訊: {ex.StackTrace}");
@@ -168,12 +167,12 @@ namespace BeamLabelPlugin
         
         private string GetCsvFilePath(Editor ed)
         {
-            WinForms.OpenFileDialog ofd = new WinForms.OpenFileDialog
+            OpenFileDialog ofd = new OpenFileDialog
             {
                 Filter = "CSV Files (*.csv)|*.csv",
                 Title = "請選擇 ETABS 梁編號 CSV 檔案"
             };
-            return ofd.ShowDialog() == WinForms.DialogResult.OK ? ofd.FileName : null;
+            return ofd.ShowDialog() == DialogResult.OK ? ofd.FileName : null;
         }
 
         private List<BeamLabelData> ReadBeamDataFromCsv(string filePath)
@@ -215,21 +214,21 @@ namespace BeamLabelPlugin
             var floorTitles = GetTextsOnLayer(tr, modelSpace, "S-TITLE");
             if (floorTitles.Count == 0)
             {
-                throw new System.Exception("找不到樓層標記 (S-TITLE 圖層)");
+                throw new Exception("找不到樓層標記 (S-TITLE 圖層)");
             }
 
             // 2. 掃描所有格線 BUBBLE (S-GRID-T)
             var gridBubbles = GetTextsOnLayer(tr, modelSpace, "S-GRID-T");
             if (gridBubbles.Count == 0)
             {
-                throw new System.Exception("找不到格線標記 (S-GRID-T 圖層)");
+                throw new Exception("找不到格線標記 (S-GRID-T 圖層)");
             }
 
             // 3. 掃描所有格線 LINE (S-GRID)
             var gridLines = GetLinesOnLayer(tr, modelSpace, "S-GRID");
             if (gridLines.Count == 0)
             {
-                throw new System.Exception("找不到格線 (S-GRID 圖層)");
+                throw new Exception("找不到格線 (S-GRID 圖層)");
             }
 
             ed.WriteMessage($"\n  - 樓層標記: {floorTitles.Count} 個");
@@ -473,7 +472,7 @@ namespace BeamLabelPlugin
                     CreateLabel(tr, db, beam.NewLabel, labelPos, targetLayer, rotation);
                     successCount++;
                 }
-                catch (System.Exception ex)
+                catch (Exception ex)
                 {
                     ed.WriteMessage($"\n  ⚠ 跳過梁 {beam.NewLabel}: {ex.Message}");
                     skipCount++;
