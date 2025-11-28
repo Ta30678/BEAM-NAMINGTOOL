@@ -449,6 +449,95 @@
         stroke-linejoin: round;
         /* font-size and stroke-width are now controlled by JS */
       }
+
+      /* 圈选功能相关样式 */
+      .selection-rect {
+        fill: rgba(59, 130, 246, 0.15);
+        stroke: #3b82f6;
+        stroke-width: 2;
+        stroke-dasharray: 5, 5;
+        pointer-events: none;
+        shape-rendering: crispEdges;
+      }
+
+      .selection-rect-crossing {
+        fill: rgba(34, 197, 94, 0.15);
+        stroke: #22c55e;
+        stroke-width: 2;
+        stroke-dasharray: 5, 5;
+        pointer-events: none;
+        shape-rendering: crispEdges;
+      }
+
+      .beam-selected {
+        stroke: #0ea5e9 !important;
+        stroke-width: 3 !important;
+      }
+
+      .beam-label-selected {
+        fill: #d97706 !important;
+        font-weight: 700 !important;
+      }
+
+      /* 批量编辑对话框样式 */
+      .batch-edit-dialog {
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        background: var(--theme-surface);
+        border: 1px solid var(--theme-border);
+        border-radius: 12px;
+        padding: 24px;
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.3);
+        z-index: 1000;
+        min-width: 400px;
+      }
+
+      .batch-edit-dialog h3 {
+        margin-top: 0;
+        margin-bottom: 20px;
+      }
+
+      .batch-edit-dialog .dialog-content {
+        margin-bottom: 20px;
+      }
+
+      .batch-edit-dialog .input-group {
+        margin-bottom: 15px;
+      }
+
+      .batch-edit-dialog label {
+        display: block;
+        margin-bottom: 5px;
+        font-weight: 500;
+      }
+
+      .batch-edit-dialog input {
+        width: 100%;
+        padding: 10px;
+        border: 1px solid var(--theme-border);
+        border-radius: 8px;
+        font-size: 14px;
+      }
+
+      .batch-edit-dialog .button-group {
+        display: flex;
+        gap: 10px;
+        justify-content: flex-end;
+      }
+
+      .dialog-overlay {
+        display: none;
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.5);
+        z-index: 999;
+      }
     </style>
   </head>
   <body>
@@ -718,6 +807,14 @@
       <div id="output">
         <div id="drawing">
           <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
+          <div style="margin-bottom: 10px; padding: 10px; background: var(--theme-bg); border-radius: 8px; font-size: 0.9em; color: var(--theme-text-secondary);">
+            <strong style="color: var(--theme-accent);">💡 選取功能說明（類似 AutoCAD）：</strong><br>
+            • <strong>點擊梁</strong>：單選梁（清除其他選擇）<br>
+            • <strong>拖曳</strong>：框選多個梁（左→右藍框完全包含，右→左綠框碰到即選）<br>
+            • <strong>Shift + 點擊/拖曳</strong>：累加選擇（不清除現有選擇）<br>
+            • <strong>點擊空白處</strong>：清除所有選擇<br>
+            • <strong>Enter</strong>：批量修改選中梁的編號 | <strong>Esc</strong>：清除選擇
+          </div>
           <svg id="drawing-svg"></svg>
         </div>
       </div>
@@ -828,6 +925,25 @@
       onclick="closeBeamEditDialog()"
     ></div>
 
+    <!-- 批量编辑对话框 -->
+    <div id="batch-edit-overlay" class="dialog-overlay" onclick="closeBatchEditDialog()"></div>
+    <div id="batch-edit-dialog" class="batch-edit-dialog">
+      <h3>批量編輯梁編號 (<span id="batch-count">0</span> 個)</h3>
+      <div class="dialog-content">
+        <div class="input-group">
+          <label>新編號:</label>
+          <input type="text" id="batch-new-label" placeholder="輸入新的編號 (例如: g1)" />
+        </div>
+        <div style="color: var(--theme-text-secondary); font-size: 0.9em; margin-top: 10px;">
+          提示: 所有選中的梁都會被改成相同的編號
+        </div>
+      </div>
+      <div class="button-group">
+        <button class="btn-export" onclick="closeBatchEditDialog()">取消</button>
+        <button class="btn-process" onclick="saveBatchEdit()">確定修改</button>
+      </div>
+    </div>
+
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
       const INITIAL_BEAM_FONT_SIZE = 12;
@@ -858,6 +974,13 @@
 
       // [新增] 固定編號設定
       let fixedLabelRules = []; // 儲存 { section: "sb25x50", label: "g1" }
+
+      // [新增] 圈选功能的全域變數
+      let isSelecting = false;
+      let selectionStart = null;
+      let selectionRect = null;
+      let selectedBeams = new Set(); // 儲存選中梁的 name
+      let svgElement = null;
 
       // [新增] 從 localStorage 載入固定編號規則
       function loadFixedLabelRules() {
@@ -2054,15 +2177,16 @@
           }
 
           line.setAttribute("class", className);
-          // [新增] 儲存梁資料到 data 屬性，用於點擊編輯
+          // [新增] 儲存梁資料到 data 屬性，用於點擊編輯和圈选
           line.dataset.beamName = beam.name;
           line.dataset.beamStory = beam.story;
           line.dataset.beamJoint1 = beam.joint1;
           line.dataset.beamJoint2 = beam.joint2;
           line.dataset.beamLabel = beam.newLabel;
-          // [新增] 設定梁為可點擊
+          // [新增] 設定梁為可點擊（现在由圈选功能处理）
           line.style.cursor = "pointer";
-          line.addEventListener("click", () => openBeamEditDialog(beam));
+          // 注释掉原有的点击编辑功能，改由圈选功能处理
+          // line.addEventListener("click", () => openBeamEditDialog(beam));
           svg.appendChild(line);
 
           const text = document.createElementNS(
@@ -2121,9 +2245,12 @@
 
           text.setAttribute("class", "beam-label");
           text.textContent = beam.newLabel;
-          // [新增] 標籤也可點擊編輯
+          // [新增] 为标签添加 dataset 以支持圈选
+          text.dataset.beamName = beam.name;
+          // [新增] 標籤也可點擊（现在由圈选功能处理）
           text.style.cursor = "pointer";
-          text.addEventListener("click", () => openBeamEditDialog(beam));
+          // 注释掉原有的点击编辑功能，改由圈选功能处理
+          // text.addEventListener("click", () => openBeamEditDialog(beam));
           svg.appendChild(text);
         });
       }
@@ -3862,6 +3989,404 @@
 
         // [新增] 頁面載入時載入固定編號規則
         loadFixedLabelRules();
+
+      // ============================================
+      // 圈选功能實現 (SVG 內部座標系統)
+      // ============================================
+
+      // 初始化圈选功能
+      function initializeSelectionFeature() {
+        svgElement = document.getElementById("drawing-svg");
+
+        if (!svgElement) {
+          console.error('SVG 元素未找到');
+          return;
+        }
+
+        // 移除舊的事件監聽器（如果有）
+        svgElement.removeEventListener("mousedown", onSelectionStart);
+        svgElement.removeEventListener("mousemove", onSelectionMove);
+        svgElement.removeEventListener("mouseup", onSelectionEnd);
+
+        // 添加鼠标事件监听
+        svgElement.addEventListener("mousedown", onSelectionStart);
+        svgElement.addEventListener("mousemove", onSelectionMove);
+        svgElement.addEventListener("mouseup", onSelectionEnd);
+
+        // 添加键盘事件监听（批量编辑）
+        document.removeEventListener("keydown", onKeyDown);
+        document.addEventListener("keydown", onKeyDown);
+
+        console.log('✓ 圈選功能已初始化 (SVG 內部座標系統)');
+      }
+
+      // 获取 SVG 內部座標（相對於 SVG viewBox，不受縮放影響）
+      function getSVGCoords(evt) {
+        const svg = svgElement;
+        const pt = svg.createSVGPoint();
+        pt.x = evt.clientX;
+        pt.y = evt.clientY;
+
+        // 轉換到 SVG 內部座標系統
+        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+        return {
+          x: svgPt.x,
+          y: svgPt.y
+        };
+      }
+
+      // 开始圈选
+      function onSelectionStart(evt) {
+        // 如果点击的是梁或标签，处理单选
+        if (evt.target.tagName === 'line' || evt.target.tagName === 'text') {
+          const beamName = evt.target.dataset.beamName;
+          if (!beamName) return;
+
+          // Shift+Click：添加到選擇集合（不清除現有選擇）
+          if (evt.shiftKey) {
+            if (selectedBeams.has(beamName)) {
+              selectedBeams.delete(beamName);
+              updateBeamVisualState(beamName, false);
+            } else {
+              selectedBeams.add(beamName);
+              updateBeamVisualState(beamName, true);
+            }
+            evt.preventDefault();
+            evt.stopPropagation();
+            return;
+          }
+
+          // 普通點擊：清除其他選擇，只選這個
+          clearAllSelections();
+          selectedBeams.add(beamName);
+          updateBeamVisualState(beamName, true);
+          evt.preventDefault();
+          evt.stopPropagation();
+          return;
+        }
+
+        // 點擊空白處：準備開始框選（不需要 Ctrl）
+        // 但如果正在拖動 pan-zoom，不要啟動框選
+        if (evt.button !== 0) return; // 只處理左鍵
+
+        // 开始框选
+        if (panZoomInstance) {
+          panZoomInstance.disablePan();
+        }
+
+        isSelecting = true;
+        selectionStart = getSVGCoords(evt);
+
+        // 如果不是按住 Shift，清除現有選擇
+        if (!evt.shiftKey) {
+          clearAllSelections();
+        }
+
+        // 创建 SVG 选择框矩形
+        selectionRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+        selectionRect.setAttribute("x", selectionStart.x);
+        selectionRect.setAttribute("y", selectionStart.y);
+        selectionRect.setAttribute("width", 0);
+        selectionRect.setAttribute("height", 0);
+        selectionRect.setAttribute("class", "selection-rect");
+        selectionRect.setAttribute("pointer-events", "none");
+        svgElement.appendChild(selectionRect);
+
+        console.log('開始框選 at SVG coords:', selectionStart);
+
+        evt.preventDefault();
+        evt.stopPropagation();
+      }
+
+      // 拖动圈选
+      function onSelectionMove(evt) {
+        if (!isSelecting || !selectionRect) return;
+
+        const currentPoint = getSVGCoords(evt);
+        const width = currentPoint.x - selectionStart.x;
+        const height = currentPoint.y - selectionStart.y;
+
+        // 判斷選擇模式
+        const isCrossingMode = width < 0;
+
+        // 更新選擇框樣式
+        selectionRect.setAttribute("class", isCrossingMode ? "selection-rect-crossing" : "selection-rect");
+
+        // 更新選擇框位置和大小
+        const x = Math.min(selectionStart.x, currentPoint.x);
+        const y = Math.min(selectionStart.y, currentPoint.y);
+        const w = Math.abs(width);
+        const h = Math.abs(height);
+
+        selectionRect.setAttribute("x", x);
+        selectionRect.setAttribute("y", y);
+        selectionRect.setAttribute("width", w);
+        selectionRect.setAttribute("height", h);
+      }
+
+      // 结束圈选
+      function onSelectionEnd(evt) {
+        if (!isSelecting) return;
+
+        isSelecting = false;
+
+        if (panZoomInstance) {
+          panZoomInstance.enablePan();
+        }
+
+        const endPoint = getSVGCoords(evt);
+        const width = endPoint.x - selectionStart.x;
+        const height = endPoint.y - selectionStart.y;
+
+        // 判断圈选模式
+        const isCrossingMode = width < 0; // 右到左：碰到即选
+
+        // 获取选择框的边界（SVG 內部座標）
+        const minX = Math.min(selectionStart.x, endPoint.x);
+        const maxX = Math.max(selectionStart.x, endPoint.x);
+        const minY = Math.min(selectionStart.y, endPoint.y);
+        const maxY = Math.max(selectionStart.y, endPoint.y);
+
+        // 選擇框足夠大才執行選擇（避免單擊誤觸）
+        const MIN_SELECTION_SIZE = 10; // SVG 單位
+        if (Math.abs(width) > MIN_SELECTION_SIZE || Math.abs(height) > MIN_SELECTION_SIZE) {
+          console.log('=== 選擇框範圍 (SVG 內部座標) ===');
+          console.log(`範圍: (${minX.toFixed(1)}, ${minY.toFixed(1)}) 到 (${maxX.toFixed(1)}, ${maxY.toFixed(1)})`);
+          console.log(`模式: ${isCrossingMode ? 'Crossing (右→左)' : 'Window (左→右)'}`);
+
+          selectBeamsInRect(minX, minY, maxX, maxY, isCrossingMode);
+        } else {
+          console.log('選擇框太小，視為點擊空白處，清除選擇');
+          if (!evt.shiftKey) {
+            clearAllSelections();
+          }
+        }
+
+        // 移除選擇框
+        if (selectionRect) {
+          selectionRect.remove();
+          selectionRect = null;
+        }
+      }
+
+      // 在矩形内选择梁（使用 SVG 內部座標）
+      function selectBeamsInRect(minX, minY, maxX, maxY, isCrossingMode) {
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line');
+
+        let selectedCount = 0;
+        let checkedCount = 0;
+        const selectedList = [];
+        const rejectedList = [];
+
+        beamLines.forEach((line) => {
+          // 直接讀取梁的 SVG 座標屬性（這些是已經變換後的顯示座標）
+          const x1 = parseFloat(line.getAttribute('x1'));
+          const y1 = parseFloat(line.getAttribute('y1'));
+          const x2 = parseFloat(line.getAttribute('x2'));
+          const y2 = parseFloat(line.getAttribute('y2'));
+          const beamName = line.dataset.beamName;
+
+          if (!beamName) return;
+
+          checkedCount++;
+          let isInside = false;
+
+          if (isCrossingMode) {
+            // 碰到即选：检查线段是否与矩形相交
+            isInside = lineIntersectsRect(x1, y1, x2, y2, minX, minY, maxX, maxY);
+          } else {
+            // 完全框选：检查线段是否完全在矩形内
+            isInside = (x1 >= minX && x1 <= maxX && y1 >= minY && y1 <= maxY &&
+                       x2 >= minX && x2 <= maxX && y2 >= minY && y2 <= maxY);
+          }
+
+          if (isInside) {
+            selectedBeams.add(beamName);
+            updateBeamVisualState(beamName, true);
+            selectedCount++;
+            selectedList.push(`${beamName}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
+          } else if (checkedCount <= 10) {
+            rejectedList.push(`${beamName}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
+          }
+        });
+
+        console.log(`%c=== 選擇結果 ===`, 'color: #22c55e; font-weight: bold');
+        console.log(`選擇框: (${minX.toFixed(0)}, ${minY.toFixed(0)}) → (${maxX.toFixed(0)}, ${maxY.toFixed(0)})`);
+        console.log(`模式: ${isCrossingMode ? 'Crossing (碰到即選)' : 'Window (完全包含)'}`);
+        console.log(`%c✓ 選中 ${selectedCount} 個:`, 'color: #22c55e', selectedList.join(', '));
+        console.log(`%c✗ 未選中（前10個）:`, 'color: #ef4444', rejectedList.join(', '));
+      }
+
+      // 检查线段是否与矩形相交（Crossing 模式）
+      function lineIntersectsRect(x1, y1, x2, y2, minX, minY, maxX, maxY) {
+        // 1. 检查任一端点是否在矩形内
+        const pt1Inside = (x1 >= minX && x1 <= maxX && y1 >= minY && y1 <= maxY);
+        const pt2Inside = (x2 >= minX && x2 <= maxX && y2 >= minY && y2 <= maxY);
+
+        if (pt1Inside || pt2Inside) {
+          return true;
+        }
+
+        // 2. 检查线段是否与矩形的四條邊相交
+        // 上边
+        if (lineIntersectsLine(x1, y1, x2, y2, minX, minY, maxX, minY)) return true;
+        // 右边
+        if (lineIntersectsLine(x1, y1, x2, y2, maxX, minY, maxX, maxY)) return true;
+        // 下边
+        if (lineIntersectsLine(x1, y1, x2, y2, minX, maxY, maxX, maxY)) return true;
+        // 左边
+        if (lineIntersectsLine(x1, y1, x2, y2, minX, minY, minX, maxY)) return true;
+
+        // 3. 检查矩形是否完全在线段內（特殊情況：很長的梁穿過小框）
+        // 如果矩形的某個角點在線段上，也算相交
+        // 但由於上面已經檢查了線段與邊界相交，這裡可以省略
+
+        return false;
+      }
+
+      // 检查两条线段是否相交
+      function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+        const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+        if (denom === 0) return false;
+
+        const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+        const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+        return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+      }
+
+      // 更新梁的视觉状态
+      function updateBeamVisualState(beamName, isSelected) {
+        // 更新梁线
+        const beamLines = svgElement.querySelectorAll(`[data-beam-name="${beamName}"]`);
+        beamLines.forEach(line => {
+          if (line.tagName === 'line') {
+            if (isSelected) {
+              line.classList.add('beam-selected');
+            } else {
+              line.classList.remove('beam-selected');
+            }
+          } else if (line.tagName === 'text') {
+            if (isSelected) {
+              line.classList.add('beam-label-selected');
+            } else {
+              line.classList.remove('beam-label-selected');
+            }
+          }
+        });
+      }
+
+      // 键盘事件处理
+      function onKeyDown(evt) {
+        // 按 Enter 打开批量编辑对话框
+        if (evt.key === 'Enter' && selectedBeams.size > 0) {
+          openBatchEditDialog();
+        }
+        // 按 Escape 清除所有选择
+        else if (evt.key === 'Escape') {
+          clearAllSelections();
+        }
+        // 按 Delete 删除选中梁的编号（恢复为原始编号）
+        else if (evt.key === 'Delete' && selectedBeams.size > 0) {
+          if (confirm(`確定要清除 ${selectedBeams.size} 個梁的自訂編號嗎？`)) {
+            clearSelectedBeamLabels();
+          }
+        }
+      }
+
+      // 打开批量编辑对话框
+      function openBatchEditDialog() {
+        if (selectedBeams.size === 0) {
+          alert('請先選擇要編輯的梁');
+          return;
+        }
+
+        document.getElementById('batch-count').textContent = selectedBeams.size;
+        document.getElementById('batch-new-label').value = '';
+        document.getElementById('batch-edit-dialog').style.display = 'block';
+        document.getElementById('batch-edit-overlay').style.display = 'block';
+
+        // 聚焦到输入框
+        setTimeout(() => {
+          document.getElementById('batch-new-label').focus();
+        }, 100);
+      }
+
+      // 关闭批量编辑对话框
+      function closeBatchEditDialog() {
+        document.getElementById('batch-edit-dialog').style.display = 'none';
+        document.getElementById('batch-edit-overlay').style.display = 'none';
+      }
+
+      // 保存批量编辑
+      function saveBatchEdit() {
+        const newLabel = document.getElementById('batch-new-label').value.trim();
+
+        if (!newLabel) {
+          alert('請輸入新的編號');
+          return;
+        }
+
+        // 更新所有选中梁的编号
+        selectedBeams.forEach(beamName => {
+          // 在 fullProcessedBeams 中找到对应的梁并更新
+          const beam = fullProcessedBeams.find(b => b.name === beamName);
+          if (beam) {
+            beam.newLabel = newLabel;
+
+            // 更新SVG中的标签文本
+            const labelElements = svgElement.querySelectorAll(`text[data-beam-name="${beamName}"]`);
+            labelElements.forEach(label => {
+              label.textContent = newLabel;
+            });
+          }
+        });
+
+        closeBatchEditDialog();
+        clearAllSelections();
+
+        alert(`已成功修改 ${selectedBeams.size} 個梁的編號為: ${newLabel}`);
+      }
+
+      // 清除所有选择
+      function clearAllSelections() {
+        selectedBeams.forEach(beamName => {
+          updateBeamVisualState(beamName, false);
+        });
+        selectedBeams.clear();
+      }
+
+      // 清除选中梁的编号
+      function clearSelectedBeamLabels() {
+        selectedBeams.forEach(beamName => {
+          const beam = fullProcessedBeams.find(b => b.name === beamName);
+          if (beam) {
+            // 恢复为原始 ETABS 编号
+            beam.newLabel = beam.name;
+
+            // 更新SVG中的标签文本
+            const labelElements = svgElement.querySelectorAll(`text[data-beam-name="${beamName}"]`);
+            labelElements.forEach(label => {
+              label.textContent = beam.name;
+            });
+          }
+        });
+
+        clearAllSelections();
+        alert('已清除選中梁的自訂編號');
+      }
+
+      // 在绘图完成后初始化圈选功能
+      // 需要在 displayResults 函数调用后执行
+      const originalDisplayResults = displayResults;
+      displayResults = function(...args) {
+        originalDisplayResults.apply(this, args);
+        // 延迟初始化以确保SVG元素已经渲染
+        setTimeout(() => {
+          initializeSelectionFeature();
+        }, 100);
+      };
+
     </script>
   </body>
 </html>
