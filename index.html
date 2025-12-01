@@ -4103,6 +4103,15 @@
         svgElement.addEventListener("mousemove", onSelectionMove);
         svgElement.addEventListener("mouseup", onSelectionEnd);
 
+        // [新增] 阻止 SVG 區域的預設右鍵菜單（確保自定義右鍵功能正常運作）
+        svgElement.addEventListener("contextmenu", (e) => {
+          // 如果點擊的不是梁或標籤，阻止預設菜單但不顯示任何內容
+          if (e.target.tagName !== 'line' && e.target.tagName !== 'text') {
+            e.preventDefault();
+          }
+          // 如果是梁或標籤，由各自的事件處理器處理
+        });
+
         // 添加键盘事件监听（批量编辑）
         document.removeEventListener("keydown", onKeyDown);
         document.addEventListener("keydown", onKeyDown);
