@@ -4020,15 +4020,30 @@
         console.log('✓ 圈選功能已初始化 (SVG 內部座標系統)');
       }
 
-      // 获取 SVG 內部座標（相對於 SVG viewBox，不受縮放影響）
+      // 获取 svg-pan-zoom 的 viewport 元素（包含所有內容的 <g> 元素）
+      function getViewportElement() {
+        // svg-pan-zoom 會將所有內容包裝在一個 <g> 元素中
+        // 通常是第一個 <g> 元素
+        const viewport = svgElement.querySelector('g');
+        return viewport || svgElement; // 如果找不到，fallback 到 SVG 根元素
+      }
+
+      // 获取 SVG 內部座標（相對於 viewport，與梁在同一座標系統）
       function getSVGCoords(evt) {
         const svg = svgElement;
         const pt = svg.createSVGPoint();
         pt.x = evt.clientX;
         pt.y = evt.clientY;
 
-        // 轉換到 SVG 內部座標系統
-        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+        // 獲取 viewport 元素
+        const viewport = getViewportElement();
+
+        // 如果有 viewport（svg-pan-zoom 創建的 <g>），使用其 CTM
+        // 否則使用 SVG 的 CTM
+        const ctm = viewport.getScreenCTM ? viewport.getScreenCTM() : svg.getScreenCTM();
+
+        // 轉換到 viewport 座標系統
+        const svgPt = pt.matrixTransform(ctm.inverse());
         return {
           x: svgPt.x,
           y: svgPt.y
@@ -4082,6 +4097,10 @@
           clearAllSelections();
         }
 
+        // 清理任何舊的選擇框（防止殘影）
+        const oldRects = svgElement.querySelectorAll('.selection-rect, .selection-rect-crossing');
+        oldRects.forEach(rect => rect.remove());
+
         // 创建 SVG 选择框矩形
         selectionRect = document.createElementNS("http://www.w3.org/2000/svg", "rect");
         selectionRect.setAttribute("x", selectionStart.x);
@@ -4090,9 +4109,12 @@
         selectionRect.setAttribute("height", 0);
         selectionRect.setAttribute("class", "selection-rect");
         selectionRect.setAttribute("pointer-events", "none");
-        svgElement.appendChild(selectionRect);
 
-        console.log('開始框選 at SVG coords:', selectionStart);
+        // 將選擇框添加到 viewport（與梁在同一座標系統）
+        const viewport = getViewportElement();
+        viewport.appendChild(selectionRect);
+
+        console.log('開始框選 at viewport coords:', selectionStart);
 
         evt.preventDefault();
         evt.stopPropagation();
@@ -4169,7 +4191,7 @@
         }
       }
 
-      // 在矩形内选择梁（使用 SVG 內部座標）
+      // 在矩形内选择梁（選擇框和梁在同一座標系統中）
       function selectBeamsInRect(minX, minY, maxX, maxY, isCrossingMode) {
         const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line');
 
@@ -4179,35 +4201,14 @@
         const rejectedList = [];
 
         beamLines.forEach((line) => {
-          // 讀取梁的原始 SVG 座標屬性
-          const x1Raw = parseFloat(line.getAttribute('x1'));
-          const y1Raw = parseFloat(line.getAttribute('y1'));
-          const x2Raw = parseFloat(line.getAttribute('x2'));
-          const y2Raw = parseFloat(line.getAttribute('y2'));
+          // 直接讀取梁的座標（與選擇框在同一 viewport 座標系統中）
+          const x1 = parseFloat(line.getAttribute('x1'));
+          const y1 = parseFloat(line.getAttribute('y1'));
+          const x2 = parseFloat(line.getAttribute('x2'));
+          const y2 = parseFloat(line.getAttribute('y2'));
           const beamName = line.dataset.beamName;
 
           if (!beamName) return;
-
-          // 將梁的端點轉換到 SVG 根座標系統（考慮所有 transform，包括 pan-zoom）
-          const svg = svgElement;
-          const pt1 = svg.createSVGPoint();
-          pt1.x = x1Raw;
-          pt1.y = y1Raw;
-          const pt2 = svg.createSVGPoint();
-          pt2.x = x2Raw;
-          pt2.y = y2Raw;
-
-          // 獲取 line 元素的 CTM（累積變換矩陣）
-          const ctm = line.getCTM();
-
-          // 轉換端點到 SVG 根座標系統
-          const pt1Transformed = pt1.matrixTransform(ctm);
-          const pt2Transformed = pt2.matrixTransform(ctm);
-
-          const x1 = pt1Transformed.x;
-          const y1 = pt1Transformed.y;
-          const x2 = pt2Transformed.x;
-          const y2 = pt2Transformed.y;
 
           checkedCount++;
           let isInside = false;
