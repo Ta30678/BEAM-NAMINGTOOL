@@ -1468,17 +1468,16 @@
                     // [修改] 直接使用完整的固定編號（如 "g1", "b1"）
                     const newLabel = matchedRule.label;
 
-                    // [修改] 根據編號前綴判斷是大梁還是小梁
-                    // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
-                    // 小梁：b 開頭（小寫）
-                    // 只要第一個字母是小寫 b，就是小梁；其他都是大梁
-                    const isSecondaryBeam = matchedRule.label.charAt(0) === 'b';
+                    // [修復] 根據 frame section (beam.prop) 判斷是大梁還是小梁
+                    // 小梁：SB 或 FSB 開頭的斷面
+                    // 大梁：其他所有斷面
+                    const isSecondaryBeam = beam.prop && /^(SB|FSB)/i.test(beam.prop);
 
                     fixedLabelBeams.push({
                       ...beam,
                       newLabel,
                       isFixedLabel: true,
-                      isSecondaryBeam // [新增] 標記是否為小梁
+                      isSecondaryBeam // [新增] 標記是否為小梁（根據 section 判斷）
                     });
 
                     // [修改] 從完整編號中提取序號部分（如 "g1" → "1", "ga2" → "2"）
@@ -1602,7 +1601,11 @@
                 const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
                 const newLabel = `${finalPrefix}-${components.serial}`;
 
-                allLabeledBeams.push({ ...originalBeam, newLabel });
+                allLabeledBeams.push({
+                  ...originalBeam,
+                  newLabel,
+                  isSecondaryBeam: false, // 大梁標記
+                });
               });
             }
 
@@ -1635,6 +1638,7 @@
                   allLabeledBeams.push({
                     ...originalBeam,
                     newLabel: value.newLabel,
+                    isSecondaryBeam: true, // 小梁標記
                   });
                 }
               });
@@ -1669,6 +1673,7 @@
                   allLabeledBeams.push({
                     ...originalBeam,
                     newLabel: value.newLabel,
+                    isSecondaryBeam: true, // 基礎小梁標記
                   });
                 }
               });
@@ -3884,32 +3889,26 @@
         const secondaryBeamsData = [];
 
         preppedData.forEach((item) => {
-          // [修改] 判斷大小梁的正確邏輯
+          // [修復] 判斷大小梁：優先使用已設置的 isSecondaryBeam 標記
           let isSecondaryBeam = false;
 
-          if (item.isFixedLabel) {
-            // 如果是固定編號梁，使用 isSecondaryBeam 標記
-            isSecondaryBeam = item.isSecondaryBeam || false;
-          } else if (item.newLabel) {
-            // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
-            // 小梁：b 開頭（小寫）
-            const label = item.newLabel;
-            const upperLabel = label.toUpperCase();
+          if (item.isSecondaryBeam !== undefined) {
+            // 如果已經有 isSecondaryBeam 標記（從 beam 對象繼承），直接使用
+            isSecondaryBeam = item.isSecondaryBeam;
+          } else {
+            // 如果沒有標記，從 fullProcessedBeams 中找到對應的梁，使用其 prop 判斷
+            const correspondingBeam = fullProcessedBeams.find(
+              b => b.name === item.etabsLabel && b.newLabel === item.newLabel
+            );
 
-            // 檢查是否為大梁前綴（大寫）
-            const isMainBeamPrefix =
-              upperLabel.startsWith('G') ||
-              upperLabel.startsWith('B') ||
-              upperLabel.startsWith('FB') ||
-              upperLabel.startsWith('FG') ||
-              upperLabel.startsWith('FWB') ||
-              upperLabel.startsWith('WB');
-
-            // 檢查第一個字母是否為小寫 b（小梁）
-            const isSecondaryPrefix = label.charAt(0) === 'b';
-
-            // 如果是小寫 b 開頭，才是小梁
-            isSecondaryBeam = isSecondaryPrefix;
+            if (correspondingBeam && correspondingBeam.prop) {
+              // 使用 frame section 判斷：SB 或 FSB 開頭的是小梁
+              isSecondaryBeam = /^(SB|FSB)/i.test(correspondingBeam.prop);
+            } else {
+              // 如果找不到對應梁或沒有 prop，使用編號作為最後的備選判斷
+              // 小梁：b 開頭（小寫）
+              isSecondaryBeam = item.newLabel && item.newLabel.charAt(0) === 'b';
+            }
           }
 
           if (isSecondaryBeam) {
