@@ -4303,8 +4303,13 @@
 
       // 键盘事件处理
       function onKeyDown(evt) {
-        // 按 Enter 打开批量编辑对话框
-        if (evt.key === 'Enter' && selectedBeams.size > 0) {
+        // 按 Enter 或空白鍵打开批量编辑对话框
+        if ((evt.key === 'Enter' || evt.key === ' ') && selectedBeams.size > 0) {
+          // 如果批量編輯對話框已經打開，不要重複觸發
+          if (document.getElementById('batch-edit-dialog').style.display === 'block') {
+            return;
+          }
+          evt.preventDefault(); // 防止空白鍵滾動頁面
           openBatchEditDialog();
         }
         // 按 Escape 清除所有选择
@@ -4333,7 +4338,18 @@
 
         // 聚焦到输入框
         setTimeout(() => {
-          document.getElementById('batch-new-label').focus();
+          const input = document.getElementById('batch-new-label');
+          input.focus();
+
+          // 添加鍵盤事件監聽：Enter 或空白鍵確認
+          input.onkeydown = (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault(); // 防止空白鍵在輸入框中輸入空格
+              saveBatchEdit();
+            } else if (e.key === 'Escape') {
+              closeBatchEditDialog();
+            }
+          };
         }, 100);
       }
 
@@ -4370,7 +4386,8 @@
         closeBatchEditDialog();
         clearAllSelections();
 
-        alert(`已成功修改 ${selectedBeams.size} 個梁的編號為: ${newLabel}`);
+        // 移除成功提示（用戶要求）
+        // alert(`已成功修改 ${selectedBeams.size} 個梁的編號為: ${newLabel}`);
       }
 
       // 清除所有选择
