@@ -1469,9 +1469,9 @@
                     const newLabel = matchedRule.label;
 
                     // [修復] 根據 frame section (beam.prop) 判斷是大梁還是小梁
-                    // 小梁：SB 或 FSB 開頭的斷面
+                    // 小梁：包含 SB 或 FSB 的斷面（支援 4sb、3.5sb 等格式）
                     // 大梁：其他所有斷面
-                    const isSecondaryBeam = beam.prop && /^(SB|FSB)/i.test(beam.prop);
+                    const isSecondaryBeam = beam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beam.prop);
 
                     fixedLabelBeams.push({
                       ...beam,
@@ -1998,8 +1998,8 @@
           line.setAttribute("x2", transformX(beam.j2.x));
           line.setAttribute("y2", transformY(beam.j2.y));
 
-          // 判斷是否為小梁 (SB 或 FSB 開頭的斷面)
-          const isSecondaryBeam = beam.prop && /^(SB|FSB)/i.test(beam.prop);
+          // 判斷是否為小梁（包含 SB 或 FSB 的斷面，支援 4sb、3.5sb 等格式）
+          const isSecondaryBeam = beam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beam.prop);
 
           // 根據梁類型設定顏色類別
           if (isPreviewMode) {
@@ -2195,6 +2195,14 @@
           line.style.cursor = "pointer";
           // 注释掉原有的点击编辑功能，改由圈选功能处理
           // line.addEventListener("click", () => openBeamEditDialog(beam));
+
+          // [新增] 右鍵顯示編號功能
+          line.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showBeamInfo(e, beam);
+          });
+
           svg.appendChild(line);
 
           const text = document.createElementNS(
@@ -2255,12 +2263,92 @@
           text.textContent = beam.newLabel;
           // [新增] 为标签添加 dataset 以支持圈选
           text.dataset.beamName = beam.name;
+          text.dataset.beamLabel = beam.newLabel; // 保存編號用於右鍵顯示
+          text.dataset.beamProp = beam.prop || ""; // 保存 section
+          text.dataset.beamStory = beam.story || ""; // 保存樓層
           // [新增] 標籤也可點擊（现在由圈选功能处理）
           text.style.cursor = "pointer";
           // 注释掉原有的点击编辑功能，改由圈选功能处理
           // text.addEventListener("click", () => openBeamEditDialog(beam));
+
+          // [新增] 右鍵顯示編號功能
+          text.addEventListener("contextmenu", (e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            showBeamInfo(e, beam);
+          });
+
           svg.appendChild(text);
         });
+      }
+
+      // [新增] 右鍵顯示梁資訊
+      function showBeamInfo(event, beam) {
+        // 移除舊的提示框（如果有）
+        const oldTooltip = document.getElementById('beam-info-tooltip');
+        if (oldTooltip) {
+          oldTooltip.remove();
+        }
+
+        // 創建新的提示框
+        const tooltip = document.createElement('div');
+        tooltip.id = 'beam-info-tooltip';
+        tooltip.style.position = 'fixed';
+        tooltip.style.left = event.clientX + 10 + 'px';
+        tooltip.style.top = event.clientY + 10 + 'px';
+        tooltip.style.background = 'var(--theme-surface)';
+        tooltip.style.border = '2px solid var(--theme-accent)';
+        tooltip.style.borderRadius = '8px';
+        tooltip.style.padding = '12px 16px';
+        tooltip.style.zIndex = '10000';
+        tooltip.style.boxShadow = '0 4px 12px rgba(0,0,0,0.3)';
+        tooltip.style.fontSize = '14px';
+        tooltip.style.lineHeight = '1.6';
+        tooltip.style.minWidth = '200px';
+        tooltip.style.color = 'var(--theme-text-primary)';
+
+        // 判斷是否為小梁
+        const isSecondary = beam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beam.prop);
+        const beamType = isSecondary ? '小梁' : '大梁';
+        const beamTypeColor = isSecondary ? '#f97316' : '#3b82f6';
+
+        tooltip.innerHTML = `
+          <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px; color: var(--theme-accent);">
+            梁資訊
+          </div>
+          <div style="margin-bottom: 4px;">
+            <strong>編號：</strong><span style="color: var(--theme-accent); font-weight: bold;">${beam.newLabel || beam.name}</span>
+          </div>
+          <div style="margin-bottom: 4px;">
+            <strong>ETABS編號：</strong>${beam.name}
+          </div>
+          <div style="margin-bottom: 4px;">
+            <strong>斷面：</strong>${beam.prop || "N/A"}
+          </div>
+          <div style="margin-bottom: 4px;">
+            <strong>樓層：</strong>${beam.story || "N/A"}
+          </div>
+          <div style="margin-bottom: 4px;">
+            <strong>類型：</strong><span style="color: ${beamTypeColor}; font-weight: bold;">${beamType}</span>
+          </div>
+          <div style="margin-top: 10px; font-size: 12px; color: var(--theme-text-secondary);">
+            點擊任意處關閉
+          </div>
+        `;
+
+        document.body.appendChild(tooltip);
+
+        // 點擊任意處關閉
+        const closeTooltip = () => {
+          tooltip.remove();
+          document.removeEventListener('click', closeTooltip);
+          document.removeEventListener('contextmenu', closeTooltip);
+        };
+
+        setTimeout(() => {
+          document.addEventListener('click', closeTooltip);
+          document.addEventListener('contextmenu', closeTooltip);
+        }, 100);
       }
 
       // [新增] 開啟梁編輯對話框
@@ -3902,8 +3990,8 @@
             );
 
             if (correspondingBeam && correspondingBeam.prop) {
-              // 使用 frame section 判斷：SB 或 FSB 開頭的是小梁
-              isSecondaryBeam = /^(SB|FSB)/i.test(correspondingBeam.prop);
+              // 使用 frame section 判斷：包含 SB 或 FSB 的是小梁（支援 4sb、3.5sb 等格式）
+              isSecondaryBeam = /(\d+\.?\d*\s*)?(SB|FSB)/i.test(correspondingBeam.prop);
             } else {
               // 如果找不到對應梁或沒有 prop，使用編號作為最後的備選判斷
               // 小梁：b 開頭（小寫）
