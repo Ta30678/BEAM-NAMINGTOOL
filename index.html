@@ -809,14 +809,19 @@
 
       <div id="output">
         <div id="drawing">
-          <h3>結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+            <h3 style="margin: 0;">結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
+            <button class="btn-process" onclick="openSearchMemberDialog()" style="padding: 8px 16px;">
+              🔍 搜尋桿件 (Ctrl+F)
+            </button>
+          </div>
           <div style="margin-bottom: 10px; padding: 10px; background: var(--theme-bg); border-radius: 8px; font-size: 0.9em; color: var(--theme-text-secondary);">
             <strong style="color: var(--theme-accent);">💡 選取功能說明（類似 AutoCAD）：</strong><br>
             • <strong>點擊梁</strong>：單選梁（清除其他選擇）<br>
             • <strong>拖曳</strong>：框選多個梁（左→右藍框完全包含，右→左綠框碰到即選）<br>
             • <strong>Shift + 點擊/拖曳</strong>：累加選擇（不清除現有選擇）<br>
             • <strong>點擊空白處</strong>：清除所有選擇<br>
-            • <strong>Enter</strong>：批量修改選中梁的編號 | <strong>Esc</strong>：清除選擇
+            • <strong>Enter</strong>：批量修改選中梁的編號 | <strong>Esc</strong>：清除選擇 | <strong>Ctrl+F</strong>：搜尋桿件
           </div>
           <svg id="drawing-svg"></svg>
         </div>
@@ -944,6 +949,64 @@
       <div class="button-group">
         <button class="btn-export" onclick="closeBatchEditDialog()">取消</button>
         <button class="btn-process" onclick="saveBatchEdit()">確定修改</button>
+      </div>
+    </div>
+
+    <!-- 搜尋桿件對話框 -->
+    <div id="search-member-overlay" class="dialog-overlay" onclick="closeSearchMemberDialog()"></div>
+    <div id="search-member-dialog" style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 1000;
+        background: var(--theme-surface);
+        border: 1px solid var(--theme-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 450px;
+        max-width: 600px;
+      ">
+      <h3 style="margin-top: 0">🔍 搜尋桿件</h3>
+      <div style="margin-bottom: 15px">
+        <label style="
+            display: block;
+            margin-bottom: 5px;
+            color: var(--theme-text-secondary);
+          ">輸入 ETABS 編號:</label>
+        <div style="display: flex; gap: 10px;">
+          <input
+            type="text"
+            id="search-member-input"
+            style="
+              flex: 1;
+              padding: 10px;
+              border: 1px solid var(--theme-border);
+              border-radius: 6px;
+              font-size: 14px;
+            "
+            placeholder="例如: B65, B1, G2A..."
+            onkeypress="if(event.key === 'Enter') searchMember()"
+          />
+          <button class="btn-process" onclick="searchMember()" style="padding: 10px 20px;">搜尋</button>
+        </div>
+      </div>
+      <div id="search-results" style="
+          margin-top: 15px;
+          padding: 15px;
+          background: var(--theme-bg);
+          border-radius: 8px;
+          max-height: 300px;
+          overflow-y: auto;
+        ">
+        <div style="color: var(--theme-text-secondary); text-align: center;">
+          輸入 ETABS 編號並點擊搜尋
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 15px;">
+        <button class="btn-export" onclick="closeSearchMemberDialog()">關閉</button>
       </div>
     </div>
 
@@ -4474,6 +4537,13 @@
 
       // 键盘事件处理
       function onKeyDown(evt) {
+        // 按 Ctrl+F 或 Cmd+F 打開搜尋對話框
+        if ((evt.ctrlKey || evt.metaKey) && evt.key === 'f') {
+          evt.preventDefault(); // 防止瀏覽器預設的搜尋功能
+          openSearchMemberDialog();
+          return;
+        }
+
         // 按 Enter 或空白鍵打开批量编辑对话框
         if ((evt.key === 'Enter' || evt.key === ' ') && selectedBeams.size > 0) {
           // 如果批量編輯對話框已經打開，不要重複觸發
@@ -4483,9 +4553,14 @@
           evt.preventDefault(); // 防止空白鍵滾動頁面
           openBatchEditDialog();
         }
-        // 按 Escape 清除所有选择
+        // 按 Escape 清除所有选择或關閉對話框
         else if (evt.key === 'Escape') {
-          clearAllSelections();
+          // 如果搜尋對話框打開，先關閉它
+          if (document.getElementById('search-member-dialog').style.display === 'block') {
+            closeSearchMemberDialog();
+          } else {
+            clearAllSelections();
+          }
         }
         // 按 Delete 删除选中梁的编号（恢复为原始编号）
         else if (evt.key === 'Delete' && selectedBeams.size > 0) {
@@ -4559,6 +4634,174 @@
 
         // 移除成功提示（用戶要求）
         // alert(`已成功修改 ${selectedBeams.size} 個梁的編號為: ${newLabel}`);
+      }
+
+      // ============ 搜尋桿件功能 ============
+
+      // 開啟搜尋對話框
+      function openSearchMemberDialog() {
+        const dialog = document.getElementById('search-member-dialog');
+        const overlay = document.getElementById('search-member-overlay');
+        const input = document.getElementById('search-member-input');
+        const resultsDiv = document.getElementById('search-results');
+
+        dialog.style.display = 'block';
+        overlay.style.display = 'block';
+
+        // 清空之前的搜尋結果
+        resultsDiv.innerHTML = '<div style="color: var(--theme-text-secondary); text-align: center;">輸入 ETABS 編號並點擊搜尋</div>';
+        input.value = '';
+        input.focus();
+      }
+
+      // 關閉搜尋對話框
+      function closeSearchMemberDialog() {
+        document.getElementById('search-member-dialog').style.display = 'none';
+        document.getElementById('search-member-overlay').style.display = 'none';
+      }
+
+      // 搜尋桿件
+      function searchMember() {
+        const searchTerm = document.getElementById('search-member-input').value.trim().toUpperCase();
+        const resultsDiv = document.getElementById('search-results');
+
+        if (!searchTerm) {
+          resultsDiv.innerHTML = '<div style="color: var(--theme-warning); text-align: center;">⚠️ 請輸入搜尋關鍵字</div>';
+          return;
+        }
+
+        // 檢查是否有已處理的梁資料
+        if (!fullProcessedBeams || fullProcessedBeams.length === 0) {
+          resultsDiv.innerHTML = '<div style="color: var(--theme-warning); text-align: center;">⚠️ 請先上傳 E2K 檔案並執行編號</div>';
+          return;
+        }
+
+        // 搜尋匹配的梁（支援部分匹配）
+        const matchedBeams = fullProcessedBeams.filter(beam =>
+          beam.name && beam.name.toUpperCase().includes(searchTerm)
+        );
+
+        if (matchedBeams.length === 0) {
+          resultsDiv.innerHTML = `<div style="color: var(--theme-warning); text-align: center;">❌ 找不到符合 "${searchTerm}" 的桿件</div>`;
+          return;
+        }
+
+        // 顯示搜尋結果
+        let resultsHTML = `<div style="margin-bottom: 10px; color: var(--theme-accent); font-weight: bold;">✅ 找到 ${matchedBeams.length} 個符合的桿件：</div>`;
+
+        matchedBeams.forEach(beam => {
+          const beamInfo = `
+            <div style="
+              padding: 12px;
+              margin-bottom: 8px;
+              background: var(--theme-surface);
+              border: 1px solid var(--theme-border);
+              border-radius: 6px;
+              cursor: pointer;
+              transition: all 0.2s;
+            "
+            onmouseover="this.style.background='var(--theme-hover)'; this.style.borderColor='var(--theme-accent)';"
+            onmouseout="this.style.background='var(--theme-surface)'; this.style.borderColor='var(--theme-border)';"
+            onclick="locateAndHighlightBeam('${beam.name}')">
+              <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                  <strong style="color: var(--theme-accent); font-size: 1.1em;">${beam.name}</strong>
+                  <span style="color: var(--theme-text-secondary); margin-left: 10px;">→ ${beam.newLabel || '未編號'}</span>
+                </div>
+                <button class="btn-process" style="padding: 5px 15px; font-size: 0.85em;" onclick="event.stopPropagation(); locateAndHighlightBeam('${beam.name}')">
+                  定位
+                </button>
+              </div>
+              <div style="font-size: 0.85em; color: var(--theme-text-secondary); margin-top: 5px;">
+                📍 樓層: ${beam.story || 'N/A'} | 斷面: ${beam.prop || 'N/A'}
+              </div>
+              ${beam.j1 && beam.j2 ? `
+                <div style="font-size: 0.8em; color: var(--theme-text-secondary); margin-top: 3px;">
+                  座標: (${beam.j1.x.toFixed(2)}, ${beam.j1.y.toFixed(2)}) → (${beam.j2.x.toFixed(2)}, ${beam.j2.y.toFixed(2)})
+                </div>
+              ` : ''}
+            </div>
+          `;
+          resultsHTML += beamInfo;
+        });
+
+        resultsDiv.innerHTML = resultsHTML;
+      }
+
+      // 定位並高亮顯示梁
+      function locateAndHighlightBeam(beamName) {
+        const svgElement = document.getElementById('drawing-svg');
+        if (!svgElement) {
+          alert('❌ 找不到平面圖');
+          return;
+        }
+
+        // 找到該梁的所有元素（線和標籤）
+        const beamElements = svgElement.querySelectorAll(`[data-beam-name="${beamName}"]`);
+
+        if (beamElements.length === 0) {
+          alert(`❌ 在目前顯示的樓層中找不到桿件 ${beamName}`);
+          return;
+        }
+
+        // 清除之前的選擇
+        clearAllSelections();
+
+        // 選中該梁
+        selectedBeams.add(beamName);
+        updateBeamVisualState(beamName, true);
+
+        // 計算梁的中心點（用於平移和縮放）
+        const beam = fullProcessedBeams.find(b => b.name === beamName);
+        if (beam && beam.j1 && beam.j2 && panZoomInstance) {
+          // 計算梁的中心點（ETABS 座標）
+          const centerX = (beam.j1.x + beam.j2.x) / 2;
+          const centerY = (beam.j1.y + beam.j2.y) / 2;
+
+          // 轉換為 SVG 座標
+          const svgCenterX = transformX(centerX);
+          const svgCenterY = transformY(centerY);
+
+          // 移動視圖到梁的位置並放大
+          const viewportWidth = svgElement.clientWidth;
+          const viewportHeight = svgElement.clientHeight;
+
+          // 設定目標縮放等級（放大以便看清楚）
+          const targetZoom = 2.5;
+
+          // 計算平移量，使梁的中心點位於視窗中心
+          const targetX = viewportWidth / 2 - svgCenterX * targetZoom;
+          const targetY = viewportHeight / 2 - svgCenterY * targetZoom;
+
+          // 執行平滑的平移和縮放
+          panZoomInstance.smoothZoom(targetX, targetY, targetZoom);
+
+          // 顯示成功訊息
+          setTimeout(() => {
+            // 可選：添加閃爍效果
+            let flashCount = 0;
+            const flashInterval = setInterval(() => {
+              beamElements.forEach(el => {
+                if (el.tagName === 'line') {
+                  el.style.opacity = flashCount % 2 === 0 ? '0.3' : '1';
+                } else if (el.tagName === 'text') {
+                  el.style.opacity = flashCount % 2 === 0 ? '0.3' : '1';
+                }
+              });
+              flashCount++;
+              if (flashCount >= 6) {
+                clearInterval(flashInterval);
+                // 恢復正常透明度
+                beamElements.forEach(el => {
+                  el.style.opacity = '1';
+                });
+              }
+            }, 200);
+          }, 300);
+        }
+
+        // 關閉搜尋對話框
+        closeSearchMemberDialog();
       }
 
       // 清除所有选择
