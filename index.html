@@ -1851,7 +1851,7 @@
                   label.setAttribute("y", baseY + newOffsetY);
                 } else if (orientation === "vertical") {
                   const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
-                  const newRotatedX = baseX - newOffsetX;
+                  const newRotatedX = baseX + newOffsetX;
                   label.setAttribute("x", newRotatedX);
                   // 更新旋轉變換，確保旋轉中心正確
                   label.setAttribute(
@@ -2226,7 +2226,7 @@
             text.setAttribute("text-anchor", "middle");
           } else if (isVertical) {
             text.dataset.orientation = "vertical";
-            const rotatedX = textX - INITIAL_VERTICAL_OFFSET;
+            const rotatedX = textX + INITIAL_VERTICAL_OFFSET;
             text.setAttribute("x", rotatedX);
             text.setAttribute("y", textY);
             text.setAttribute("text-anchor", "middle");
@@ -2282,6 +2282,80 @@
         });
       }
 
+      // [新增] 計算點到線段的距離
+      function pointToLineDistance(px, py, x1, y1, x2, y2) {
+        const A = px - x1;
+        const B = py - y1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+
+        const dot = A * C + B * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+
+        if (lenSq !== 0) {
+          param = dot / lenSq;
+        }
+
+        let xx, yy;
+
+        if (param < 0) {
+          xx = x1;
+          yy = y1;
+        } else if (param > 1) {
+          xx = x2;
+          yy = y2;
+        } else {
+          xx = x1 + param * C;
+          yy = y1 + param * D;
+        }
+
+        const dx = px - xx;
+        const dy = py - yy;
+        return Math.sqrt(dx * dx + dy * dy);
+      }
+
+      // [新增] 查找最近的梁
+      function findNearestBeam(event, maxDistance = 20) {
+        const svgElement = document.getElementById("svg-container");
+        if (!svgElement) return null;
+
+        // 獲取點擊位置的 SVG 座標
+        const pt = svgElement.createSVGPoint();
+        pt.x = event.clientX;
+        pt.y = event.clientY;
+
+        const viewport = getViewportElement();
+        const ctm = viewport.getScreenCTM ? viewport.getScreenCTM() : svgElement.getScreenCTM();
+        const svgPt = pt.matrixTransform(ctm.inverse());
+
+        // 搜索所有梁線
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line');
+        let nearestBeam = null;
+        let minDistance = maxDistance;
+
+        beamLines.forEach((line) => {
+          const x1 = parseFloat(line.getAttribute('x1'));
+          const y1 = parseFloat(line.getAttribute('y1'));
+          const x2 = parseFloat(line.getAttribute('x2'));
+          const y2 = parseFloat(line.getAttribute('y2'));
+
+          const distance = pointToLineDistance(svgPt.x, svgPt.y, x1, y1, x2, y2);
+
+          if (distance < minDistance) {
+            minDistance = distance;
+            nearestBeam = {
+              name: line.dataset.beamName,
+              newLabel: line.dataset.beamLabel,
+              prop: line.dataset.beamProp,
+              story: line.dataset.beamStory
+            };
+          }
+        });
+
+        return nearestBeam;
+      }
+
       // [新增] 右鍵顯示梁資訊
       function showBeamInfo(event, beam) {
         // 移除舊的提示框（如果有）
@@ -2313,9 +2387,6 @@
         const beamTypeColor = isSecondary ? '#f97316' : '#3b82f6';
 
         tooltip.innerHTML = `
-          <div style="font-weight: bold; margin-bottom: 8px; font-size: 16px; color: var(--theme-accent);">
-            梁資訊
-          </div>
           <div style="margin-bottom: 4px;">
             <strong>編號：</strong><span style="color: var(--theme-accent); font-weight: bold;">${beam.newLabel || beam.name}</span>
           </div>
@@ -2328,11 +2399,8 @@
           <div style="margin-bottom: 4px;">
             <strong>樓層：</strong>${beam.story || "N/A"}
           </div>
-          <div style="margin-bottom: 4px;">
+          <div>
             <strong>類型：</strong><span style="color: ${beamTypeColor}; font-weight: bold;">${beamType}</span>
-          </div>
-          <div style="margin-top: 10px; font-size: 12px; color: var(--theme-text-secondary);">
-            點擊任意處關閉
           </div>
         `;
 
@@ -4105,9 +4173,16 @@
 
         // [新增] 阻止 SVG 區域的預設右鍵菜單（確保自定義右鍵功能正常運作）
         svgElement.addEventListener("contextmenu", (e) => {
-          // 如果點擊的不是梁或標籤，阻止預設菜單但不顯示任何內容
+          // 如果點擊的不是梁或標籤，搜索最近的梁
           if (e.target.tagName !== 'line' && e.target.tagName !== 'text') {
             e.preventDefault();
+
+            // 搜索點擊位置附近的最近梁（容差範圍：20 像素）
+            const nearestBeam = findNearestBeam(e, 20);
+            if (nearestBeam) {
+              e.stopPropagation();
+              showBeamInfo(e, nearestBeam);
+            }
           }
           // 如果是梁或標籤，由各自的事件處理器處理
         });
