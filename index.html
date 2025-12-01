@@ -4179,14 +4179,35 @@
         const rejectedList = [];
 
         beamLines.forEach((line) => {
-          // 直接讀取梁的 SVG 座標屬性（這些是已經變換後的顯示座標）
-          const x1 = parseFloat(line.getAttribute('x1'));
-          const y1 = parseFloat(line.getAttribute('y1'));
-          const x2 = parseFloat(line.getAttribute('x2'));
-          const y2 = parseFloat(line.getAttribute('y2'));
+          // 讀取梁的原始 SVG 座標屬性
+          const x1Raw = parseFloat(line.getAttribute('x1'));
+          const y1Raw = parseFloat(line.getAttribute('y1'));
+          const x2Raw = parseFloat(line.getAttribute('x2'));
+          const y2Raw = parseFloat(line.getAttribute('y2'));
           const beamName = line.dataset.beamName;
 
           if (!beamName) return;
+
+          // 將梁的端點轉換到 SVG 根座標系統（考慮所有 transform，包括 pan-zoom）
+          const svg = svgElement;
+          const pt1 = svg.createSVGPoint();
+          pt1.x = x1Raw;
+          pt1.y = y1Raw;
+          const pt2 = svg.createSVGPoint();
+          pt2.x = x2Raw;
+          pt2.y = y2Raw;
+
+          // 獲取 line 元素的 CTM（累積變換矩陣）
+          const ctm = line.getCTM();
+
+          // 轉換端點到 SVG 根座標系統
+          const pt1Transformed = pt1.matrixTransform(ctm);
+          const pt2Transformed = pt2.matrixTransform(ctm);
+
+          const x1 = pt1Transformed.x;
+          const y1 = pt1Transformed.y;
+          const x2 = pt2Transformed.x;
+          const y2 = pt2Transformed.y;
 
           checkedCount++;
           let isInside = false;
