@@ -2421,6 +2421,18 @@
 
       // [新增] 右鍵顯示梁資訊
       function showBeamInfo(event, beam) {
+        // [修改] 從 fullProcessedBeams 中查找最新的梁數據
+        const latestBeam = fullProcessedBeams.find(
+          (b) =>
+            b.name === beam.name &&
+            b.story === beam.story &&
+            b.joint1 === beam.joint1 &&
+            b.joint2 === beam.joint2
+        );
+
+        // 使用最新的梁數據，如果找不到則使用傳入的 beam
+        const beamData = latestBeam || beam;
+
         // 移除舊的提示框（如果有）
         const oldTooltip = document.getElementById('beam-info-tooltip');
         if (oldTooltip) {
@@ -2445,22 +2457,22 @@
         tooltip.style.color = 'var(--theme-text-primary)';
 
         // 判斷是否為小梁
-        const isSecondary = beam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beam.prop);
+        const isSecondary = beamData.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beamData.prop);
         const beamType = isSecondary ? '小梁' : '大梁';
         const beamTypeColor = isSecondary ? '#f97316' : '#3b82f6';
 
         tooltip.innerHTML = `
           <div style="margin-bottom: 4px;">
-            <strong>編號：</strong><span style="color: var(--theme-accent); font-weight: bold;">${beam.newLabel || beam.name}</span>
+            <strong>編號：</strong><span style="color: var(--theme-accent); font-weight: bold;">${beamData.newLabel || beamData.name}</span>
           </div>
           <div style="margin-bottom: 4px;">
-            <strong>ETABS編號：</strong>${beam.name}
+            <strong>ETABS編號：</strong>${beamData.name}
           </div>
           <div style="margin-bottom: 4px;">
-            <strong>斷面：</strong>${beam.prop || "N/A"}
+            <strong>斷面：</strong>${beamData.prop || "N/A"}
           </div>
           <div style="margin-bottom: 4px;">
-            <strong>樓層：</strong>${beam.story || "N/A"}
+            <strong>樓層：</strong>${beamData.story || "N/A"}
           </div>
           <div>
             <strong>類型：</strong><span style="color: ${beamTypeColor}; font-weight: bold;">${beamType}</span>
@@ -2526,11 +2538,65 @@
         );
 
         if (beamIndex !== -1) {
+          const oldLabel = fullProcessedBeams[beamIndex].newLabel;
           fullProcessedBeams[beamIndex].newLabel = newLabel;
+
+          // [新增] 自動更新連續小梁編號
+          updateSequentialBeamLabels(oldLabel, newLabel, currentEditingBeam.story);
+
           // 重新繪製
           handleStoryChange();
           closeBeamEditDialog();
           // [移除] 不再顯示 alert 提示
+        }
+      }
+
+      // [新增] 自動更新連續小梁編號的函數
+      function updateSequentialBeamLabels(oldLabel, newLabel, story) {
+        // 檢查舊編號是否為連續編號格式 (例如: b24-1, b25-2)
+        const oldMatch = oldLabel.match(/^(.+?)(\d+)-(\d+)$/);
+        const newMatch = newLabel.match(/^(.+?)(\d+)-(\d+)$/);
+
+        // 只有當舊編號是連續格式且新編號也是連續格式時才處理
+        if (!oldMatch || !newMatch) return;
+
+        const [, oldPrefix, oldNumber, oldSerial] = oldMatch;
+        const [, newPrefix, newNumber, newSerial] = newMatch;
+
+        // 只有當序號是 -1 時才自動更新其他序號
+        // 這樣用戶可以單獨修改中間的小梁而不影響整組
+        if (oldSerial !== '1' || newSerial !== '1') return;
+
+        const oldBaseLabel = `${oldPrefix}${oldNumber}`;
+        const newBaseLabel = `${newPrefix}${newNumber}`;
+
+        // 如果前綴+數字都沒變，不需要更新
+        if (oldBaseLabel === newBaseLabel) return;
+
+        console.log(`[連續小梁更新] 從 ${oldBaseLabel}-* 更新為 ${newBaseLabel}-*`);
+
+        // 找到同一樓層中所有相同前綴的連續小梁
+        let updatedCount = 0;
+        fullProcessedBeams.forEach((beam) => {
+          if (beam.story !== story) return;
+
+          // 檢查是否為同一組的連續編號 (例如 b24-2, b24-3, ...)
+          const beamMatch = beam.newLabel.match(/^(.+?)(\d+)-(\d+)$/);
+          if (!beamMatch) return;
+
+          const [, beamPrefix, beamNumber, beamSerial] = beamMatch;
+          const beamBaseLabel = `${beamPrefix}${beamNumber}`;
+
+          // 如果是同一組的連續小梁（但不是剛才編輯的那根）
+          if (beamBaseLabel === oldBaseLabel && beam.newLabel !== oldLabel) {
+            beam.newLabel = `${newBaseLabel}-${beamSerial}`;
+            updatedCount++;
+            console.log(`  → 更新 ${oldBaseLabel}-${beamSerial} 為 ${beam.newLabel}`);
+          }
+        });
+
+        if (updatedCount > 0) {
+          console.log(`[連續小梁更新] 共更新了 ${updatedCount} 根小梁`);
         }
       }
       // --- Core Parsing & Labeling Functions (No changes below this line) ---
