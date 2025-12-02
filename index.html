@@ -4711,11 +4711,25 @@
           return;
         }
 
+        console.log(`\n[批量編輯] 開始處理 ${selectedBeams.size} 個選中的梁`);
+        console.log(`  新編號: ${newLabel}`);
+
+        // [新增] 記錄第一個被編輯的梁，用於觸發連續小梁更新
+        let firstBeam = null;
+        let firstOldLabel = null;
+
         // 更新所有选中梁的编号
-        selectedBeams.forEach(beamName => {
+        selectedBeams.forEach((beamName, index) => {
           // 在 fullProcessedBeams 中找到对应的梁并更新
           const beam = fullProcessedBeams.find(b => b.name === beamName);
           if (beam) {
+            // [新增] 記錄第一個梁的舊編號
+            if (index === 0) {
+              firstBeam = beam;
+              firstOldLabel = beam.newLabel;
+              console.log(`  第一個梁: ${beam.name}, 舊編號: ${firstOldLabel}`);
+            }
+
             beam.newLabel = newLabel;
 
             // 更新SVG中的标签文本
@@ -4725,6 +4739,15 @@
             });
           }
         });
+
+        // [新增] 如果只選中了一個梁，且是連續小梁的第一個，觸發自動更新
+        if (selectedBeams.size === 1 && firstBeam && firstOldLabel) {
+          console.log(`  單個梁編輯，檢查是否需要更新連續小梁...`);
+          updateSequentialBeamLabels(firstOldLabel, newLabel, firstBeam.story);
+
+          // 重新繪製以顯示更新後的所有編號
+          handleStoryChange();
+        }
 
         closeBatchEditDialog();
         clearAllSelections();
