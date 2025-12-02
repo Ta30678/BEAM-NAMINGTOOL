@@ -2553,31 +2553,54 @@
 
       // [新增] 自動更新連續小梁編號的函數
       function updateSequentialBeamLabels(oldLabel, newLabel, story) {
+        console.log(`\n[連續小梁更新] 開始執行`);
+        console.log(`  舊編號: ${oldLabel}`);
+        console.log(`  新編號: ${newLabel}`);
+        console.log(`  樓層: ${story}`);
+
         // 檢查舊編號是否為連續編號格式 (例如: b24-1, b25-2)
         const oldMatch = oldLabel.match(/^(.+?)(\d+)-(\d+)$/);
         const newMatch = newLabel.match(/^(.+?)(\d+)-(\d+)$/);
 
+        console.log(`  舊編號匹配結果:`, oldMatch);
+        console.log(`  新編號匹配結果:`, newMatch);
+
         // 只有當舊編號是連續格式且新編號也是連續格式時才處理
-        if (!oldMatch || !newMatch) return;
+        if (!oldMatch || !newMatch) {
+          console.log(`  ❌ 編號格式不符合連續格式，跳過更新`);
+          return;
+        }
 
         const [, oldPrefix, oldNumber, oldSerial] = oldMatch;
         const [, newPrefix, newNumber, newSerial] = newMatch;
 
+        console.log(`  解析結果:`);
+        console.log(`    舊: 前綴="${oldPrefix}", 數字="${oldNumber}", 序號="${oldSerial}"`);
+        console.log(`    新: 前綴="${newPrefix}", 數字="${newNumber}", 序號="${newSerial}"`);
+
         // 只有當序號是 -1 時才自動更新其他序號
         // 這樣用戶可以單獨修改中間的小梁而不影響整組
-        if (oldSerial !== '1' || newSerial !== '1') return;
+        if (oldSerial !== '1' || newSerial !== '1') {
+          console.log(`  ❌ 序號不是 -1，跳過更新（舊序號=${oldSerial}, 新序號=${newSerial}）`);
+          return;
+        }
 
         const oldBaseLabel = `${oldPrefix}${oldNumber}`;
         const newBaseLabel = `${newPrefix}${newNumber}`;
 
-        // 如果前綴+數字都沒變，不需要更新
-        if (oldBaseLabel === newBaseLabel) return;
+        console.log(`  基礎標籤: ${oldBaseLabel} → ${newBaseLabel}`);
 
-        console.log(`[連續小梁更新] 從 ${oldBaseLabel}-* 更新為 ${newBaseLabel}-*`);
+        // 如果前綴+數字都沒變，不需要更新
+        if (oldBaseLabel === newBaseLabel) {
+          console.log(`  ❌ 基礎標籤相同，無需更新`);
+          return;
+        }
+
+        console.log(`\n  🔍 開始搜尋同組的連續小梁...`);
 
         // 找到同一樓層中所有相同前綴的連續小梁
         let updatedCount = 0;
-        fullProcessedBeams.forEach((beam) => {
+        fullProcessedBeams.forEach((beam, index) => {
           if (beam.story !== story) return;
 
           // 檢查是否為同一組的連續編號 (例如 b24-2, b24-3, ...)
@@ -2587,16 +2610,24 @@
           const [, beamPrefix, beamNumber, beamSerial] = beamMatch;
           const beamBaseLabel = `${beamPrefix}${beamNumber}`;
 
+          console.log(`    檢查梁 [${index}]: ${beam.newLabel} (ETABS: ${beam.name})`);
+          console.log(`      解析: 前綴="${beamPrefix}", 數字="${beamNumber}", 序號="${beamSerial}", 基礎="${beamBaseLabel}"`);
+          console.log(`      比對: beamBaseLabel(${beamBaseLabel}) === oldBaseLabel(${oldBaseLabel})? ${beamBaseLabel === oldBaseLabel}`);
+          console.log(`      條件: beam.newLabel(${beam.newLabel}) !== oldLabel(${oldLabel})? ${beam.newLabel !== oldLabel}`);
+
           // 如果是同一組的連續小梁（但不是剛才編輯的那根）
           if (beamBaseLabel === oldBaseLabel && beam.newLabel !== oldLabel) {
+            const oldBeamLabel = beam.newLabel;
             beam.newLabel = `${newBaseLabel}-${beamSerial}`;
             updatedCount++;
-            console.log(`  → 更新 ${oldBaseLabel}-${beamSerial} 為 ${beam.newLabel}`);
+            console.log(`      ✅ 更新: ${oldBeamLabel} → ${beam.newLabel}`);
           }
         });
 
         if (updatedCount > 0) {
-          console.log(`[連續小梁更新] 共更新了 ${updatedCount} 根小梁`);
+          console.log(`\n  ✅ [連續小梁更新] 共更新了 ${updatedCount} 根小梁\n`);
+        } else {
+          console.log(`\n  ⚠️ [連續小梁更新] 沒有找到需要更新的小梁\n`);
         }
       }
       // --- Core Parsing & Labeling Functions (No changes below this line) ---
@@ -4680,11 +4711,25 @@
           return;
         }
 
+        console.log(`\n[批量編輯] 開始處理 ${selectedBeams.size} 個選中的梁`);
+        console.log(`  新編號: ${newLabel}`);
+
+        // [新增] 記錄第一個被編輯的梁，用於觸發連續小梁更新
+        let firstBeam = null;
+        let firstOldLabel = null;
+
         // 更新所有选中梁的编号
-        selectedBeams.forEach(beamName => {
+        selectedBeams.forEach((beamName, index) => {
           // 在 fullProcessedBeams 中找到对应的梁并更新
           const beam = fullProcessedBeams.find(b => b.name === beamName);
           if (beam) {
+            // [新增] 記錄第一個梁的舊編號
+            if (index === 0) {
+              firstBeam = beam;
+              firstOldLabel = beam.newLabel;
+              console.log(`  第一個梁: ${beam.name}, 舊編號: ${firstOldLabel}`);
+            }
+
             beam.newLabel = newLabel;
 
             // 更新SVG中的标签文本
@@ -4694,6 +4739,15 @@
             });
           }
         });
+
+        // [新增] 如果只選中了一個梁，且是連續小梁的第一個，觸發自動更新
+        if (selectedBeams.size === 1 && firstBeam && firstOldLabel) {
+          console.log(`  單個梁編輯，檢查是否需要更新連續小梁...`);
+          updateSequentialBeamLabels(firstOldLabel, newLabel, firstBeam.story);
+
+          // 重新繪製以顯示更新後的所有編號
+          handleStoryChange();
+        }
 
         closeBatchEditDialog();
         clearAllSelections();
