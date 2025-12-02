@@ -4804,14 +4804,14 @@
         // [新增] 記錄第一個被編輯的梁，用於觸發連續小梁更新
         let firstBeam = null;
         let firstOldLabel = null;
-        let isFirstBeam = true; // [修復] 使用 flag 而不是 index
+        let isFirstBeam = true;
 
         // 更新所有选中梁的编号
         selectedBeams.forEach((beamName) => {
-          // 在 fullProcessedBeams 中找到对应的梁并更新
+          // 在 fullProcessedBeams 中找到对应的梁並更新
           const beam = fullProcessedBeams.find(b => b.name === beamName);
           if (beam) {
-            // [修復] 記錄第一個梁的舊編號（Set.forEach 沒有 index 參數）
+            // 記錄第一個梁的舊編號
             if (isFirstBeam) {
               firstBeam = beam;
               firstOldLabel = beam.newLabel;
@@ -4819,24 +4819,21 @@
               isFirstBeam = false;
             }
 
+            // [修復] 只更新數據，不直接修改 SVG（避免與 handleStoryChange 衝突）
             beam.newLabel = newLabel;
-
-            // 更新SVG中的标签文本
-            const labelElements = svgElement.querySelectorAll(`text[data-beam-name="${beamName}"]`);
-            labelElements.forEach(label => {
-              label.textContent = newLabel;
-            });
+            console.log(`  更新梁 ${beam.name}: ${firstOldLabel || '原編號'} → ${newLabel}`);
           }
         });
 
-        // [新增] 如果只選中了一個梁，且是連續小梁的第一個，觸發自動更新
+        // [修復] 如果只選中了一個梁，檢查是否需要更新連續小梁
         if (selectedBeams.size === 1 && firstBeam && firstOldLabel) {
           console.log(`  單個梁編輯，檢查是否需要更新連續小梁...`);
           updateSequentialBeamLabels(firstOldLabel, newLabel, firstBeam.story);
-
-          // 重新繪製以顯示更新後的所有編號
-          handleStoryChange();
         }
+
+        // [修復] 無論如何都重新繪製 SVG，確保顯示最新數據
+        console.log(`  重新繪製 SVG...`);
+        handleStoryChange();
 
         closeBatchEditDialog();
         clearAllSelections();
