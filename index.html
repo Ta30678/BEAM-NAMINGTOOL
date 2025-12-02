@@ -2578,13 +2578,6 @@
         console.log(`    舊: 前綴="${oldPrefix}", 數字="${oldNumber}", 序號="${oldSerial}"`);
         console.log(`    新: 前綴="${newPrefix}", 數字="${newNumber}", 序號="${newSerial}"`);
 
-        // 只有當序號是 -1 時才自動更新其他序號
-        // 這樣用戶可以單獨修改中間的小梁而不影響整組
-        if (oldSerial !== '1' || newSerial !== '1') {
-          console.log(`  ❌ 序號不是 -1，跳過更新（舊序號=${oldSerial}, 新序號=${newSerial}）`);
-          return;
-        }
-
         const oldBaseLabel = `${oldPrefix}${oldNumber}`;
         const newBaseLabel = `${newPrefix}${newNumber}`;
 
@@ -2596,31 +2589,33 @@
           return;
         }
 
-        console.log(`\n  🔍 開始搜尋同組的連續小梁...`);
+        console.log(`\n  🔍 開始搜尋同組的連續小梁（序號 > ${oldSerial}）...`);
 
-        // 找到同一樓層中所有相同前綴的連續小梁
+        // [新增] 智能更新：找到序號大於當前梁的所有連續小梁並更新
+        const currentSerial = parseInt(oldSerial);
+        const newStartSerial = parseInt(newSerial);
         let updatedCount = 0;
+
         fullProcessedBeams.forEach((beam, index) => {
           if (beam.story !== story) return;
 
-          // 檢查是否為同一組的連續編號 (例如 b24-2, b24-3, ...)
+          // 檢查是否為同一組的連續編號
           const beamMatch = beam.newLabel.match(/^(.+?)(\d+)-(\d+)$/);
           if (!beamMatch) return;
 
           const [, beamPrefix, beamNumber, beamSerial] = beamMatch;
           const beamBaseLabel = `${beamPrefix}${beamNumber}`;
+          const beamSerialNum = parseInt(beamSerial);
 
-          console.log(`    檢查梁 [${index}]: ${beam.newLabel} (ETABS: ${beam.name})`);
-          console.log(`      解析: 前綴="${beamPrefix}", 數字="${beamNumber}", 序號="${beamSerial}", 基礎="${beamBaseLabel}"`);
-          console.log(`      比對: beamBaseLabel(${beamBaseLabel}) === oldBaseLabel(${oldBaseLabel})? ${beamBaseLabel === oldBaseLabel}`);
-          console.log(`      條件: beam.newLabel(${beam.newLabel}) !== oldLabel(${oldLabel})? ${beam.newLabel !== oldLabel}`);
-
-          // 如果是同一組的連續小梁（但不是剛才編輯的那根）
-          if (beamBaseLabel === oldBaseLabel && beam.newLabel !== oldLabel) {
+          // 只更新同組且序號大於當前編輯梁的小梁
+          if (beamBaseLabel === oldBaseLabel && beamSerialNum > currentSerial) {
             const oldBeamLabel = beam.newLabel;
-            beam.newLabel = `${newBaseLabel}-${beamSerial}`;
+            // 計算新的序號：當前序號 - 舊編輯梁序號 + 新起始序號
+            const newSerialNum = beamSerialNum - currentSerial + newStartSerial;
+            beam.newLabel = `${newBaseLabel}-${newSerialNum}`;
             updatedCount++;
-            console.log(`      ✅ 更新: ${oldBeamLabel} → ${beam.newLabel}`);
+            console.log(`    ✅ 更新梁 [${index}]: ${oldBeamLabel} → ${beam.newLabel}`);
+            console.log(`       計算: ${beamSerialNum} - ${currentSerial} + ${newStartSerial} = ${newSerialNum}`);
           }
         });
 
