@@ -1652,17 +1652,26 @@
                 );
                 if (!originalBeam) return;
 
-                const propUpper = originalBeam.prop.toUpperCase();
-                const prefix = components.isVertical
-                  ? propUpper.startsWith("FB")
-                    ? "FB"
-                    : "B"
-                  : propUpper.startsWith("FB")
-                    ? "FG"
-                    : "G";
+                let newLabel;
+                if (components.isDiagonal) {
+                  // [新增] 斜向大梁的編號格式：G{起點}-{終點}
+                  const propUpper = originalBeam.prop.toUpperCase();
+                  const prefix = propUpper.startsWith("FB") ? "FG" : "G";
+                  newLabel = `${prefix}${components.primaryGridName}`;
+                } else {
+                  // 原有的水平/垂直梁編號邏輯
+                  const propUpper = originalBeam.prop.toUpperCase();
+                  const prefix = components.isVertical
+                    ? propUpper.startsWith("FB")
+                      ? "FB"
+                      : "B"
+                    : propUpper.startsWith("FB")
+                      ? "FG"
+                      : "G";
 
-                const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
-                const newLabel = `${finalPrefix}-${components.serial}`;
+                  const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
+                  newLabel = `${finalPrefix}-${components.serial}`;
+                }
 
                 allLabeledBeams.push({
                   ...originalBeam,
@@ -2971,6 +2980,9 @@
             const j1 = joints[b.joint1],
               j2 = joints[b.joint2];
             if (!j1 || !j2) return null;
+            const isHorizontal = Math.abs(j1.y - j2.y) < TOLERANCE;
+            const isVertical = Math.abs(j1.x - j2.x) < TOLERANCE;
+            const isDiagonal = !isHorizontal && !isVertical;
             return {
               ...b,
               j1,
@@ -2981,8 +2993,9 @@
               maxY: Math.max(j1.y, j2.y),
               centerX: (j1.x + j2.x) / 2,
               centerY: (j1.y + j2.y) / 2,
-              isHorizontal: Math.abs(j1.y - j2.y) < TOLERANCE,
-              isVertical: Math.abs(j1.x - j2.x) < TOLERANCE,
+              isHorizontal,
+              isVertical,
+              isDiagonal,
             };
           })
           .filter(Boolean);
@@ -2990,11 +3003,7 @@
         const processedBeams = new Set();
         beamsWithCoords.forEach((beam) => {
           const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
-          if (
-            processedBeams.has(beamKey) ||
-            (!beam.isHorizontal && !beam.isVertical)
-          )
-            return;
+          if (processedBeams.has(beamKey)) return;
 
           processedBeams.add(beamKey);
 
@@ -3041,7 +3050,7 @@
               }
             }
             serial = getBeamSerial(beam, grids, false);
-          } else {
+          } else if (beam.isHorizontal) {
             let onGridLine = grids.y.find(
               (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE,
             );
@@ -3080,6 +3089,34 @@
               }
             }
             serial = getBeamSerial(beam, grids, true);
+          } else if (beam.isDiagonal) {
+            // [新增] 斜向大梁的編號邏輯
+            // 找到起點和終點最接近的格線
+            const startXGrid = findClosestGrid(beam.j1.x, grids.x);
+            const startYGrid = findClosestGrid(beam.j1.y, grids.y);
+            const endXGrid = findClosestGrid(beam.j2.x, grids.x);
+            const endYGrid = findClosestGrid(beam.j2.y, grids.y);
+
+            if (startXGrid && startYGrid && endXGrid && endYGrid) {
+              // 編號格式：G{起點X格線}{起點Y格線}-{終點X格線}{終點Y格線}
+              const startXName = parseGridName(startXGrid.name);
+              const startYName = parseGridName(startYGrid.name);
+              const endXName = parseGridName(endXGrid.name);
+              const endYName = parseGridName(endYGrid.name);
+
+              // 使用特殊格式儲存斜向梁的資訊
+              primaryGridName = `${startXName}${startYName}-${endXName}${endYName}`;
+              subGridMarker = "";
+              serial = ""; // 斜向大梁不使用數字序號
+
+              labelComponentMap.set(beamKey, {
+                isDiagonal: true,
+                primaryGridName,
+                subGridMarker,
+                serial,
+              });
+            }
+            return; // 斜向梁特殊處理，直接返回
           }
 
           // [修改] 支援字串型序號 (Secondary 格線)，並處理預留序號
@@ -3333,6 +3370,7 @@
                 Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
               const isVertical =
                 Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
+              const isDiagonal = !isHorizontal && !isVertical; // [新增] 識別斜向梁
               let startJointName = b.joint1,
                 endJointName = b.joint2;
               if (isHorizontal && j1_coords.x > j2_coords.x) {
@@ -3347,6 +3385,7 @@
                 endJointName,
                 isHorizontal,
                 isVertical,
+                isDiagonal, // [新增]
               };
             })
             .filter(Boolean);
@@ -3367,6 +3406,16 @@
                   joints[a.startJointName].y - joints[b.startJointName].y,
               ),
           ];
+
+          // [新增] 處理斜向小梁：加入但不預先編號
+          const diagonalBeams = beamsWithData.filter((b) => b.isDiagonal);
+          diagonalBeams.forEach((beam) => {
+            const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+            labels.set(beamKey, {
+              newLabel: `${prefix}未編號`, // 顯示為「未編號」，可由使用者手動編輯
+              isDiagonal: true, // 標記為斜向梁
+            });
+          });
           let isVerticalRun = false;
           beamGroups.forEach((group) => {
             if (isVerticalRun && counter > 1) {
