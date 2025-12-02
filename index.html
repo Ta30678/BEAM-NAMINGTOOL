@@ -4717,17 +4717,19 @@
         // [新增] 記錄第一個被編輯的梁，用於觸發連續小梁更新
         let firstBeam = null;
         let firstOldLabel = null;
+        let isFirstBeam = true; // [修復] 使用 flag 而不是 index
 
         // 更新所有选中梁的编号
-        selectedBeams.forEach((beamName, index) => {
+        selectedBeams.forEach((beamName) => {
           // 在 fullProcessedBeams 中找到对应的梁并更新
           const beam = fullProcessedBeams.find(b => b.name === beamName);
           if (beam) {
-            // [新增] 記錄第一個梁的舊編號
-            if (index === 0) {
+            // [修復] 記錄第一個梁的舊編號（Set.forEach 沒有 index 參數）
+            if (isFirstBeam) {
               firstBeam = beam;
               firstOldLabel = beam.newLabel;
               console.log(`  第一個梁: ${beam.name}, 舊編號: ${firstOldLabel}`);
+              isFirstBeam = false;
             }
 
             beam.newLabel = newLabel;
