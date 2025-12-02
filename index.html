@@ -444,6 +444,12 @@
         vector-effect: non-scaling-stroke;
       }
 
+      .wall-beam-line {
+        stroke: #000000; /* WB/FWB 梁：黑色 */
+        stroke-width: 1.5px;
+        vector-effect: non-scaling-stroke;
+      }
+
       .beam-label {
         fill: #1e293b;
         font-weight: 500;
@@ -1487,7 +1493,9 @@
                 prop.startsWith("FB") ||
                 prop.startsWith("FGB")) &&
               !prop.startsWith("SB") &&
-              !prop.startsWith("FSB")
+              !prop.startsWith("FSB") &&
+              !prop.startsWith("WB") &&
+              !prop.startsWith("FWB")
             );
           });
           const secondaryBeams = allBeamsAcrossStories.filter(
@@ -1502,7 +1510,11 @@
             (b) =>
               b.prop.toUpperCase().startsWith("WB") ||
               b.prop.toUpperCase().startsWith("FWB"),
-          );
+          ).map(b => ({
+            ...b,
+            newLabel: "", // 不顯示編號
+            isSpecialBeam: true, // 標記為特殊梁（WB/FWB）
+          }));
 
           let allLabeledBeams = [...specialBeams];
 
@@ -1753,8 +1765,9 @@
           }
 
           let finalProcessedData = applySpecialPrefixRules(allLabeledBeams);
+          // [修改] 允許特殊梁（WB/FWB）通過過濾，即使沒有編號
           finalProcessedData = finalProcessedData.filter(
-            (beam) => beam.newLabel,
+            (beam) => beam.newLabel || beam.isSpecialBeam,
           );
 
           finalProcessedData.sort((a, b) => {
@@ -1862,7 +1875,12 @@
           );
         }
 
+        // [新增] 保存當前的縮放和平移狀態
+        let savedZoom = null;
+        let savedPan = null;
         if (panZoomInstance) {
+          savedZoom = panZoomInstance.getZoom();
+          savedPan = panZoomInstance.getPan();
           panZoomInstance.destroy();
           panZoomInstance = null;
         }
@@ -1891,13 +1909,16 @@
         );
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
+          // [修改] 只在首次創建時自動縮放，否則恢復之前的狀態
+          const shouldFitAndCenter = (savedZoom === null || savedPan === null);
+
           panZoomInstance = svgPanZoom("#drawing-svg", {
             panEnabled: true,
             zoomEnabled: true,
             dblClickZoomEnabled: true,
             controlIconsEnabled: true,
-            fit: true,
-            center: true,
+            fit: shouldFitAndCenter,
+            center: shouldFitAndCenter,
             minZoom: 0.1,
             maxZoom: 50,
             // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
@@ -1955,6 +1976,12 @@
               });
             },
           });
+
+          // [新增] 恢復之前保存的縮放和平移狀態
+          if (!shouldFitAndCenter && savedZoom !== null && savedPan !== null) {
+            panZoomInstance.zoom(savedZoom);
+            panZoomInstance.pan(savedPan);
+          }
         }
       }
 
@@ -2242,16 +2269,18 @@
           line.setAttribute("x2", transformX(beam.j2.x));
           line.setAttribute("y2", transformY(beam.j2.y));
 
+          // [修改] 判斷梁的類別，WB/FWB 使用黑色
           let className = "labeled-beam-line";
-          if (
+          const isWallBeam = beam.isSpecialBeam ||
+            beam.prop.toUpperCase().startsWith("WB") ||
+            beam.prop.toUpperCase().startsWith("FWB");
+
+          if (isWallBeam) {
+            className = "wall-beam-line"; // WB/FWB 梁用黑色
+          } else if (
             beam.newLabel.startsWith("b") ||
             beam.newLabel.startsWith("fb") ||
             beam.newLabel === "g1"
-          ) {
-            className = "special-beam-line";
-          } else if (
-            beam.prop.toUpperCase().startsWith("WB") ||
-            beam.prop.toUpperCase().startsWith("FWB")
           ) {
             className = "special-beam-line";
           }
@@ -2262,13 +2291,13 @@
           line.dataset.beamStory = beam.story;
           line.dataset.beamJoint1 = beam.joint1;
           line.dataset.beamJoint2 = beam.joint2;
-          line.dataset.beamLabel = beam.newLabel;
-          // [新增] 設定梁為可點擊（现在由圈选功能处理）
-          line.style.cursor = "pointer";
-          // 注释掉原有的点击编辑功能，改由圈选功能处理
-          // line.addEventListener("click", () => openBeamEditDialog(beam));
+          line.dataset.beamLabel = beam.newLabel || "";
+          // [修改] WB/FWB 梁不可點擊，不可編輯
+          if (!isWallBeam) {
+            line.style.cursor = "pointer";
+          }
 
-          // [新增] 右鍵顯示編號功能
+          // [新增] 右鍵顯示編號功能（保留給 WB/FWB 梁）
           line.addEventListener("contextmenu", (e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -2276,6 +2305,11 @@
           });
 
           svg.appendChild(line);
+
+          // [修改] WB/FWB 梁不顯示編號標籤
+          if (isWallBeam) {
+            return; // 跳過標籤繪製
+          }
 
           const text = document.createElementNS(
             "http://www.w3.org/2000/svg",
@@ -2401,8 +2435,8 @@
         const ctm = viewport.getScreenCTM ? viewport.getScreenCTM() : svgElement.getScreenCTM();
         const svgPt = pt.matrixTransform(ctm.inverse());
 
-        // 搜索所有梁線
-        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line');
+        // 搜索所有梁線（包括 WB/FWB 梁）
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line, .wall-beam-line');
         let nearestBeam = null;
         let minDistance = maxDistance;
 
@@ -4576,7 +4610,7 @@
 
       // 在矩形内选择梁（選擇框和梁在同一座標系統中）
       function selectBeamsInRect(minX, minY, maxX, maxY, isCrossingMode) {
-        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line');
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line, .wall-beam-line');
 
         let selectedCount = 0;
         let checkedCount = 0;
@@ -4592,6 +4626,10 @@
           const beamName = line.dataset.beamName;
 
           if (!beamName) return;
+
+          // [新增] 跳過 WB/FWB 梁，不允許被圈選或編輯
+          const isWallBeam = line.classList.contains('wall-beam-line');
+          if (isWallBeam) return;
 
           checkedCount++;
           let isInside = false;
