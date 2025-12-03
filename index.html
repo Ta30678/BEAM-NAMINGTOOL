@@ -402,14 +402,23 @@
       .grid-lines line {
         stroke: #475569;
         stroke-width: 0.5px;
-        stroke-dasharray: 4 4;
+        stroke-dasharray: 12 6; /* [修改] 更長的虛線線段，更稀疏 */
         vector-effect: non-scaling-stroke;
       }
 
+      /* [新增] Grid Bubble 連接線樣式 */
+      .grid-bubble-connector {
+        stroke-width: 1px;
+        stroke-dasharray: 8 4; /* 虛線 */
+        vector-effect: non-scaling-stroke;
+        opacity: 0.6;
+      }
+
       .grid-bubble {
-        fill: var(--theme-surface);
-        stroke: var(--theme-text-secondary);
-        /* stroke-width is now controlled by JS */
+        /* fill is now controlled by JS for coordsystem colors */
+        stroke: white;
+        stroke-width: 2px;
+        /* Additional stroke-width adjustments are controlled by JS */
       }
 
       .grid-bubble-text {
@@ -2220,6 +2229,19 @@
             const bubbleYBottom = transformY(minY) + offset;
 
             if (loc === "End" || loc === "Both" || !loc) {
+              // [新增] 添加連接線從 Bubble 到 Grid Line
+              const topConnector = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line",
+              );
+              topConnector.setAttribute("x1", cx);
+              topConnector.setAttribute("y1", bubbleYTop);
+              topConnector.setAttribute("x2", cx);
+              topConnector.setAttribute("y2", transformY(maxY));
+              topConnector.setAttribute("class", "grid-bubble-connector");
+              topConnector.setAttribute("stroke", color); // 使用系統顏色
+              gridLabelsGroup.appendChild(topConnector);
+
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -2243,6 +2265,19 @@
             }
 
             if (loc === "Start" || loc === "Both") {
+              // [新增] 添加連接線從 Bubble 到 Grid Line
+              const bottomConnector = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line",
+              );
+              bottomConnector.setAttribute("x1", cx);
+              bottomConnector.setAttribute("y1", bubbleYBottom);
+              bottomConnector.setAttribute("x2", cx);
+              bottomConnector.setAttribute("y2", transformY(minY));
+              bottomConnector.setAttribute("class", "grid-bubble-connector");
+              bottomConnector.setAttribute("stroke", color); // 使用系統顏色
+              gridLabelsGroup.appendChild(bottomConnector);
+
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -2278,6 +2313,19 @@
             const bubbleXRight = transformX(maxX) + offset;
 
             if (loc === "Start" || loc === "Both" || !loc) {
+              // [新增] 添加連接線從 Bubble 到 Grid Line
+              const leftConnector = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line",
+              );
+              leftConnector.setAttribute("x1", bubbleXLeft);
+              leftConnector.setAttribute("y1", cy);
+              leftConnector.setAttribute("x2", transformX(minX));
+              leftConnector.setAttribute("y2", cy);
+              leftConnector.setAttribute("class", "grid-bubble-connector");
+              leftConnector.setAttribute("stroke", color); // 使用系統顏色
+              gridLabelsGroup.appendChild(leftConnector);
+
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -2301,6 +2349,19 @@
             }
 
             if (loc === "End" || loc === "Both") {
+              // [新增] 添加連接線從 Bubble 到 Grid Line
+              const rightConnector = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "line",
+              );
+              rightConnector.setAttribute("x1", bubbleXRight);
+              rightConnector.setAttribute("y1", cy);
+              rightConnector.setAttribute("x2", transformX(maxX));
+              rightConnector.setAttribute("y2", cy);
+              rightConnector.setAttribute("class", "grid-bubble-connector");
+              rightConnector.setAttribute("stroke", color); // 使用系統顏色
+              gridLabelsGroup.appendChild(rightConnector);
+
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -2732,6 +2793,20 @@
 
         if (updatedCount > 0) {
           console.log(`\n  ✅ [連續小梁更新] 共更新了 ${updatedCount} 根小梁\n`);
+
+          // [修復] 更新 SVG 顯示
+          const svg = document.getElementById("drawing-svg");
+          if (svg && gridData) {
+            console.log(`  🔄 更新 SVG 顯示...`);
+            // 重新渲染結果
+            displayResults(
+              fullProcessedBeams,
+              backgroundBeams,
+              svg,
+              gridData,
+              false // 不是預覽模式
+            );
+          }
         } else {
           console.log(`\n  ⚠️ [連續小梁更新] 沒有找到需要更新的小梁\n`);
         }
