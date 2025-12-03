@@ -1908,6 +1908,78 @@
           // [修改] 只在首次創建時自動縮放，否則恢復之前的狀態
           const shouldFitAndCenter = (savedZoom === null || savedPan === null);
 
+          // [新增] 性能優化：緩存 DOM 查詢結果和使用 RAF
+          let zoomUpdateScheduled = false;
+          let cachedBeamLabels = null;
+          let cachedGridBubbles = null;
+          let cachedGridBubbleTexts = null;
+
+          // [新增] 優化的縮放更新函數
+          const updateZoomOptimized = (newZoom) => {
+            // 使用 requestAnimationFrame 批量更新
+            if (zoomUpdateScheduled) return;
+            zoomUpdateScheduled = true;
+
+            requestAnimationFrame(() => {
+              // 懶加載：只在第一次或緩存失效時查詢 DOM
+              if (!cachedBeamLabels) {
+                cachedBeamLabels = document.querySelectorAll("#drawing-svg .beam-label");
+              }
+              if (!cachedGridBubbles) {
+                cachedGridBubbles = document.querySelectorAll("#drawing-svg .grid-bubble");
+              }
+              if (!cachedGridBubbleTexts) {
+                cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
+              }
+
+              // 預計算常用值
+              const invZoom = 1 / newZoom;
+              const beamFontSize = INITIAL_BEAM_FONT_SIZE * invZoom;
+              const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE * invZoom;
+              const gridBubbleRadius = INITIAL_GRID_BUBBLE_RADIUS * invZoom;
+              const gridBubbleStroke = INITIAL_GRID_BUBBLE_STROKE * invZoom;
+              const gridFontSize = INITIAL_GRID_FONT_SIZE * invZoom;
+              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
+              const verticalOffset = INITIAL_VERTICAL_OFFSET * invZoom;
+              const angledOffset = INITIAL_ANGLED_OFFSET * invZoom;
+
+              // 批量更新梁標籤
+              for (let i = 0; i < cachedBeamLabels.length; i++) {
+                const label = cachedBeamLabels[i];
+                label.style.fontSize = `${beamFontSize}px`;
+                label.style.strokeWidth = `${beamStrokeWidth}px`;
+
+                const baseX = parseFloat(label.dataset.baseX);
+                const baseY = parseFloat(label.dataset.baseY);
+                const orientation = label.dataset.orientation;
+
+                if (orientation === "horizontal") {
+                  label.setAttribute("y", baseY + horizontalOffset);
+                } else if (orientation === "vertical") {
+                  const newRotatedX = baseX + verticalOffset;
+                  label.setAttribute("x", newRotatedX);
+                  label.setAttribute("transform", `rotate(-90, ${newRotatedX}, ${baseY})`);
+                } else if (orientation === "angled") {
+                  label.setAttribute("dy", -angledOffset);
+                }
+              }
+
+              // 批量更新網格氣泡
+              for (let i = 0; i < cachedGridBubbles.length; i++) {
+                const bubble = cachedGridBubbles[i];
+                bubble.setAttribute("r", gridBubbleRadius);
+                bubble.style.strokeWidth = `${gridBubbleStroke}px`;
+              }
+
+              // 批量更新網格氣泡文字
+              for (let i = 0; i < cachedGridBubbleTexts.length; i++) {
+                cachedGridBubbleTexts[i].style.fontSize = `${gridFontSize}px`;
+              }
+
+              zoomUpdateScheduled = false;
+            });
+          };
+
           panZoomInstance = svgPanZoom("#drawing-svg", {
             panEnabled: true,
             zoomEnabled: true,
@@ -1917,59 +1989,13 @@
             center: shouldFitAndCenter,
             minZoom: 0.1,
             maxZoom: 50,
-            // [修改] 升級 onZoom 回調以實現完整的 AutoCAD 模式縮放
-            onZoom: function (newZoom) {
-              // --- 更新梁標籤 ---
-              const beamLabels = document.querySelectorAll(
-                "#drawing-svg .beam-label",
-              );
-              beamLabels.forEach((label) => {
-                // 1. 反向縮放字體大小和外框
-                label.style.fontSize = `${INITIAL_BEAM_FONT_SIZE / newZoom}px`;
-                label.style.strokeWidth = `${
-                  INITIAL_BEAM_LABEL_STROKE / newZoom
-                }px`;
-
-                // 2. 反向縮放位置偏移
-                const baseX = parseFloat(label.dataset.baseX);
-                const baseY = parseFloat(label.dataset.baseY);
-                const orientation = label.dataset.orientation;
-
-                if (orientation === "horizontal") {
-                  const newOffsetY = INITIAL_HORIZONTAL_OFFSET / newZoom;
-                  label.setAttribute("y", baseY + newOffsetY);
-                } else if (orientation === "vertical") {
-                  const newOffsetX = INITIAL_VERTICAL_OFFSET / newZoom;
-                  const newRotatedX = baseX + newOffsetX;
-                  label.setAttribute("x", newRotatedX);
-                  // 更新旋轉變換，確保旋轉中心正確
-                  label.setAttribute(
-                    "transform",
-                    `rotate(-90, ${newRotatedX}, ${baseY})`,
-                  );
-                } else if (orientation === "angled") {
-                  const newOffsetY = INITIAL_ANGLED_OFFSET / newZoom;
-                  label.setAttribute("dy", -newOffsetY);
-                }
-              });
-
-              // --- 更新網格氣泡 ---
-              const gridBubbles = document.querySelectorAll(
-                "#drawing-svg .grid-bubble",
-              );
-              gridBubbles.forEach((bubble) => {
-                bubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS / newZoom);
-                bubble.style.strokeWidth = `${
-                  INITIAL_GRID_BUBBLE_STROKE / newZoom
-                }px`;
-              });
-
-              const gridBubbleTexts = document.querySelectorAll(
-                "#drawing-svg .grid-bubble-text",
-              );
-              gridBubbleTexts.forEach((text) => {
-                text.style.fontSize = `${INITIAL_GRID_FONT_SIZE / newZoom}px`;
-              });
+            // [優化] 使用優化的 onZoom 回調
+            onZoom: updateZoomOptimized,
+            // [新增] 當 SVG 內容更新時，清除緩存
+            onUpdated: function() {
+              cachedBeamLabels = null;
+              cachedGridBubbles = null;
+              cachedGridBubbleTexts = null;
             },
           });
 
@@ -2144,6 +2170,38 @@
           });
           svg.appendChild(gridGroup);
 
+          // [新增] Grid Line 系統顏色配置和偏移設定
+          const COORDSYSTEM_COLORS = {
+            'GLOBAL': '#4A90E2',  // 藍色 - GLOBAL 系統
+            'O2': '#E24A4A',      // 紅色
+            'A2': '#50C878',      // 綠色
+            'A3': '#F39C12',      // 橙色
+            'DEFAULT': '#9B59B6'  // 紫色 - 其他系統
+          };
+
+          // [新增] 計算 COORDSYSTEM 的偏移距離（GLOBAL 最近，其他系統依序遞增）
+          const getCoordSystemOffset = (coordsystem) => {
+            const basePadding = padding / 2;
+            const systemOrder = ['GLOBAL', 'O2', 'A2', 'A3'];
+            const index = systemOrder.indexOf(coordsystem);
+
+            if (index === -1) {
+              // 未知系統，使用最大偏移
+              return basePadding + (systemOrder.length * 30);
+            }
+
+            // GLOBAL: basePadding
+            // O2: basePadding + 30
+            // A2: basePadding + 60
+            // A3: basePadding + 90
+            return basePadding + (index * 30);
+          };
+
+          // [新增] 獲取 COORDSYSTEM 的顏色
+          const getCoordSystemColor = (coordsystem) => {
+            return COORDSYSTEM_COLORS[coordsystem] || COORDSYSTEM_COLORS['DEFAULT'];
+          };
+
           // ... 之後繪製網格氣泡 (grid bubble) 的程式碼維持不變 ...
           const gridLabelsGroup = document.createElementNS(
             "http://www.w3.org/2000/svg",
@@ -2153,10 +2211,13 @@
           grids.x.forEach((gridLine) => {
             const cx = transformX(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
+            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const offset = getCoordSystemOffset(coordsystem);
+            const color = getCoordSystemColor(coordsystem);
 
-            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
-            const bubbleYTop = transformY(maxY) - padding / 2;
-            const bubbleYBottom = transformY(minY) + padding / 2;
+            // [修改] 讓氣泡位置基於內容邊界和系統偏移
+            const bubbleYTop = transformY(maxY) - offset;
+            const bubbleYBottom = transformY(minY) + offset;
 
             if (loc === "End" || loc === "Both" || !loc) {
               const topBubble = document.createElementNS(
@@ -2164,15 +2225,17 @@
                 "circle",
               );
               topBubble.setAttribute("cx", cx);
-              topBubble.setAttribute("cy", bubbleYTop); // 使用新座標
+              topBubble.setAttribute("cy", bubbleYTop);
               topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               topBubble.setAttribute("class", "grid-bubble");
+              topBubble.setAttribute("fill", color); // [新增] 設定顏色
+              topBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const topText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
               topText.setAttribute("x", cx);
-              topText.setAttribute("y", bubbleYTop); // 使用新座標
+              topText.setAttribute("y", bubbleYTop);
               topText.setAttribute("class", "grid-bubble-text");
               topText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(topBubble);
@@ -2185,15 +2248,17 @@
                 "circle",
               );
               bottomBubble.setAttribute("cx", cx);
-              bottomBubble.setAttribute("cy", bubbleYBottom); // 使用新座標
+              bottomBubble.setAttribute("cy", bubbleYBottom);
               bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               bottomBubble.setAttribute("class", "grid-bubble");
+              bottomBubble.setAttribute("fill", color); // [新增] 設定顏色
+              bottomBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const bottomText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
               bottomText.setAttribute("x", cx);
-              bottomText.setAttribute("y", bubbleYBottom); // 使用新座標
+              bottomText.setAttribute("y", bubbleYBottom);
               bottomText.setAttribute("class", "grid-bubble-text");
               bottomText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(bottomBubble);
@@ -2204,25 +2269,30 @@
           grids.y.forEach((gridLine) => {
             const cy = transformY(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
+            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const offset = getCoordSystemOffset(coordsystem);
+            const color = getCoordSystemColor(coordsystem);
 
-            // [修改] 讓氣泡位置基於內容邊界，而非畫布邊界
-            const bubbleXLeft = transformX(minX) - padding / 2;
-            const bubbleXRight = transformX(maxX) + padding / 2;
+            // [修改] 讓氣泡位置基於內容邊界和系統偏移
+            const bubbleXLeft = transformX(minX) - offset;
+            const bubbleXRight = transformX(maxX) + offset;
 
             if (loc === "Start" || loc === "Both" || !loc) {
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              leftBubble.setAttribute("cx", bubbleXLeft); // 使用新座標
+              leftBubble.setAttribute("cx", bubbleXLeft);
               leftBubble.setAttribute("cy", cy);
               leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               leftBubble.setAttribute("class", "grid-bubble");
+              leftBubble.setAttribute("fill", color); // [新增] 設定顏色
+              leftBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const leftText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              leftText.setAttribute("x", bubbleXLeft); // 使用新座標
+              leftText.setAttribute("x", bubbleXLeft);
               leftText.setAttribute("y", cy);
               leftText.setAttribute("class", "grid-bubble-text");
               leftText.textContent = gridLine.name;
@@ -2235,15 +2305,17 @@
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              rightBubble.setAttribute("cx", bubbleXRight); // 使用新座標
+              rightBubble.setAttribute("cx", bubbleXRight);
               rightBubble.setAttribute("cy", cy);
               rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               rightBubble.setAttribute("class", "grid-bubble");
+              rightBubble.setAttribute("fill", color); // [新增] 設定顏色
+              rightBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const rightText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              rightText.setAttribute("x", bubbleXRight); // 使用新座標
+              rightText.setAttribute("x", bubbleXRight);
               rightText.setAttribute("y", cy);
               rightText.setAttribute("class", "grid-bubble-text");
               rightText.textContent = gridLine.name;
