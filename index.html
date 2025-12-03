@@ -415,18 +415,18 @@
       }
 
       .grid-bubble {
-        /* fill is now controlled by JS for coordsystem colors */
-        stroke: white;
-        stroke-width: 2px;
-        /* Additional stroke-width adjustments are controlled by JS */
+        fill: white; /* [修改] 中間留白 */
+        /* stroke color is controlled by JS for coordsystem colors */
+        stroke-width: 3px; /* [修改] 加粗 */
+        vector-effect: non-scaling-stroke; /* [新增] 防止縮放時描邊變粗 */
       }
 
       .grid-bubble-text {
-        fill: var(--theme-text-primary);
-        font-weight: 500;
+        fill: #000000; /* [修改] 字體保持黑色 */
+        font-weight: 600; /* [修改] 加粗字體 */
         text-anchor: middle;
         dominant-baseline: middle;
-        /* font-size is now controlled by JS */
+        font-size: 14px; /* [修改] 固定字體大小，不再由 JS 反向縮放 */
       }
 
       .beam-line {
@@ -476,6 +476,7 @@
         stroke-dasharray: 5, 5;
         pointer-events: none;
         shape-rendering: crispEdges;
+        vector-effect: non-scaling-stroke; /* [新增] 防止縮放時線條變粗 */
       }
 
       .selection-rect-crossing {
@@ -485,6 +486,7 @@
         stroke-dasharray: 5, 5;
         pointer-events: none;
         shape-rendering: crispEdges;
+        vector-effect: non-scaling-stroke; /* [新增] 防止縮放時線條變粗 */
       }
 
       .beam-selected {
@@ -1028,8 +1030,8 @@
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
       const INITIAL_BEAM_FONT_SIZE = 12;
-      const INITIAL_GRID_FONT_SIZE = 10;
-      const INITIAL_GRID_BUBBLE_RADIUS = 12;
+      const INITIAL_GRID_FONT_SIZE = 14; // [修改] 增大字體
+      const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
       // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
@@ -1973,17 +1975,8 @@
                 }
               }
 
-              // 批量更新網格氣泡
-              for (let i = 0; i < cachedGridBubbles.length; i++) {
-                const bubble = cachedGridBubbles[i];
-                bubble.setAttribute("r", gridBubbleRadius);
-                bubble.style.strokeWidth = `${gridBubbleStroke}px`;
-              }
-
-              // 批量更新網格氣泡文字
-              for (let i = 0; i < cachedGridBubbleTexts.length; i++) {
-                cachedGridBubbleTexts[i].style.fontSize = `${gridFontSize}px`;
-              }
+              // [移除] Grid Bubble 現在不需要縮放（使用固定大小和 vector-effect）
+              // Grid Bubble 的半徑和字體大小現在由 CSS 控制，不隨縮放改變
 
               zoomUpdateScheduled = false;
             });
@@ -2250,7 +2243,7 @@
               topBubble.setAttribute("cy", bubbleYTop);
               topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               topBubble.setAttribute("class", "grid-bubble");
-              topBubble.setAttribute("fill", color); // [新增] 設定顏色
+              topBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
               topBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const topText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -2286,7 +2279,7 @@
               bottomBubble.setAttribute("cy", bubbleYBottom);
               bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               bottomBubble.setAttribute("class", "grid-bubble");
-              bottomBubble.setAttribute("fill", color); // [新增] 設定顏色
+              bottomBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
               bottomBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const bottomText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -2334,7 +2327,7 @@
               leftBubble.setAttribute("cy", cy);
               leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               leftBubble.setAttribute("class", "grid-bubble");
-              leftBubble.setAttribute("fill", color); // [新增] 設定顏色
+              leftBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
               leftBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const leftText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -2370,7 +2363,7 @@
               rightBubble.setAttribute("cy", cy);
               rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               rightBubble.setAttribute("class", "grid-bubble");
-              rightBubble.setAttribute("fill", color); // [新增] 設定顏色
+              rightBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
               rightBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
               const rightText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
