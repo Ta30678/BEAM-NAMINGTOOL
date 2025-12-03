@@ -2786,20 +2786,7 @@
 
         if (updatedCount > 0) {
           console.log(`\n  ✅ [連續小梁更新] 共更新了 ${updatedCount} 根小梁\n`);
-
-          // [修復] 更新 SVG 顯示
-          const svg = document.getElementById("drawing-svg");
-          if (svg && gridData) {
-            console.log(`  🔄 更新 SVG 顯示...`);
-            // 重新渲染結果
-            displayResults(
-              fullProcessedBeams,
-              backgroundBeams,
-              svg,
-              gridData,
-              false // 不是預覽模式
-            );
-          }
+          console.log(`  ℹ️  SVG 和 EXCEL 將由 handleStoryChange() 自動更新\n`);
         } else {
           console.log(`\n  ⚠️ [連續小梁更新] 沒有找到需要更新的小梁\n`);
         }
@@ -5075,10 +5062,17 @@
           }
         });
 
-        // [修復] 如果只選中了一個梁，檢查是否需要更新連續小梁
+        // [修復] 如果只選中了一個梁，且該梁是小梁（SB 類型），才檢查是否需要更新連續小梁
         if (selectedBeams.size === 1 && firstBeam && firstOldLabel) {
-          console.log(`  單個梁編輯，檢查是否需要更新連續小梁...`);
-          updateSequentialBeamLabels(firstOldLabel, newLabel, firstBeam.story);
+          // 判斷是否為小梁：frame section 為 SB, FSB, 或數字+SB/FSB
+          const isSecondaryBeam = firstBeam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(firstBeam.prop);
+
+          if (isSecondaryBeam) {
+            console.log(`  單個梁編輯，且為小梁（${firstBeam.prop}），檢查是否需要更新連續小梁...`);
+            updateSequentialBeamLabels(firstOldLabel, newLabel, firstBeam.story);
+          } else {
+            console.log(`  單個梁編輯，但為大梁（${firstBeam.prop}），跳過連續小梁更新`);
+          }
         }
 
         // [修復] 無論如何都重新繪製 SVG，確保顯示最新數據
