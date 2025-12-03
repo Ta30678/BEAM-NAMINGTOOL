@@ -5035,8 +5035,12 @@
           return;
         }
 
+        // [修復] 獲取當前選擇的樓層，避免修改到其他樓層的同名梁
+        const selectedStory = document.getElementById("storySelector").value;
+
         console.log(`\n[批量編輯] 開始處理 ${selectedBeams.size} 個選中的梁`);
         console.log(`  新編號: ${newLabel}`);
+        console.log(`  當前樓層: ${selectedStory}`);
 
         // [新增] 記錄第一個被編輯的梁，用於觸發連續小梁更新
         let firstBeam = null;
@@ -5045,20 +5049,20 @@
 
         // 更新所有选中梁的编号
         selectedBeams.forEach((beamName) => {
-          // 在 fullProcessedBeams 中找到对应的梁並更新
-          const beam = fullProcessedBeams.find(b => b.name === beamName);
+          // [修復] 在 fullProcessedBeams 中找到对应的梁並更新，必須同時匹配名稱和樓層
+          const beam = fullProcessedBeams.find(b => b.name === beamName && b.story === selectedStory);
           if (beam) {
             // 記錄第一個梁的舊編號
             if (isFirstBeam) {
               firstBeam = beam;
               firstOldLabel = beam.newLabel;
-              console.log(`  第一個梁: ${beam.name}, 舊編號: ${firstOldLabel}`);
+              console.log(`  第一個梁: ${beam.name}, 樓層: ${beam.story}, 舊編號: ${firstOldLabel}`);
               isFirstBeam = false;
             }
 
             // [修復] 只更新數據，不直接修改 SVG（避免與 handleStoryChange 衝突）
             beam.newLabel = newLabel;
-            console.log(`  更新梁 ${beam.name}: ${firstOldLabel || '原編號'} → ${newLabel}`);
+            console.log(`  更新梁 ${beam.name} (${beam.story}): ${firstOldLabel || '原編號'} → ${newLabel}`);
           }
         });
 
