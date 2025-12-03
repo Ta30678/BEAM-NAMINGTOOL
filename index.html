@@ -1831,11 +1831,15 @@
       }
 
       function handleStoryChange() {
+        console.log(`[handleStoryChange] 開始執行`);
         const storySelector = document.getElementById("storySelector");
         const beamTypeSelector = document.getElementById("beamTypeSelector");
         const selectedStory = storySelector.value;
         const selectedBeamType = beamTypeSelector.value;
         const svg = document.getElementById("drawing-svg");
+
+        console.log(`  選中樓層: ${selectedStory}, 梁類型: ${selectedBeamType}`);
+        console.log(`  fullProcessedBeams 數量: ${fullProcessedBeams.length}`);
 
         document.getElementById("plan-story-name").textContent =
           selectedStory === "all" ? "All Floors Combined" : selectedStory;
@@ -1896,7 +1900,7 @@
         const isPreviewMode =
           fullProcessedBeams.length === 0 && backgroundBeams.length > 0;
 
-        const labeledBeamsWithCoords = beamsToDisplay.map((beam) => {
+        const labeledBeamsWithCoords = beamsToDisplay.map((beam, index) => {
           const originalBeam = fullDrawableBeams.find(
             (b) =>
               b.name === beam.name &&
@@ -1904,8 +1908,15 @@
               b.joint1 === beam.joint1 &&
               b.joint2 === beam.joint2,
           );
+          const hasCoords = originalBeam && originalBeam.j1 && originalBeam.j2;
+          if (index < 3) {  // 只記錄前3個梁的信息
+            console.log(`  梁[${index}]: ${beam.name}, 找到座標: ${hasCoords}, newLabel: ${beam.newLabel}`);
+          }
           return { ...beam, j1: originalBeam?.j1, j2: originalBeam?.j2 };
         });
+
+        console.log(`  準備顯示 ${labeledBeamsWithCoords.length} 個梁`);
+        console.log(`  背景梁數量: ${backgroundBeams.length}`);
 
         displayResults(
           labeledBeamsWithCoords,
@@ -1914,6 +1925,8 @@
           gridData,
           isPreviewMode,
         );
+
+        console.log(`[handleStoryChange] 執行完成`);
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
           // [修改] 只在首次創建時自動縮放，否則恢復之前的狀態
@@ -5065,7 +5078,9 @@
         // [修復] 如果只選中了一個梁，且該梁是小梁（SB 類型），才檢查是否需要更新連續小梁
         if (selectedBeams.size === 1 && firstBeam && firstOldLabel) {
           // 判斷是否為小梁：frame section 為 SB, FSB, 或數字+SB/FSB
+          console.log(`  檢查梁類型: prop="${firstBeam.prop}", type=${typeof firstBeam.prop}`);
           const isSecondaryBeam = firstBeam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(firstBeam.prop);
+          console.log(`  正則測試結果: ${isSecondaryBeam}`);
 
           if (isSecondaryBeam) {
             console.log(`  單個梁編輯，且為小梁（${firstBeam.prop}），檢查是否需要更新連續小梁...`);
