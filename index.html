@@ -1262,59 +1262,55 @@
           return defaultIndex + 1; // 預設值
         };
 
-        // 生成 X 軸格線配置
-        xConfigDiv.innerHTML = gridData.x
-          .map(
-            (grid, index) => {
-              const savedValue = getSavedValue('x', grid.name, index);
-              return `
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
-            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
-            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
-              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
-            </span>
-            <label style="font-size: 0.9em;">編號為:</label>
-            <input type="text"
-              id="x-grid-${index}"
-              value="${savedValue}"
-              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
-              placeholder="- 跳過"
-              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
-              data-axis="x"
-              data-index="${index}"
-            />
-          </div>
-        `;
-            }
-          )
-          .join("");
+        // 輔助函數：按 COORDSYSTEM 分組生成格線配置 HTML
+        const generateGridConfigHTML = (grids, axis) => {
+          let html = '';
+          let currentCoordSystem = null;
+          let globalIndex = 0;
 
-        // 生成 Y 軸格線配置
-        yConfigDiv.innerHTML = gridData.y
-          .map(
-            (grid, index) => {
-              const savedValue = getSavedValue('y', grid.name, index);
-              return `
-          <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px; background: var(--theme-bg); border-radius: 6px;">
-            <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
-            <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
-              ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
-            </span>
-            <label style="font-size: 0.9em;">編號為:</label>
-            <input type="text"
-              id="y-grid-${index}"
-              value="${savedValue}"
-              style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
-              placeholder="- 跳過"
-              title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
-              data-axis="y"
-              data-index="${index}"
-            />
-          </div>
-        `;
+          grids.forEach((grid) => {
+            const coordsystem = grid.coordsystem || 'GLOBAL';
+
+            // 如果是新的 COORDSYSTEM，添加分組標題
+            if (coordsystem !== currentCoordSystem) {
+              currentCoordSystem = coordsystem;
+              html += `
+                <div style="margin-top: ${globalIndex > 0 ? '20px' : '0'}; margin-bottom: 10px; padding: 8px 12px; background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: bold; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                  📐 ${coordsystem} 系統
+                </div>
+              `;
             }
-          )
-          .join("");
+
+            const savedValue = getSavedValue(axis, grid.name, globalIndex);
+            html += `
+              <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 8px; padding: 8px 8px 8px 20px; background: var(--theme-bg); border-radius: 6px; border-left: 3px solid #667eea;">
+                <span style="min-width: 80px; font-weight: 500;">${grid.name}</span>
+                <span style="min-width: 100px; color: var(--theme-text-secondary); font-size: 0.9em;">
+                  ${grid.lineType ? `(${grid.lineType})` : "(Primary)"}
+                </span>
+                <label style="font-size: 0.9em;">編號為:</label>
+                <input type="text"
+                  id="${axis}-grid-${globalIndex}"
+                  value="${savedValue}"
+                  style="width: 80px; padding: 4px 8px; border: 1px solid var(--theme-border); border-radius: 4px;"
+                  placeholder="- 跳過"
+                  title="輸入數字、名稱，或使用 - / skip / 空白 來跳過此格線"
+                  data-axis="${axis}"
+                  data-index="${globalIndex}"
+                />
+              </div>
+            `;
+            globalIndex++;
+          });
+
+          return html;
+        };
+
+        // 生成 X 軸格線配置（按 COORDSYSTEM 分組）
+        xConfigDiv.innerHTML = generateGridConfigHTML(gridData.x, 'x');
+
+        // 生成 Y 軸格線配置（按 COORDSYSTEM 分組）
+        yConfigDiv.innerHTML = generateGridConfigHTML(gridData.y, 'y');
 
         // [新增] 為所有輸入框添加自動順號事件
         attachAutoIncrementListeners();
@@ -2673,7 +2669,21 @@
         const grids = {
           x: [],
           y: [],
+          coordSystems: {}, // [新增] 儲存所有 COORDSYSTEM 信息
         };
+
+        // [新增] 解析 COORDSYSTEM 定義
+        const coordSystemRegex = /COORDSYSTEM\s+"([^"]+)"\s+TYPE\s+"([^"]+)"(?:\s+ANGLE\s+([-\d\.E]+))?/gi;
+        let csMatch;
+        while ((csMatch = coordSystemRegex.exec(content)) !== null) {
+          const [, name, type, angle] = csMatch;
+          grids.coordSystems[name] = {
+            name,
+            type,
+            angle: angle ? parseFloat(angle) : 0, // 旋轉角度（度）
+          };
+        }
+
         const gridTableSection = content.match(
           /TABLE:\s+"GRID DEFINITIONS - LINES"([\s\S]*?)(?=TABLE:|$)/,
         );
@@ -2720,15 +2730,17 @@
           if (gridDollarSection) {
             const lines = gridDollarSection[1].trim().split("\n");
             lines.forEach((line) => {
+              // 解析格式: GRID "COORDSYSTEM"  LABEL "name"  DIR "X/Y"  COORD value
               const match = line.match(
-                /LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i,
+                /GRID\s+"([^"]+)"\s+LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i,
               );
               if (match) {
-                const [, name, type, ordinate] = match;
+                const [, coordsystem, name, type, ordinate] = match;
                 const gridInfo = {
                   name,
                   type,
                   ordinate: parseFloat(ordinate),
+                  coordsystem, // 新增：保存 COORDSYSTEM 信息
                 };
                 if (type.toUpperCase() === "X") grids.x.push(gridInfo);
                 else if (type.toUpperCase() === "Y") grids.y.push(gridInfo);
@@ -2739,12 +2751,33 @@
         if (grids.x.length === 0 && grids.y.length === 0) {
           throw new Error("Could not find grid definitions.");
         }
-        grids.x = [
-          ...new Map(grids.x.map((item) => [item.name, item])).values(),
-        ].sort((a, b) => a.ordinate - b.ordinate);
-        grids.y = [
-          ...new Map(grids.y.map((item) => [item.name, item])).values(),
-        ].sort((a, b) => a.ordinate - b.ordinate);
+
+        // 去重並排序：先按 COORDSYSTEM 分組，再按 ordinate 排序
+        const sortByCoordSystemAndOrdinate = (gridArray) => {
+          // 去重
+          const uniqueGrids = [...new Map(gridArray.map((item) => [item.name, item])).values()];
+
+          // 先按 coordsystem 分組排序，再按 ordinate 排序
+          return uniqueGrids.sort((a, b) => {
+            const sysA = a.coordsystem || 'GLOBAL';
+            const sysB = b.coordsystem || 'GLOBAL';
+
+            // GLOBAL 系統優先
+            if (sysA === 'GLOBAL' && sysB !== 'GLOBAL') return -1;
+            if (sysA !== 'GLOBAL' && sysB === 'GLOBAL') return 1;
+
+            // 同系統內按字母排序
+            if (sysA !== sysB) {
+              return sysA.localeCompare(sysB);
+            }
+
+            // 同系統內按坐標排序
+            return a.ordinate - b.ordinate;
+          });
+        };
+
+        grids.x = sortByCoordSystemAndOrdinate(grids.x);
+        grids.y = sortByCoordSystemAndOrdinate(grids.y);
         return grids;
       }
 
@@ -2916,6 +2949,71 @@
           const currentDiff = Math.abs(coordinate - current.ordinate);
           return currentDiff < closestDiff ? current : closest;
         });
+      }
+
+      // [新增] 輔助函數：計算梁的角度（度數）
+      function calculateBeamAngle(j1, j2) {
+        const dx = j2.x - j1.x;
+        const dy = j2.y - j1.y;
+        // 返回角度（0-360度，從 X 軸正向逆時針計算）
+        let angle = Math.atan2(dy, dx) * (180 / Math.PI);
+        if (angle < 0) angle += 360;
+        return angle;
+      }
+
+      // [新增] 輔助函數：找到與梁角度最匹配的 COORDSYSTEM
+      function findBestCoordSystemForBeam(beam, grids) {
+        if (!grids.coordSystems || Object.keys(grids.coordSystems).length === 0) {
+          return 'GLOBAL';
+        }
+
+        const beamAngle = calculateBeamAngle(beam.j1, beam.j2);
+        const beamCenterX = (beam.j1.x + beam.j2.x) / 2;
+        const beamCenterY = (beam.j1.y + beam.j2.y) / 2;
+
+        let bestMatch = 'GLOBAL';
+        let minAngleDiff = Infinity;
+
+        // 檢查每個 COORDSYSTEM
+        for (const [csName, csInfo] of Object.entries(grids.coordSystems)) {
+          const csAngle = csInfo.angle || 0;
+
+          // 計算梁與坐標系統 X 軸的角度差（考慮 X 和 Y 兩個方向）
+          const angleDiffX = Math.min(
+            Math.abs(beamAngle - csAngle),
+            Math.abs(beamAngle - (csAngle + 360)),
+            360 - Math.abs(beamAngle - csAngle)
+          );
+          const angleDiffY = Math.min(
+            Math.abs(beamAngle - (csAngle + 90)),
+            Math.abs(beamAngle - (csAngle + 270)),
+            360 - Math.abs(beamAngle - (csAngle + 90))
+          );
+
+          const minAngleDiffForCS = Math.min(angleDiffX, angleDiffY);
+
+          // 如果角度更接近，且梁在該系統的 Grid 範圍內，則選擇該系統
+          if (minAngleDiffForCS < minAngleDiff) {
+            // 檢查該 COORDSYSTEM 是否有對應的 Grid Lines
+            const hasGridsInCS = grids.x.some(g => g.coordsystem === csName) ||
+                                 grids.y.some(g => g.coordsystem === csName);
+
+            if (hasGridsInCS || csName === 'GLOBAL') {
+              minAngleDiff = minAngleDiffForCS;
+              bestMatch = csName;
+            }
+          }
+        }
+
+        return bestMatch;
+      }
+
+      // [新增] 輔助函數：獲取指定 COORDSYSTEM 的 Grid Lines
+      function getGridsForCoordSystem(grids, coordsystem) {
+        return {
+          x: grids.x.filter(g => (g.coordsystem || 'GLOBAL') === coordsystem),
+          y: grids.y.filter(g => (g.coordsystem || 'GLOBAL') === coordsystem),
+        };
       }
 
       function generateLabelsForStory(beamsInStory, joints, grids, reservedSerials = new Set()) {
@@ -3119,12 +3217,23 @@
             }
             serial = getBeamSerial(beam, grids, true);
           } else if (beam.isDiagonal) {
-            // [新增] 斜向大梁的編號邏輯
-            // 找到起點和終點最接近的格線
-            const startXGrid = findClosestGrid(beam.j1.x, grids.x);
-            const startYGrid = findClosestGrid(beam.j1.y, grids.y);
-            const endXGrid = findClosestGrid(beam.j2.x, grids.x);
-            const endYGrid = findClosestGrid(beam.j2.y, grids.y);
+            // [增強] 斜向大梁的智能編號邏輯
+            // 1. 找到與梁角度最匹配的 COORDSYSTEM
+            const bestCoordSystem = findBestCoordSystemForBeam(beam, grids);
+
+            // 2. 獲取該 COORDSYSTEM 的 Grid Lines
+            let coordSystemGrids = getGridsForCoordSystem(grids, bestCoordSystem);
+
+            // 3. 如果該 COORDSYSTEM 沒有 Grid Lines，回退到使用所有 Grid Lines
+            if (coordSystemGrids.x.length === 0 && coordSystemGrids.y.length === 0) {
+              coordSystemGrids = { x: grids.x, y: grids.y };
+            }
+
+            // 4. 找到起點和終點最接近的格線
+            const startXGrid = findClosestGrid(beam.j1.x, coordSystemGrids.x);
+            const startYGrid = findClosestGrid(beam.j1.y, coordSystemGrids.y);
+            const endXGrid = findClosestGrid(beam.j2.x, coordSystemGrids.x);
+            const endYGrid = findClosestGrid(beam.j2.y, coordSystemGrids.y);
 
             if (startXGrid && startYGrid && endXGrid && endYGrid) {
               // 編號格式：G{起點X格線}{起點Y格線}-{終點X格線}{終點Y格線}
@@ -3143,7 +3252,13 @@
                 primaryGridName,
                 subGridMarker,
                 serial,
+                coordSystem: bestCoordSystem, // [新增] 記錄使用的 COORDSYSTEM
               });
+
+              // [新增] 在控制台輸出斜向梁的編號信息（用於調試）
+              if (bestCoordSystem !== 'GLOBAL') {
+                console.log(`[斜向梁編號] ${beam.name} 使用 ${bestCoordSystem} 系統：${primaryGridName}`);
+              }
             }
             return; // 斜向梁特殊處理，直接返回
           }
