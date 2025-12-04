@@ -2078,42 +2078,10 @@
           return;
         }
 
-        // [修改] 计算 Grid Line 在全局坐标系中的位置以确定边界
-        const transformCoordSystemForBounds = (localX, localY, coordsystem) => {
-          const cs = grids.coordSystems ? grids.coordSystems[coordsystem] : null;
-          if (!cs || coordsystem === 'GLOBAL') {
-            return { x: localX, y: localY };
-          }
-          const angleRad = (cs.rz * Math.PI) / 180;
-          const cosAngle = Math.cos(angleRad);
-          const sinAngle = Math.sin(angleRad);
-          const rotatedX = localX * cosAngle - localY * sinAngle;
-          const rotatedY = localX * sinAngle + localY * cosAngle;
-          return { x: rotatedX + cs.ux, y: rotatedY + cs.uy };
-        };
-
-        // 计算所有 Grid Line 在全局坐标系中的端点
-        const gridPoints = [];
-        const lineExtentForBounds = 1000; // 用于计算边界的临时范围
-        if (grids.x) {
-          grids.x.forEach((g) => {
-            const coordsystem = g.coordsystem || 'GLOBAL';
-            const p1 = transformCoordSystemForBounds(g.ordinate, -lineExtentForBounds, coordsystem);
-            const p2 = transformCoordSystemForBounds(g.ordinate, lineExtentForBounds, coordsystem);
-            gridPoints.push(p1, p2);
-          });
-        }
-        if (grids.y) {
-          grids.y.forEach((g) => {
-            const coordsystem = g.coordsystem || 'GLOBAL';
-            const p1 = transformCoordSystemForBounds(-lineExtentForBounds, g.ordinate, coordsystem);
-            const p2 = transformCoordSystemForBounds(lineExtentForBounds, g.ordinate, coordsystem);
-            gridPoints.push(p1, p2);
-          });
-        }
-
-        const allX = beamCoords.map((p) => p.x).concat(gridPoints.map((p) => p.x));
-        const allY = beamCoords.map((p) => p.y).concat(gridPoints.map((p) => p.y));
+        const gridCoordsX = grids.x ? grids.x.map((g) => g.ordinate) : [];
+        const gridCoordsY = grids.y ? grids.y.map((g) => g.ordinate) : [];
+        const allX = beamCoords.map((p) => p.x).concat(gridCoordsX);
+        const allY = beamCoords.map((p) => p.y).concat(gridCoordsY);
         const minX = Math.min(...allX);
         const maxX = Math.max(...allX);
         const minY = Math.min(...allY);
@@ -2166,26 +2134,21 @@
         });
 
         if (grids && grids.x && grids.y) {
-          // [新增] 坐标转换函数：将 COORDSYSTEM 本地坐标转换为全局坐标
-          const transformCoordSystem = (localX, localY, coordsystem) => {
-            const cs = grids.coordSystems[coordsystem];
-            if (!cs || coordsystem === 'GLOBAL') {
+          // [新增] 辅助函数：将本地坐标系中的点转换到全局坐标系
+          const transformFromLocalToGlobal = (localX, localY, coordSystemName) => {
+            const cs = grids.coordSystems[coordSystemName];
+            if (!cs || coordSystemName === 'GLOBAL') {
               return { x: localX, y: localY };
             }
 
-            // 将角度转换为弧度
             const angleRad = (cs.rz * Math.PI) / 180;
-            const cosAngle = Math.cos(angleRad);
-            const sinAngle = Math.sin(angleRad);
+            const cosA = Math.cos(angleRad);
+            const sinA = Math.sin(angleRad);
 
-            // 应用旋转
-            const rotatedX = localX * cosAngle - localY * sinAngle;
-            const rotatedY = localX * sinAngle + localY * cosAngle;
-
-            // 应用平移
+            // 先旋转，再平移
             return {
-              x: rotatedX + cs.ux,
-              y: rotatedY + cs.uy
+              x: localX * cosA - localY * sinA + cs.ux,
+              y: localX * sinA + localY * cosA + cs.uy
             };
           };
 
@@ -2195,51 +2158,48 @@
           );
           gridGroup.setAttribute("class", "grid-lines");
 
-          // [修改] 绘制 X 方向 Grid Line（垂直线），考虑 COORDSYSTEM 偏移和旋转
+          // [修改] 绘制 X 方向 Grid Lines（考虑 COORDSYSTEM 的偏移和旋转）
           grids.x.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
               "line",
             );
 
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
 
-            // 在本地坐标系中，这是一条垂直线 x=ordinate
-            // 计算线的两个端点（取足够长的范围）
-            const localX = gridLine.ordinate;
-            const lineExtent = Math.max(contentHeight, contentWidth) * 2; // 确保线足够长
+            // X 方向的 Grid Line 在本地坐标系中是垂直线 (x = ordinate)
+            // 取两个点：(ordinate, minY) 和 (ordinate, maxY)
+            // 使用足够大的范围确保线条覆盖整个绘图区域
+            const range = Math.max(contentHeight, contentWidth) * 3;
+            const p1 = transformFromLocalToGlobal(gridLine.ordinate, -range, coordSystemName);
+            const p2 = transformFromLocalToGlobal(gridLine.ordinate, range, coordSystemName);
 
-            const point1 = transformCoordSystem(localX, -lineExtent, coordsystem);
-            const point2 = transformCoordSystem(localX, lineExtent, coordsystem);
-
-            line.setAttribute("x1", transformX(point1.x));
-            line.setAttribute("y1", transformY(point1.y));
-            line.setAttribute("x2", transformX(point2.x));
-            line.setAttribute("y2", transformY(point2.y));
+            line.setAttribute("x1", transformX(p1.x));
+            line.setAttribute("y1", transformY(p1.y));
+            line.setAttribute("x2", transformX(p2.x));
+            line.setAttribute("y2", transformY(p2.y));
             gridGroup.appendChild(line);
           });
 
-          // [修改] 绘制 Y 方向 Grid Line（水平线），考虑 COORDSYSTEM 偏移和旋转
+          // [修改] 绘制 Y 方向 Grid Lines（考虑 COORDSYSTEM 的偏移和旋转）
           grids.y.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
               "line",
             );
 
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
 
-            // 在本地坐标系中，这是一条水平线 y=ordinate
-            // 计算线的两个端点（取足够长的范围）
-            const localY = gridLine.ordinate;
-            const lineExtent = Math.max(contentHeight, contentWidth) * 2; // 确保线足够长
+            // Y 方向的 Grid Line 在本地坐标系中是水平线 (y = ordinate)
+            // 取两个点：(minX, ordinate) 和 (maxX, ordinate)
+            const range = Math.max(contentHeight, contentWidth) * 3;
+            const p1 = transformFromLocalToGlobal(-range, gridLine.ordinate, coordSystemName);
+            const p2 = transformFromLocalToGlobal(range, gridLine.ordinate, coordSystemName);
 
-            const point1 = transformCoordSystem(-lineExtent, localY, coordsystem);
-            const point2 = transformCoordSystem(lineExtent, localY, coordsystem);
-
-            line.setAttribute("x1", transformX(point1.x));
-            line.setAttribute("y1", transformY(point1.y));
-            line.setAttribute("x2", transformX(point2.x));
-            line.setAttribute("y2", transformY(point2.y));
+            line.setAttribute("x1", transformX(p1.x));
+            line.setAttribute("y1", transformY(p1.y));
+            line.setAttribute("x2", transformX(p2.x));
+            line.setAttribute("y2", transformY(p2.y));
             gridGroup.appendChild(line);
           });
           svg.appendChild(gridGroup);
@@ -2283,14 +2243,13 @@
           );
 
           grids.x.forEach((gridLine) => {
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
             const loc = gridLine.bubbleLoc;
-            const offset = getCoordSystemOffset(coordsystem);
-            const color = getCoordSystemColor(coordsystem);
+            const offset = getCoordSystemOffset(coordSystemName);
+            const color = getCoordSystemColor(coordSystemName);
 
-            // [修改] 计算 Grid Line 在全局坐标系中的位置（取中点）
-            const localX = gridLine.ordinate;
-            const centerPoint = transformCoordSystem(localX, 0, coordsystem);
+            // [修改] 计算 Grid Line 在全局坐标系中的中心位置
+            const centerPoint = transformFromLocalToGlobal(gridLine.ordinate, 0, coordSystemName);
             const cx = transformX(centerPoint.x);
 
             // [修改] 讓氣泡位置基於內容邊界和系統偏移
@@ -2371,14 +2330,13 @@
           });
 
           grids.y.forEach((gridLine) => {
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
             const loc = gridLine.bubbleLoc;
-            const offset = getCoordSystemOffset(coordsystem);
-            const color = getCoordSystemColor(coordsystem);
+            const offset = getCoordSystemOffset(coordSystemName);
+            const color = getCoordSystemColor(coordSystemName);
 
-            // [修改] 计算 Grid Line 在全局坐标系中的位置（取中点）
-            const localY = gridLine.ordinate;
-            const centerPoint = transformCoordSystem(0, localY, coordsystem);
+            // [修改] 计算 Grid Line 在全局坐标系中的中心位置
+            const centerPoint = transformFromLocalToGlobal(0, gridLine.ordinate, coordSystemName);
             const cy = transformY(centerPoint.y);
 
             // [修改] 讓氣泡位置基於內容邊界和系統偏移
@@ -2880,7 +2838,7 @@
         };
 
         // [新增] 解析 COORDSYSTEM 定義（支持 UX, UY, ANGLE 和 RZ 参数）
-        const coordSystemRegex = /COORDSYSTEM\s+"([^"]+)"\s+TYPE\s+"([^"]+)"(.*?)(?=COORDSYSTEM|TABLE:|$)/gis;
+        const coordSystemRegex = /COORDSYSTEM\s+"([^"]+)"\s+TYPE\s+"([^"]+)"(.*?)(?=COORDSYSTEM|TABLE:|DIAPHRAGM|$)/gis;
         let csMatch;
         while ((csMatch = coordSystemRegex.exec(content)) !== null) {
           const [fullMatch, name, type, params] = csMatch;
@@ -2904,7 +2862,7 @@
             uy,  // Y方向起始坐标
             rz,  // 旋转角度（度）
           };
-          console.log(`[COORDSYSTEM] ${name}: type=${type}, UX=${ux.toFixed(3)}, UY=${uy.toFixed(3)}, RZ=${rz.toFixed(3)}°`);
+          console.log(`[COORDSYSTEM] ${name}: UX=${ux.toFixed(3)}, UY=${uy.toFixed(3)}, RZ=${rz.toFixed(3)}°`);
         }
 
         const gridTableSection = content.match(
