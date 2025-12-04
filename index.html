@@ -3232,23 +3232,35 @@
 
           if (isHorizontal) {
             const endGrid = findClosestGrid(segment.maxX, grids.x);
+            // [修复] 检查 endGrid 是否为 null
+            if (!endGrid) return NaN;
+
             if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【水平梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.x);
               return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minX, grids.x);
+            // [修复] 检查 startGrid 是否为 null
+            if (!startGrid) return NaN;
+
             // **【水平梁規則2】** 起點格線編號（不減 1）
             return getSerialValue(startGrid.name, grids.x);
           } else {
             // 垂直梁的規則：與水平梁相同
             const endGrid = findClosestGrid(segment.maxY, grids.y);
+            // [修复] 检查 endGrid 是否为 null
+            if (!endGrid) return NaN;
+
             if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【垂直梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.y);
               return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minY, grids.y);
+            // [修复] 检查 startGrid 是否为 null
+            if (!startGrid) return NaN;
+
             // **【垂直梁規則2】** 起點格線編號（不減 1）
             return getSerialValue(startGrid.name, grids.y);
           }
@@ -3324,7 +3336,7 @@
               if (closestGrid) {
                 primaryGridName = parseGridName(closestGrid.name);
 
-                // 在同一座標系統內尋找同類型的梁來決定 subGridMarker
+                // [修改] 在同一座標系統內尋找同類型的梁來決定 subGridMarker
                 const sameSystemBeams = beamsWithCoords.filter(
                   (b) => b.isVertical && b.coordSystem === beam.coordSystem
                 );
@@ -3333,10 +3345,29 @@
                 const sortedGrids = relevantGrids.slice().sort((a, b) => a.ordinate - b.ordinate);
                 const closestIndex = sortedGrids.findIndex(g => g.name === closestGrid.name);
 
-                if (closestIndex !== -1 && closestIndex + 1 < sortedGrids.length) {
-                  const gridBelow = sortedGrids[closestIndex];
-                  const gridAbove = sortedGrids[closestIndex + 1];
+                // [修复] 處理邊界情況：找到相鄰的格線（前一條或後一條）
+                let gridBelow = null;
+                let gridAbove = null;
 
+                if (closestIndex > 0) {
+                  gridBelow = sortedGrids[closestIndex - 1];
+                }
+                if (closestIndex >= 0 && closestIndex + 1 < sortedGrids.length) {
+                  gridAbove = sortedGrids[closestIndex + 1];
+                }
+
+                // [修复] 使用找到的格線，即使只有一側
+                if (!gridBelow && !gridAbove) {
+                  // closestGrid 自己就是參考格線
+                  gridBelow = closestGrid;
+                } else if (!gridBelow) {
+                  gridBelow = closestGrid;
+                } else if (!gridAbove) {
+                  gridAbove = closestGrid;
+                }
+
+                // 只有在兩側都有格線時才計算子格線標記
+                if (gridBelow && gridAbove && gridBelow.name !== gridAbove.name) {
                   const uniqueXCoords = [
                     ...new Set(
                       sameSystemBeams
@@ -3355,6 +3386,7 @@
                   }
                 }
               } else {
+                // 如果完全沒有格線，才跳過
                 return;
               }
             }
@@ -3377,7 +3409,7 @@
               if (closestGrid) {
                 primaryGridName = parseGridName(closestGrid.name);
 
-                // 在同一座標系統內尋找同類型的梁來決定 subGridMarker
+                // [修改] 在同一座標系統內尋找同類型的梁來決定 subGridMarker
                 const sameSystemBeams = beamsWithCoords.filter(
                   (b) => b.isHorizontal && b.coordSystem === beam.coordSystem
                 );
@@ -3386,10 +3418,29 @@
                 const sortedGrids = relevantGrids.slice().sort((a, b) => a.ordinate - b.ordinate);
                 const closestIndex = sortedGrids.findIndex(g => g.name === closestGrid.name);
 
-                if (closestIndex !== -1 && closestIndex + 1 < sortedGrids.length) {
-                  const gridBelow = sortedGrids[closestIndex];
-                  const gridAbove = sortedGrids[closestIndex + 1];
+                // [修复] 處理邊界情況：找到相鄰的格線（前一條或後一條）
+                let gridBelow = null;
+                let gridAbove = null;
 
+                if (closestIndex > 0) {
+                  gridBelow = sortedGrids[closestIndex - 1];
+                }
+                if (closestIndex >= 0 && closestIndex + 1 < sortedGrids.length) {
+                  gridAbove = sortedGrids[closestIndex + 1];
+                }
+
+                // [修复] 使用找到的格線，即使只有一側
+                if (!gridBelow && !gridAbove) {
+                  // closestGrid 自己就是參考格線
+                  gridBelow = closestGrid;
+                } else if (!gridBelow) {
+                  gridBelow = closestGrid;
+                } else if (!gridAbove) {
+                  gridAbove = closestGrid;
+                }
+
+                // 只有在兩側都有格線時才計算子格線標記
+                if (gridBelow && gridAbove && gridBelow.name !== gridAbove.name) {
                   const uniqueYCoords = [
                     ...new Set(
                       sameSystemBeams
@@ -3408,6 +3459,7 @@
                   }
                 }
               } else {
+                // 如果完全沒有格線，才跳過
                 return;
               }
             }
