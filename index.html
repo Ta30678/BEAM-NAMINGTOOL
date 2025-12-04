@@ -1661,35 +1661,35 @@
                 gridData,
                 reservedSerials, // [新增] 傳入預留的序號
               );
-              labelComponentMap.forEach((components, beamKey) => {
-                const [name, joint1, joint2] = beamKey.split("|");
-                const originalBeam = beamsToNumber.find(
-                  (b) =>
-                    b.name === name &&
-                    b.joint1 === joint1 &&
-                    b.joint2 === joint2,
-                );
-                if (!originalBeam) return;
 
-                let newLabel;
-                if (components.isDiagonal) {
-                  // [新增] 斜向大梁的編號格式：G{起點}-{終點}
-                  const propUpper = originalBeam.prop.toUpperCase();
-                  const prefix = propUpper.startsWith("FB") ? "FG" : "G";
-                  newLabel = `${prefix}${components.primaryGridName}`;
-                } else {
-                  // 原有的水平/垂直梁編號邏輯
-                  const propUpper = originalBeam.prop.toUpperCase();
-                  const prefix = components.isVertical
-                    ? propUpper.startsWith("FB")
-                      ? "FB"
-                      : "B"
-                    : propUpper.startsWith("FB")
-                      ? "FG"
-                      : "G";
+              // [修复] 处理所有大梁，包括没有被成功编号的梁
+              beamsToNumber.forEach((originalBeam) => {
+                const beamKey = `${originalBeam.name}|${originalBeam.joint1}|${originalBeam.joint2}`;
+                const components = labelComponentMap.get(beamKey);
 
-                  const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
-                  newLabel = `${finalPrefix}-${components.serial}`;
+                let newLabel = "未編號"; // 默认标签
+
+                if (components) {
+                  // 如果成功编号
+                  if (components.isDiagonal) {
+                    // [新增] 斜向大梁的編號格式：G{起點}-{終點}
+                    const propUpper = originalBeam.prop.toUpperCase();
+                    const prefix = propUpper.startsWith("FB") ? "FG" : "G";
+                    newLabel = `${prefix}${components.primaryGridName}`;
+                  } else {
+                    // 原有的水平/垂直梁編號邏輯
+                    const propUpper = originalBeam.prop.toUpperCase();
+                    const prefix = components.isVertical
+                      ? propUpper.startsWith("FB")
+                        ? "FB"
+                        : "B"
+                      : propUpper.startsWith("FB")
+                        ? "FG"
+                        : "G";
+
+                    const finalPrefix = `${prefix}${components.primaryGridName}${components.subGridMarker}`;
+                    newLabel = `${finalPrefix}-${components.serial}`;
+                  }
                 }
 
                 allLabeledBeams.push({
@@ -1717,21 +1717,18 @@
                 globalSymmetryAxisX,
                 reservedSerials, // [新增] 傳入預留的序號
               );
-              secondaryBeamLabels.forEach((value, key) => {
-                const [name, joint1, joint2] = key.split("|");
-                const originalBeam = secondaryBeamsInStory.find(
-                  (b) =>
-                    b.name === name &&
-                    b.joint1 === joint1 &&
-                    b.joint2 === joint2,
-                );
-                if (originalBeam) {
-                  allLabeledBeams.push({
-                    ...originalBeam,
-                    newLabel: value.newLabel,
-                    isSecondaryBeam: true, // 小梁標記
-                  });
-                }
+
+              // [修复] 处理所有小梁，包括没有被成功编号的梁
+              secondaryBeamsToNumber.forEach((originalBeam) => {
+                const beamKey = `${originalBeam.name}|${originalBeam.joint1}|${originalBeam.joint2}`;
+                const labelInfo = secondaryBeamLabels.get(beamKey);
+                const newLabel = labelInfo ? labelInfo.newLabel : "b未編號";
+
+                allLabeledBeams.push({
+                  ...originalBeam,
+                  newLabel,
+                  isSecondaryBeam: true, // 小梁標記
+                });
               });
             }
 
@@ -1752,21 +1749,18 @@
                 globalSymmetryAxisX,
                 reservedSerials, // [新增] 傳入預留的序號
               );
-              foundationBeamLabels.forEach((value, key) => {
-                const [name, joint1, joint2] = key.split("|");
-                const originalBeam = secondaryFoundationBeamsInStory.find(
-                  (b) =>
-                    b.name === name &&
-                    b.joint1 === joint1 &&
-                    b.joint2 === joint2,
-                );
-                if (originalBeam) {
-                  allLabeledBeams.push({
-                    ...originalBeam,
-                    newLabel: value.newLabel,
-                    isSecondaryBeam: true, // 基礎小梁標記
-                  });
-                }
+
+              // [修复] 处理所有基础小梁，包括没有被成功编号的梁
+              foundationBeamsToNumber.forEach((originalBeam) => {
+                const beamKey = `${originalBeam.name}|${originalBeam.joint1}|${originalBeam.joint2}`;
+                const labelInfo = foundationBeamLabels.get(beamKey);
+                const newLabel = labelInfo ? labelInfo.newLabel : "fb未編號";
+
+                allLabeledBeams.push({
+                  ...originalBeam,
+                  newLabel,
+                  isSecondaryBeam: true, // 基礎小梁標記
+                });
               });
             }
           }
@@ -1782,12 +1776,9 @@
               storyOrderInfo[a.story] - storyOrderInfo[b.story];
             if (storyCompare !== 0) return storyCompare;
 
-            const aIsSecondary =
-              a.newLabel.toLowerCase().startsWith("b") ||
-              a.newLabel.toLowerCase().startsWith("fb");
-            const bIsSecondary =
-              b.newLabel.toLowerCase().startsWith("b") ||
-              b.newLabel.toLowerCase().startsWith("fb");
+            // [修复] 使用 isSecondaryBeam 标记而不是基于编号的第一个字母
+            const aIsSecondary = a.isSecondaryBeam || false;
+            const bIsSecondary = b.isSecondaryBeam || false;
 
             if (aIsSecondary && !bIsSecondary) return 1;
             if (!aIsSecondary && bIsSecondary) return -1;
@@ -1855,14 +1846,9 @@
         if (selectedBeamType === "main") {
           beamsToDisplay = beamsToDisplay.filter((b) => {
             if (!b.newLabel) return false;
-            // [修改] 如果是固定編號梁，使用 isSecondaryBeam 標記
-            if (b.isFixedLabel) {
-              return !b.isSecondaryBeam;
-            }
-            // 大梁：G, B, FB, FG, FWB, WB 開頭（大寫）
-            // 小梁：b 開頭（小寫）
-            // 只要第一個字母是小寫 b，就是小梁；其他都是大梁
-            return b.newLabel.charAt(0) !== 'b';
+            // [修复] 统一使用 isSecondaryBeam 标记来判断大梁/小梁
+            // 大梁：isSecondaryBeam === false
+            return !b.isSecondaryBeam;
           });
           backgroundBeams = backgroundBeams.filter(
             (b) => b.prop && !/SB/.test(b.prop.toUpperCase()),
@@ -1870,12 +1856,9 @@
         } else if (selectedBeamType === "secondary") {
           beamsToDisplay = beamsToDisplay.filter((b) => {
             if (!b.newLabel) return false;
-            // [修改] 如果是固定編號梁，使用 isSecondaryBeam 標記
-            if (b.isFixedLabel) {
-              return b.isSecondaryBeam;
-            }
-            // 小梁：第一個字母是小寫 b
-            return b.newLabel.charAt(0) === 'b';
+            // [修复] 统一使用 isSecondaryBeam 标记来判断大梁/小梁
+            // 小梁：isSecondaryBeam === true
+            return b.isSecondaryBeam;
           });
           backgroundBeams = backgroundBeams.filter(
             (b) => b.prop && /SB/.test(b.prop.toUpperCase()),
