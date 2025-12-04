@@ -2134,35 +2134,72 @@
         });
 
         if (grids && grids.x && grids.y) {
+          // [新增] 辅助函数：将本地坐标系中的点转换到全局坐标系
+          const transformFromLocalToGlobal = (localX, localY, coordSystemName) => {
+            const cs = grids.coordSystems[coordSystemName];
+            if (!cs || coordSystemName === 'GLOBAL') {
+              return { x: localX, y: localY };
+            }
+
+            const angleRad = (cs.rz * Math.PI) / 180;
+            const cosA = Math.cos(angleRad);
+            const sinA = Math.sin(angleRad);
+
+            // 先旋转，再平移
+            return {
+              x: localX * cosA - localY * sinA + cs.ux,
+              y: localX * sinA + localY * cosA + cs.uy
+            };
+          };
+
           const gridGroup = document.createElementNS(
             "http://www.w3.org/2000/svg",
             "g",
           );
           gridGroup.setAttribute("class", "grid-lines");
+
+          // [修改] 绘制 X 方向 Grid Lines（考虑 COORDSYSTEM 的偏移和旋转）
           grids.x.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
               "line",
             );
-            line.setAttribute("x1", transformX(gridLine.ordinate));
-            // [修改] 讓垂直線的起點和終點對齊內容邊界
-            line.setAttribute("y1", transformY(maxY));
-            line.setAttribute("x2", transformX(gridLine.ordinate));
-            // [修改] 讓垂直線的起點和終點對齊內容邊界
-            line.setAttribute("y2", transformY(minY));
+
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
+
+            // X 方向的 Grid Line 在本地坐标系中是垂直线 (x = ordinate)
+            // 取两个点：(ordinate, minY) 和 (ordinate, maxY)
+            // 使用足够大的范围确保线条覆盖整个绘图区域
+            const range = Math.max(contentHeight, contentWidth) * 3;
+            const p1 = transformFromLocalToGlobal(gridLine.ordinate, -range, coordSystemName);
+            const p2 = transformFromLocalToGlobal(gridLine.ordinate, range, coordSystemName);
+
+            line.setAttribute("x1", transformX(p1.x));
+            line.setAttribute("y1", transformY(p1.y));
+            line.setAttribute("x2", transformX(p2.x));
+            line.setAttribute("y2", transformY(p2.y));
             gridGroup.appendChild(line);
           });
+
+          // [修改] 绘制 Y 方向 Grid Lines（考虑 COORDSYSTEM 的偏移和旋转）
           grids.y.forEach((gridLine) => {
             const line = document.createElementNS(
               "http://www.w3.org/2000/svg",
               "line",
             );
-            // [修改] 讓水平線的起點和終點對齊內容邊界
-            line.setAttribute("x1", transformX(minX));
-            line.setAttribute("y1", transformY(gridLine.ordinate));
-            // [修改] 讓水平線的起點和終點對齊內容邊界
-            line.setAttribute("x2", transformX(maxX));
-            line.setAttribute("y2", transformY(gridLine.ordinate));
+
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
+
+            // Y 方向的 Grid Line 在本地坐标系中是水平线 (y = ordinate)
+            // 取两个点：(minX, ordinate) 和 (maxX, ordinate)
+            const range = Math.max(contentHeight, contentWidth) * 3;
+            const p1 = transformFromLocalToGlobal(-range, gridLine.ordinate, coordSystemName);
+            const p2 = transformFromLocalToGlobal(range, gridLine.ordinate, coordSystemName);
+
+            line.setAttribute("x1", transformX(p1.x));
+            line.setAttribute("y1", transformY(p1.y));
+            line.setAttribute("x2", transformX(p2.x));
+            line.setAttribute("y2", transformY(p2.y));
             gridGroup.appendChild(line);
           });
           svg.appendChild(gridGroup);
@@ -2206,11 +2243,14 @@
           );
 
           grids.x.forEach((gridLine) => {
-            const cx = transformX(gridLine.ordinate);
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
             const loc = gridLine.bubbleLoc;
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
-            const offset = getCoordSystemOffset(coordsystem);
-            const color = getCoordSystemColor(coordsystem);
+            const offset = getCoordSystemOffset(coordSystemName);
+            const color = getCoordSystemColor(coordSystemName);
+
+            // [修改] 计算 Grid Line 在全局坐标系中的中心位置
+            const centerPoint = transformFromLocalToGlobal(gridLine.ordinate, 0, coordSystemName);
+            const cx = transformX(centerPoint.x);
 
             // [修改] 讓氣泡位置基於內容邊界和系統偏移
             const bubbleYTop = transformY(maxY) - offset;
@@ -2290,11 +2330,14 @@
           });
 
           grids.y.forEach((gridLine) => {
-            const cy = transformY(gridLine.ordinate);
+            const coordSystemName = gridLine.coordsystem || 'GLOBAL';
             const loc = gridLine.bubbleLoc;
-            const coordsystem = gridLine.coordsystem || 'GLOBAL';
-            const offset = getCoordSystemOffset(coordsystem);
-            const color = getCoordSystemColor(coordsystem);
+            const offset = getCoordSystemOffset(coordSystemName);
+            const color = getCoordSystemColor(coordSystemName);
+
+            // [修改] 计算 Grid Line 在全局坐标系中的中心位置
+            const centerPoint = transformFromLocalToGlobal(0, gridLine.ordinate, coordSystemName);
+            const cy = transformY(centerPoint.y);
 
             // [修改] 讓氣泡位置基於內容邊界和系統偏移
             const bubbleXLeft = transformX(minX) - offset;
@@ -2794,17 +2837,32 @@
           coordSystems: {}, // [新增] 儲存所有 COORDSYSTEM 信息
         };
 
-        // [新增] 解析 COORDSYSTEM 定義（支持 ANGLE 和 RZ 两种格式）
-        const coordSystemRegex = /COORDSYSTEM\s+"([^"]+)"\s+TYPE\s+"([^"]+)"(?:.*?(?:ANGLE|RZ)\s+([-\d\.E]+))?/gi;
+        // [新增] 解析 COORDSYSTEM 定義（支持 UX, UY, ANGLE 和 RZ 参数）
+        const coordSystemRegex = /COORDSYSTEM\s+"([^"]+)"\s+TYPE\s+"([^"]+)"(.*?)(?=COORDSYSTEM|TABLE:|DIAPHRAGM|$)/gis;
         let csMatch;
         while ((csMatch = coordSystemRegex.exec(content)) !== null) {
-          const [fullMatch, name, type, angle] = csMatch;
+          const [fullMatch, name, type, params] = csMatch;
+
+          // 解析 UX (X方向偏移)
+          const uxMatch = params.match(/UX\s+([-\d\.E]+)/i);
+          const ux = uxMatch ? parseFloat(uxMatch[1]) : 0;
+
+          // 解析 UY (Y方向偏移)
+          const uyMatch = params.match(/UY\s+([-\d\.E]+)/i);
+          const uy = uyMatch ? parseFloat(uyMatch[1]) : 0;
+
+          // 解析 RZ 或 ANGLE (旋转角度)
+          const rzMatch = params.match(/(?:RZ|ANGLE)\s+([-\d\.E]+)/i);
+          const rz = rzMatch ? parseFloat(rzMatch[1]) : 0;
+
           grids.coordSystems[name] = {
             name,
             type,
-            angle: angle ? parseFloat(angle) : 0, // 旋轉角度（度），支持 ANGLE 或 RZ 參數
+            ux,  // X方向起始坐标
+            uy,  // Y方向起始坐标
+            rz,  // 旋转角度（度）
           };
-          console.log(`[COORDSYSTEM] ${name}: type=${type}, angle=${angle || 0}°`);
+          console.log(`[COORDSYSTEM] ${name}: UX=${ux.toFixed(3)}, UY=${uy.toFixed(3)}, RZ=${rz.toFixed(3)}°`);
         }
 
         const gridTableSection = content.match(
