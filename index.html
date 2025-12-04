@@ -3195,23 +3195,35 @@
 
           if (isHorizontal) {
             const endGrid = findClosestGrid(segment.maxX, grids.x);
+            // [修复] 检查 endGrid 是否为 null
+            if (!endGrid) return NaN;
+
             if (Math.abs(segment.maxX - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【水平梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.x);
               return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minX, grids.x);
+            // [修复] 检查 startGrid 是否为 null
+            if (!startGrid) return NaN;
+
             // **【水平梁規則2】** 起點格線編號（不減 1）
             return getSerialValue(startGrid.name, grids.x);
           } else {
             // 垂直梁的規則：與水平梁相同
             const endGrid = findClosestGrid(segment.maxY, grids.y);
+            // [修复] 检查 endGrid 是否为 null
+            if (!endGrid) return NaN;
+
             if (Math.abs(segment.maxY - endGrid.ordinate) < ON_GRID_TOLERANCE) {
               // **【垂直梁規則1】** 終點格線編號 - 1
               const serial = getSerialValue(endGrid.name, grids.y);
               return typeof serial === "number" ? serial - 1 : serial;
             }
             const startGrid = findClosestGrid(segment.minY, grids.y);
+            // [修复] 检查 startGrid 是否为 null
+            if (!startGrid) return NaN;
+
             // **【垂直梁規則2】** 起點格線編號（不減 1）
             return getSerialValue(startGrid.name, grids.y);
           }
@@ -3280,26 +3292,34 @@
                 .find((g) => g.ordinate < beam.centerX);
               const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
 
-              if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name);
-                const uniqueXCoords = [
-                  ...new Set(
-                    beamsWithCoords
-                      .filter(
-                        (b) =>
-                          b.isVertical &&
-                          b.centerX > gridBelow.ordinate &&
-                          b.centerX < gridAbove.ordinate,
-                      )
-                      .map((b) => b.centerX.toFixed(2)),
-                  ),
-                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+              // [修复] 当梁在格线范围边界时，使用边界格线而不是跳过
+              if (gridBelow || gridAbove) {
+                // 使用找到的格线，如果只有一侧，就使用那一侧的格线
+                const referenceGrid = gridBelow || gridAbove;
+                primaryGridName = parseGridName(referenceGrid.name);
 
-                const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
-                if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank);
+                // 只有在两侧都有格线时才计算子格线标记
+                if (gridBelow && gridAbove) {
+                  const uniqueXCoords = [
+                    ...new Set(
+                      beamsWithCoords
+                        .filter(
+                          (b) =>
+                            b.isVertical &&
+                            b.centerX > gridBelow.ordinate &&
+                            b.centerX < gridAbove.ordinate,
+                        )
+                        .map((b) => b.centerX.toFixed(2)),
+                    ),
+                  ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                  const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+                  if (rank !== -1) {
+                    subGridMarker = String.fromCharCode(97 + rank);
+                  }
                 }
               } else {
+                // 如果完全没有格线，才跳过
                 return;
               }
             }
@@ -3319,26 +3339,34 @@
                 .find((g) => g.ordinate < beam.centerY);
               const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
 
-              if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name);
-                const uniqueYCoords = [
-                  ...new Set(
-                    beamsWithCoords
-                      .filter(
-                        (b) =>
-                          b.isHorizontal &&
-                          b.centerY > gridBelow.ordinate &&
-                          b.centerY < gridAbove.ordinate,
-                      )
-                      .map((b) => b.centerY.toFixed(2)),
-                  ),
-                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+              // [修复] 当梁在格线范围边界时，使用边界格线而不是跳过
+              if (gridBelow || gridAbove) {
+                // 使用找到的格线，如果只有一侧，就使用那一侧的格线
+                const referenceGrid = gridBelow || gridAbove;
+                primaryGridName = parseGridName(referenceGrid.name);
 
-                const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
-                if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank);
+                // 只有在两侧都有格线时才计算子格线标记
+                if (gridBelow && gridAbove) {
+                  const uniqueYCoords = [
+                    ...new Set(
+                      beamsWithCoords
+                        .filter(
+                          (b) =>
+                            b.isHorizontal &&
+                            b.centerY > gridBelow.ordinate &&
+                            b.centerY < gridAbove.ordinate,
+                        )
+                        .map((b) => b.centerY.toFixed(2)),
+                    ),
+                  ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                  const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+                  if (rank !== -1) {
+                    subGridMarker = String.fromCharCode(97 + rank);
+                  }
                 }
               } else {
+                // 如果完全没有格线，才跳过
                 return;
               }
             }
