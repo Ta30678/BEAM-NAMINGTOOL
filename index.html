@@ -1716,6 +1716,7 @@
                 "b",
                 globalSymmetryAxisX,
                 reservedSerials, // [新增] 傳入預留的序號
+                gridData, // [新增] 傳入格線資料以支援座標系統判斷
               );
               secondaryBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -1751,6 +1752,7 @@
                 "fb",
                 globalSymmetryAxisX,
                 reservedSerials, // [新增] 傳入預留的序號
+                gridData, // [新增] 傳入格線資料以支援座標系統判斷
               );
               foundationBeamLabels.forEach((value, key) => {
                 const [name, joint1, joint2] = key.split("|");
@@ -3143,6 +3145,41 @@
         };
       }
 
+      // [新增] 輔助函數：檢查梁是否對齊某個座標系統的軸向（水平或垂直）
+      function getBeamOrientationInCoordSystem(beam, coordSystemName, grids) {
+        const ANGLE_TOLERANCE = 2; // 角度容差（度）
+        const beamAngle = calculateBeamAngle(beam.j1, beam.j2);
+
+        // 獲取座標系統的旋轉角度
+        let csAngle = 0;
+        if (coordSystemName !== 'GLOBAL' && grids.coordSystems[coordSystemName]) {
+          csAngle = grids.coordSystems[coordSystemName].angle || 0;
+        }
+
+        // 計算梁與座標系統 X 軸（水平）和 Y 軸（垂直）的角度差
+        const angleFromXAxis = Math.min(
+          Math.abs(beamAngle - csAngle),
+          Math.abs(beamAngle - (csAngle + 360)),
+          360 - Math.abs(beamAngle - csAngle),
+          Math.abs(beamAngle - (csAngle + 180)) // 考慮反向
+        );
+
+        const angleFromYAxis = Math.min(
+          Math.abs(beamAngle - (csAngle + 90)),
+          Math.abs(beamAngle - (csAngle + 270)),
+          360 - Math.abs(beamAngle - (csAngle + 90))
+        );
+
+        // 判斷是水平、垂直還是斜向
+        if (angleFromXAxis <= ANGLE_TOLERANCE) {
+          return { isHorizontal: true, isVertical: false, isDiagonal: false, coordSystem: coordSystemName };
+        } else if (angleFromYAxis <= ANGLE_TOLERANCE) {
+          return { isHorizontal: false, isVertical: true, isDiagonal: false, coordSystem: coordSystemName };
+        } else {
+          return { isHorizontal: false, isVertical: false, isDiagonal: true, coordSystem: coordSystemName };
+        }
+      }
+
       function generateLabelsForStory(beamsInStory, joints, grids, reservedSerials = new Set()) {
         const labelComponentMap = new Map();
 
@@ -3234,9 +3271,12 @@
             const j1 = joints[b.joint1],
               j2 = joints[b.joint2];
             if (!j1 || !j2) return null;
-            const isHorizontal = Math.abs(j1.y - j2.y) < TOLERANCE;
-            const isVertical = Math.abs(j1.x - j2.x) < TOLERANCE;
-            const isDiagonal = !isHorizontal && !isVertical;
+
+            // [修改] 使用座標系統來判斷梁的方向
+            const beamData = { j1, j2, name: b.name, joint1: b.joint1, joint2: b.joint2 };
+            const bestCoordSystem = findBestCoordSystemForBeam(beamData, grids);
+            const orientation = getBeamOrientationInCoordSystem(beamData, bestCoordSystem, grids);
+
             return {
               ...b,
               j1,
@@ -3247,9 +3287,10 @@
               maxY: Math.max(j1.y, j2.y),
               centerX: (j1.x + j2.x) / 2,
               centerY: (j1.y + j2.y) / 2,
-              isHorizontal,
-              isVertical,
-              isDiagonal,
+              isHorizontal: orientation.isHorizontal,
+              isVertical: orientation.isVertical,
+              isDiagonal: orientation.isDiagonal,
+              coordSystem: bestCoordSystem, // 記錄所屬座標系統
             };
           })
           .filter(Boolean);
@@ -3266,7 +3307,11 @@
           let subGridMarker = "";
 
           if (beam.isVertical) {
-            let onGridLine = grids.x.find(
+            // [修改] 使用座標系統特定的格線
+            const coordSystemGrids = getGridsForCoordSystem(grids, beam.coordSystem);
+            const relevantGrids = coordSystemGrids.x.length > 0 ? coordSystemGrids.x : grids.x;
+
+            let onGridLine = relevantGrids.find(
               (g) => Math.abs(beam.centerX - g.ordinate) < TOLERANCE,
             );
 
@@ -3274,30 +3319,40 @@
               primaryGridName = parseGridName(onGridLine.name);
               subGridMarker = "";
             } else {
-              const gridBelow = grids.x
-                .slice()
-                .reverse()
-                .find((g) => g.ordinate < beam.centerX);
-              const gridAbove = grids.x.find((g) => g.ordinate > beam.centerX);
+              // 使用 findClosestGrid 找到最接近的格線作為主格線
+              const closestGrid = findClosestGrid(beam.centerX, relevantGrids);
+              if (closestGrid) {
+                primaryGridName = parseGridName(closestGrid.name);
 
-              if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name);
-                const uniqueXCoords = [
-                  ...new Set(
-                    beamsWithCoords
-                      .filter(
-                        (b) =>
-                          b.isVertical &&
-                          b.centerX > gridBelow.ordinate &&
-                          b.centerX < gridAbove.ordinate,
-                      )
-                      .map((b) => b.centerX.toFixed(2)),
-                  ),
-                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+                // 在同一座標系統內尋找同類型的梁來決定 subGridMarker
+                const sameSystemBeams = beamsWithCoords.filter(
+                  (b) => b.isVertical && b.coordSystem === beam.coordSystem
+                );
 
-                const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
-                if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank);
+                // 找到相鄰的兩條格線
+                const sortedGrids = relevantGrids.slice().sort((a, b) => a.ordinate - b.ordinate);
+                const closestIndex = sortedGrids.findIndex(g => g.name === closestGrid.name);
+
+                if (closestIndex !== -1 && closestIndex + 1 < sortedGrids.length) {
+                  const gridBelow = sortedGrids[closestIndex];
+                  const gridAbove = sortedGrids[closestIndex + 1];
+
+                  const uniqueXCoords = [
+                    ...new Set(
+                      sameSystemBeams
+                        .filter(
+                          (b) =>
+                            b.centerX > gridBelow.ordinate &&
+                            b.centerX < gridAbove.ordinate,
+                        )
+                        .map((b) => b.centerX.toFixed(2)),
+                    ),
+                  ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                  const rank = uniqueXCoords.indexOf(beam.centerX.toFixed(2));
+                  if (rank !== -1) {
+                    subGridMarker = String.fromCharCode(97 + rank);
+                  }
                 }
               } else {
                 return;
@@ -3305,7 +3360,11 @@
             }
             serial = getBeamSerial(beam, grids, false);
           } else if (beam.isHorizontal) {
-            let onGridLine = grids.y.find(
+            // [修改] 使用座標系統特定的格線
+            const coordSystemGrids = getGridsForCoordSystem(grids, beam.coordSystem);
+            const relevantGrids = coordSystemGrids.y.length > 0 ? coordSystemGrids.y : grids.y;
+
+            let onGridLine = relevantGrids.find(
               (g) => Math.abs(beam.centerY - g.ordinate) < TOLERANCE,
             );
 
@@ -3313,30 +3372,40 @@
               primaryGridName = parseGridName(onGridLine.name);
               subGridMarker = "";
             } else {
-              const gridBelow = grids.y
-                .slice()
-                .reverse()
-                .find((g) => g.ordinate < beam.centerY);
-              const gridAbove = grids.y.find((g) => g.ordinate > beam.centerY);
+              // 使用 findClosestGrid 找到最接近的格線作為主格線
+              const closestGrid = findClosestGrid(beam.centerY, relevantGrids);
+              if (closestGrid) {
+                primaryGridName = parseGridName(closestGrid.name);
 
-              if (gridBelow && gridAbove) {
-                primaryGridName = parseGridName(gridBelow.name);
-                const uniqueYCoords = [
-                  ...new Set(
-                    beamsWithCoords
-                      .filter(
-                        (b) =>
-                          b.isHorizontal &&
-                          b.centerY > gridBelow.ordinate &&
-                          b.centerY < gridAbove.ordinate,
-                      )
-                      .map((b) => b.centerY.toFixed(2)),
-                  ),
-                ].sort((a, b) => parseFloat(a) - parseFloat(b));
+                // 在同一座標系統內尋找同類型的梁來決定 subGridMarker
+                const sameSystemBeams = beamsWithCoords.filter(
+                  (b) => b.isHorizontal && b.coordSystem === beam.coordSystem
+                );
 
-                const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
-                if (rank !== -1) {
-                  subGridMarker = String.fromCharCode(97 + rank);
+                // 找到相鄰的兩條格線
+                const sortedGrids = relevantGrids.slice().sort((a, b) => a.ordinate - b.ordinate);
+                const closestIndex = sortedGrids.findIndex(g => g.name === closestGrid.name);
+
+                if (closestIndex !== -1 && closestIndex + 1 < sortedGrids.length) {
+                  const gridBelow = sortedGrids[closestIndex];
+                  const gridAbove = sortedGrids[closestIndex + 1];
+
+                  const uniqueYCoords = [
+                    ...new Set(
+                      sameSystemBeams
+                        .filter(
+                          (b) =>
+                            b.centerY > gridBelow.ordinate &&
+                            b.centerY < gridAbove.ordinate,
+                        )
+                        .map((b) => b.centerY.toFixed(2)),
+                    ),
+                  ].sort((a, b) => parseFloat(a) - parseFloat(b));
+
+                  const rank = uniqueYCoords.indexOf(beam.centerY.toFixed(2));
+                  if (rank !== -1) {
+                    subGridMarker = String.fromCharCode(97 + rank);
+                  }
                 }
               } else {
                 return;
@@ -3344,50 +3413,9 @@
             }
             serial = getBeamSerial(beam, grids, true);
           } else if (beam.isDiagonal) {
-            // [增強] 斜向大梁的智能編號邏輯
-            // 1. 找到與梁角度最匹配的 COORDSYSTEM
-            const bestCoordSystem = findBestCoordSystemForBeam(beam, grids);
-
-            // 2. 獲取該 COORDSYSTEM 的 Grid Lines
-            let coordSystemGrids = getGridsForCoordSystem(grids, bestCoordSystem);
-
-            // 3. 如果該 COORDSYSTEM 沒有 Grid Lines，回退到使用所有 Grid Lines
-            if (coordSystemGrids.x.length === 0 && coordSystemGrids.y.length === 0) {
-              coordSystemGrids = { x: grids.x, y: grids.y };
-            }
-
-            // 4. 找到起點和終點最接近的格線
-            const startXGrid = findClosestGrid(beam.j1.x, coordSystemGrids.x);
-            const startYGrid = findClosestGrid(beam.j1.y, coordSystemGrids.y);
-            const endXGrid = findClosestGrid(beam.j2.x, coordSystemGrids.x);
-            const endYGrid = findClosestGrid(beam.j2.y, coordSystemGrids.y);
-
-            if (startXGrid && startYGrid && endXGrid && endYGrid) {
-              // 編號格式：G{起點X格線}{起點Y格線}-{終點X格線}{終點Y格線}
-              const startXName = parseGridName(startXGrid.name);
-              const startYName = parseGridName(startYGrid.name);
-              const endXName = parseGridName(endXGrid.name);
-              const endYName = parseGridName(endYGrid.name);
-
-              // 使用特殊格式儲存斜向梁的資訊
-              primaryGridName = `${startXName}${startYName}-${endXName}${endYName}`;
-              subGridMarker = "";
-              serial = ""; // 斜向大梁不使用數字序號
-
-              labelComponentMap.set(beamKey, {
-                isDiagonal: true,
-                primaryGridName,
-                subGridMarker,
-                serial,
-                coordSystem: bestCoordSystem, // [新增] 記錄使用的 COORDSYSTEM
-              });
-
-              // [新增] 在控制台輸出斜向梁的編號信息（用於調試）
-              if (bestCoordSystem !== 'GLOBAL') {
-                console.log(`[斜向梁編號] ${beam.name} 使用 ${bestCoordSystem} 系統：${primaryGridName}`);
-              }
-            }
-            return; // 斜向梁特殊處理，直接返回
+            // [修改] 真正的斜向梁（不對齊任何座標系統）- 跳過編號
+            console.log(`[跳過] ${beam.name} 無法對齊任何座標系統的軸向`);
+            return;
           }
 
           // [修改] 支援字串型序號 (Secondary 格線)，並處理預留序號
@@ -3623,6 +3651,7 @@
         prefix,
         globalSymmetryAxisX = null,
         reservedSerials = new Set(), // [新增] 預留的序號
+        grids = { x: [], y: [], coordSystems: {} }, // [新增] 格線資料以支援座標系統判斷
       ) {
         const allLabels = new Map();
         const useMirrorMode =
@@ -3637,26 +3666,28 @@
               const j1_coords = joints[b.joint1],
                 j2_coords = joints[b.joint2];
               if (!j1_coords || !j2_coords) return null;
-              const isHorizontal =
-                Math.abs(j1_coords.y - j2_coords.y) < TOLERANCE;
-              const isVertical =
-                Math.abs(j1_coords.x - j2_coords.x) < TOLERANCE;
-              const isDiagonal = !isHorizontal && !isVertical; // [新增] 識別斜向梁
+
+              // [修改] 使用座標系統來判斷梁的方向
+              const beamData = { j1: j1_coords, j2: j2_coords, name: b.name, joint1: b.joint1, joint2: b.joint2 };
+              const bestCoordSystem = findBestCoordSystemForBeam(beamData, grids);
+              const orientation = getBeamOrientationInCoordSystem(beamData, bestCoordSystem, grids);
+
               let startJointName = b.joint1,
                 endJointName = b.joint2;
-              if (isHorizontal && j1_coords.x > j2_coords.x) {
+              if (orientation.isHorizontal && j1_coords.x > j2_coords.x) {
                 [startJointName, endJointName] = [b.joint2, b.joint1];
               }
-              if (isVertical && j1_coords.y > j2_coords.y) {
+              if (orientation.isVertical && j1_coords.y > j2_coords.y) {
                 [startJointName, endJointName] = [b.joint2, b.joint1];
               }
               return {
                 ...b,
                 startJointName,
                 endJointName,
-                isHorizontal,
-                isVertical,
-                isDiagonal, // [新增]
+                isHorizontal: orientation.isHorizontal,
+                isVertical: orientation.isVertical,
+                isDiagonal: orientation.isDiagonal,
+                coordSystem: bestCoordSystem, // 記錄所屬座標系統
               };
             })
             .filter(Boolean);
@@ -3678,12 +3709,13 @@
               ),
           ];
 
-          // [新增] 處理斜向小梁：加入但不預先編號
+          // [修改] 真正的斜向小梁（不對齊任何座標系統）- 標記為未編號
           const diagonalBeams = beamsWithData.filter((b) => b.isDiagonal);
           diagonalBeams.forEach((beam) => {
             const beamKey = `${beam.name}|${beam.joint1}|${beam.joint2}`;
+            console.log(`[跳過小梁] ${beam.name} 無法對齊任何座標系統的軸向`);
             labels.set(beamKey, {
-              newLabel: `${prefix}未編號`, // 顯示為「未編號」，可由使用者手動編輯
+              newLabel: `${prefix.toUpperCase()}未編號`, // 顯示為「未編號」
               isDiagonal: true, // 標記為斜向梁
             });
           });
