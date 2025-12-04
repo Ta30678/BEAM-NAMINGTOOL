@@ -2232,46 +2232,56 @@
           );
 
           grids.x.forEach((gridLine) => {
-            const cx = transformX(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
             const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystem = grids.coordSystems[coordsystem] || { ux: 0, uy: 0, angle: 0 };
             const offset = getCoordSystemOffset(coordsystem);
             const color = getCoordSystemColor(coordsystem);
 
-            // [修改] 讓氣泡位置基於內容邊界和系統偏移
-            const bubbleYTop = transformY(maxY) - offset;
-            const bubbleYBottom = transformY(minY) + offset;
+            // [重構] 計算旋轉後的 grid line 端點位置
+            const p1 = localToGlobal(gridLine.ordinate, minY, coordSystem); // bottom
+            const p2 = localToGlobal(gridLine.ordinate, maxY, coordSystem); // top
+
+            // 計算垂直於 grid line 的偏移方向（在旋轉座標系中，X軸格線是垂直的，偏移應該沿局部Y方向）
+            const angleRad = coordSystem.angle * Math.PI / 180;
+            const offsetDx = -offset * Math.sin(angleRad); // 沿局部Y軸正方向的X分量
+            const offsetDy = offset * Math.cos(angleRad);  // 沿局部Y軸正方向的Y分量
+
+            const cx_top = transformX(p2.globalX) + offsetDx;
+            const cy_top = transformY(p2.globalY) - offsetDy;
+            const cx_bottom = transformX(p1.globalX) - offsetDx;
+            const cy_bottom = transformY(p1.globalY) + offsetDy;
 
             if (loc === "End" || loc === "Both" || !loc) {
-              // [新增] 添加連接線從 Bubble 到 Grid Line
+              // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const topConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "line",
               );
-              topConnector.setAttribute("x1", cx);
-              topConnector.setAttribute("y1", bubbleYTop);
-              topConnector.setAttribute("x2", cx);
-              topConnector.setAttribute("y2", transformY(maxY));
+              topConnector.setAttribute("x1", cx_top);
+              topConnector.setAttribute("y1", cy_top);
+              topConnector.setAttribute("x2", transformX(p2.globalX));
+              topConnector.setAttribute("y2", transformY(p2.globalY));
               topConnector.setAttribute("class", "grid-bubble-connector");
-              topConnector.setAttribute("stroke", color); // 使用系統顏色
+              topConnector.setAttribute("stroke", color);
               gridLabelsGroup.appendChild(topConnector);
 
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              topBubble.setAttribute("cx", cx);
-              topBubble.setAttribute("cy", bubbleYTop);
+              topBubble.setAttribute("cx", cx_top);
+              topBubble.setAttribute("cy", cy_top);
               topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               topBubble.setAttribute("class", "grid-bubble");
-              topBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
-              topBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
+              topBubble.setAttribute("stroke", color);
+              topBubble.setAttribute("data-coordsystem", coordsystem);
               const topText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              topText.setAttribute("x", cx);
-              topText.setAttribute("y", bubbleYTop);
+              topText.setAttribute("x", cx_top);
+              topText.setAttribute("y", cy_top);
               topText.setAttribute("class", "grid-bubble-text");
               topText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(topBubble);
@@ -2279,35 +2289,35 @@
             }
 
             if (loc === "Start" || loc === "Both") {
-              // [新增] 添加連接線從 Bubble 到 Grid Line
+              // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const bottomConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "line",
               );
-              bottomConnector.setAttribute("x1", cx);
-              bottomConnector.setAttribute("y1", bubbleYBottom);
-              bottomConnector.setAttribute("x2", cx);
-              bottomConnector.setAttribute("y2", transformY(minY));
+              bottomConnector.setAttribute("x1", cx_bottom);
+              bottomConnector.setAttribute("y1", cy_bottom);
+              bottomConnector.setAttribute("x2", transformX(p1.globalX));
+              bottomConnector.setAttribute("y2", transformY(p1.globalY));
               bottomConnector.setAttribute("class", "grid-bubble-connector");
-              bottomConnector.setAttribute("stroke", color); // 使用系統顏色
+              bottomConnector.setAttribute("stroke", color);
               gridLabelsGroup.appendChild(bottomConnector);
 
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              bottomBubble.setAttribute("cx", cx);
-              bottomBubble.setAttribute("cy", bubbleYBottom);
+              bottomBubble.setAttribute("cx", cx_bottom);
+              bottomBubble.setAttribute("cy", cy_bottom);
               bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               bottomBubble.setAttribute("class", "grid-bubble");
-              bottomBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
-              bottomBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
+              bottomBubble.setAttribute("stroke", color);
+              bottomBubble.setAttribute("data-coordsystem", coordsystem);
               const bottomText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              bottomText.setAttribute("x", cx);
-              bottomText.setAttribute("y", bubbleYBottom);
+              bottomText.setAttribute("x", cx_bottom);
+              bottomText.setAttribute("y", cy_bottom);
               bottomText.setAttribute("class", "grid-bubble-text");
               bottomText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(bottomBubble);
@@ -2316,46 +2326,56 @@
           });
 
           grids.y.forEach((gridLine) => {
-            const cy = transformY(gridLine.ordinate);
             const loc = gridLine.bubbleLoc;
             const coordsystem = gridLine.coordsystem || 'GLOBAL';
+            const coordSystem = grids.coordSystems[coordsystem] || { ux: 0, uy: 0, angle: 0 };
             const offset = getCoordSystemOffset(coordsystem);
             const color = getCoordSystemColor(coordsystem);
 
-            // [修改] 讓氣泡位置基於內容邊界和系統偏移
-            const bubbleXLeft = transformX(minX) - offset;
-            const bubbleXRight = transformX(maxX) + offset;
+            // [重構] 計算旋轉後的 grid line 端點位置
+            const p1 = localToGlobal(minX, gridLine.ordinate, coordSystem); // left
+            const p2 = localToGlobal(maxX, gridLine.ordinate, coordSystem); // right
+
+            // 計算垂直於 grid line 的偏移方向（在旋轉座標系中，Y軸格線是水平的，偏移應該沿局部X方向）
+            const angleRad = coordSystem.angle * Math.PI / 180;
+            const offsetDx = -offset * Math.cos(angleRad); // 沿局部X軸負方向的X分量
+            const offsetDy = -offset * Math.sin(angleRad); // 沿局部X軸負方向的Y分量
+
+            const cx_left = transformX(p1.globalX) + offsetDx;
+            const cy_left = transformY(p1.globalY) - offsetDy;
+            const cx_right = transformX(p2.globalX) - offsetDx;
+            const cy_right = transformY(p2.globalY) + offsetDy;
 
             if (loc === "Start" || loc === "Both" || !loc) {
-              // [新增] 添加連接線從 Bubble 到 Grid Line
+              // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const leftConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "line",
               );
-              leftConnector.setAttribute("x1", bubbleXLeft);
-              leftConnector.setAttribute("y1", cy);
-              leftConnector.setAttribute("x2", transformX(minX));
-              leftConnector.setAttribute("y2", cy);
+              leftConnector.setAttribute("x1", cx_left);
+              leftConnector.setAttribute("y1", cy_left);
+              leftConnector.setAttribute("x2", transformX(p1.globalX));
+              leftConnector.setAttribute("y2", transformY(p1.globalY));
               leftConnector.setAttribute("class", "grid-bubble-connector");
-              leftConnector.setAttribute("stroke", color); // 使用系統顏色
+              leftConnector.setAttribute("stroke", color);
               gridLabelsGroup.appendChild(leftConnector);
 
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              leftBubble.setAttribute("cx", bubbleXLeft);
-              leftBubble.setAttribute("cy", cy);
+              leftBubble.setAttribute("cx", cx_left);
+              leftBubble.setAttribute("cy", cy_left);
               leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               leftBubble.setAttribute("class", "grid-bubble");
-              leftBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
-              leftBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
+              leftBubble.setAttribute("stroke", color);
+              leftBubble.setAttribute("data-coordsystem", coordsystem);
               const leftText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              leftText.setAttribute("x", bubbleXLeft);
-              leftText.setAttribute("y", cy);
+              leftText.setAttribute("x", cx_left);
+              leftText.setAttribute("y", cy_left);
               leftText.setAttribute("class", "grid-bubble-text");
               leftText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(leftBubble);
@@ -2363,35 +2383,35 @@
             }
 
             if (loc === "End" || loc === "Both") {
-              // [新增] 添加連接線從 Bubble 到 Grid Line
+              // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const rightConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "line",
               );
-              rightConnector.setAttribute("x1", bubbleXRight);
-              rightConnector.setAttribute("y1", cy);
-              rightConnector.setAttribute("x2", transformX(maxX));
-              rightConnector.setAttribute("y2", cy);
+              rightConnector.setAttribute("x1", cx_right);
+              rightConnector.setAttribute("y1", cy_right);
+              rightConnector.setAttribute("x2", transformX(p2.globalX));
+              rightConnector.setAttribute("y2", transformY(p2.globalY));
               rightConnector.setAttribute("class", "grid-bubble-connector");
-              rightConnector.setAttribute("stroke", color); // 使用系統顏色
+              rightConnector.setAttribute("stroke", color);
               gridLabelsGroup.appendChild(rightConnector);
 
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
               );
-              rightBubble.setAttribute("cx", bubbleXRight);
-              rightBubble.setAttribute("cy", cy);
+              rightBubble.setAttribute("cx", cx_right);
+              rightBubble.setAttribute("cy", cy_right);
               rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
               rightBubble.setAttribute("class", "grid-bubble");
-              rightBubble.setAttribute("stroke", color); // [修改] 圈上顏色（使用 stroke 而非 fill）
-              rightBubble.setAttribute("data-coordsystem", coordsystem); // [新增] 記錄系統
+              rightBubble.setAttribute("stroke", color);
+              rightBubble.setAttribute("data-coordsystem", coordsystem);
               const rightText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
               );
-              rightText.setAttribute("x", bubbleXRight);
-              rightText.setAttribute("y", cy);
+              rightText.setAttribute("x", cx_right);
+              rightText.setAttribute("y", cy_right);
               rightText.setAttribute("class", "grid-bubble-text");
               rightText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(rightBubble);
