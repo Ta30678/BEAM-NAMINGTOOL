@@ -3287,10 +3287,22 @@
               j2 = joints[b.joint2];
             if (!j1 || !j2) return null;
 
-            // [修改] 使用座標系統來判斷梁的方向
+            // [修改] 首先在GLOBAL系统中判断梁的方向
             const beamData = { j1, j2, name: b.name, joint1: b.joint1, joint2: b.joint2 };
-            const bestCoordSystem = findBestCoordSystemForBeam(beamData, grids);
-            const orientation = getBeamOrientationInCoordSystem(beamData, bestCoordSystem, grids);
+            const globalOrientation = getBeamOrientationInCoordSystem(beamData, 'GLOBAL', grids);
+
+            // [关键修复] 只有在GLOBAL中是斜向的梁，才去寻找其他COORDSYSTEM
+            let bestCoordSystem = 'GLOBAL';
+            let orientation = globalOrientation;
+
+            if (globalOrientation.isDiagonal) {
+              // 斜向梁：尝试找到匹配的COORDSYSTEM
+              bestCoordSystem = findBestCoordSystemForBeam(beamData, grids);
+              if (bestCoordSystem !== 'GLOBAL') {
+                // 在匹配的COORDSYSTEM中重新判断方向
+                orientation = getBeamOrientationInCoordSystem(beamData, bestCoordSystem, grids);
+              }
+            }
 
             return {
               ...b,
@@ -3469,8 +3481,8 @@
             serial = getBeamSerial(beam, grids, true);
           } else if (beam.isDiagonal) {
             // [重構] 斜向大梁的編號邏輯：根據所屬 COORDSYSTEM 的格線進行編號
-            // 1. 找到與梁角度最匹配的 COORDSYSTEM
-            const bestCoordSystem = findBestCoordSystemForBeam(beam, grids);
+            // [修复] 使用已经计算好的 coordSystem，避免重复计算
+            const bestCoordSystem = beam.coordSystem || 'GLOBAL';
 
             // 2. 只處理非 GLOBAL 系統的斜向梁
             if (bestCoordSystem !== 'GLOBAL') {
@@ -3555,7 +3567,7 @@
                     const relevantBeams = beamsWithCoords.filter((b) => {
                       if (!b.isDiagonal) return false;
 
-                      const bCs = findBestCoordSystemForBeam(b, grids);
+                      const bCs = b.coordSystem || 'GLOBAL';
                       if (bCs !== bestCoordSystem) return false;
 
                       if (isAlongX) {
