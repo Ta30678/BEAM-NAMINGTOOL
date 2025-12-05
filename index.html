@@ -2102,6 +2102,15 @@
           bodyElement.style.padding = "";
           bodyElement.style.margin = "";
           bodyElement.style.overflow = "";
+
+          // 重新調整 SVG
+          if (panZoomInstance) {
+            setTimeout(() => {
+              panZoomInstance.resize();
+              panZoomInstance.fit();
+              panZoomInstance.center();
+            }, 100);
+          }
         } else {
           // 進入全螢幕
           drawingDiv.classList.add("fullscreen");
@@ -2114,15 +2123,23 @@
           bodyElement.style.padding = "0";
           bodyElement.style.margin = "0";
           bodyElement.style.overflow = "hidden";
-        }
 
-        // 重新調整 SVG pan-zoom
-        if (panZoomInstance) {
-          setTimeout(() => {
-            panZoomInstance.resize();
-            panZoomInstance.fit();
-            panZoomInstance.center();
-          }, 100);
+          // 強制重新計算 SVG 尺寸並填滿螢幕
+          if (panZoomInstance) {
+            setTimeout(() => {
+              // 先重置 zoom 和 pan
+              panZoomInstance.resetZoom();
+              panZoomInstance.resetPan();
+
+              // 重新計算尺寸
+              panZoomInstance.resize();
+              panZoomInstance.updateBBox();
+
+              // 強制 fit 和 center
+              panZoomInstance.fit();
+              panZoomInstance.center();
+            }, 150);
+          }
         }
       }
 
