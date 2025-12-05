@@ -2090,7 +2090,12 @@
         const htmlElement = document.documentElement;
         const bodyElement = document.body;
 
+        console.log("=== toggleFullscreen 開始 ===");
+        console.log("當前全螢幕狀態:", drawingDiv.classList.contains("fullscreen"));
+
         if (drawingDiv.classList.contains("fullscreen")) {
+          console.log("→ 離開全螢幕模式");
+
           // 離開全螢幕
           drawingDiv.classList.remove("fullscreen");
           fullscreenIcon.textContent = "⛶";
@@ -2106,12 +2111,15 @@
           // 重新調整 SVG
           if (panZoomInstance) {
             setTimeout(() => {
+              console.log("→ 離開全螢幕：調整 SVG");
               panZoomInstance.resize();
               panZoomInstance.fit();
               panZoomInstance.center();
             }, 100);
           }
         } else {
+          console.log("→ 進入全螢幕模式");
+
           // 進入全螢幕
           drawingDiv.classList.add("fullscreen");
           fullscreenIcon.textContent = "✕";
@@ -2124,21 +2132,49 @@
           bodyElement.style.margin = "0";
           bodyElement.style.overflow = "hidden";
 
+          console.log("→ 設置 html/body 樣式完成");
+          console.log("  html padding:", htmlElement.style.padding);
+          console.log("  body padding:", bodyElement.style.padding);
+
+          // 檢查 SVG 元素
+          const svgElement = document.getElementById("drawing-svg");
+          if (svgElement) {
+            console.log("→ SVG 元素資訊:");
+            console.log("  SVG clientWidth:", svgElement.clientWidth);
+            console.log("  SVG clientHeight:", svgElement.clientHeight);
+            console.log("  Window innerWidth:", window.innerWidth);
+            console.log("  Window innerHeight:", window.innerHeight);
+            console.log("  SVG viewBox:", svgElement.getAttribute("viewBox"));
+          }
+
           // 強制重新計算 SVG 尺寸並填滿螢幕
           if (panZoomInstance) {
+            console.log("→ 開始調整 panZoomInstance...");
+
             setTimeout(() => {
-              // 先重置 zoom 和 pan
+              console.log("→ 執行 resetZoom 和 resetPan");
               panZoomInstance.resetZoom();
               panZoomInstance.resetPan();
 
-              // 重新計算尺寸
+              console.log("  重置後 zoom:", panZoomInstance.getZoom());
+              console.log("  重置後 pan:", panZoomInstance.getPan());
+
+              console.log("→ 執行 resize 和 updateBBox");
               panZoomInstance.resize();
               panZoomInstance.updateBBox();
 
-              // 強制 fit 和 center
+              console.log("→ 執行 fit 和 center");
               panZoomInstance.fit();
               panZoomInstance.center();
+
+              console.log("  最終 zoom:", panZoomInstance.getZoom());
+              console.log("  最終 pan:", panZoomInstance.getPan());
+              console.log("  Sizes:", panZoomInstance.getSizes());
+
+              console.log("=== toggleFullscreen 完成 ===");
             }, 150);
+          } else {
+            console.warn("⚠️ panZoomInstance 不存在！");
           }
         }
       }
