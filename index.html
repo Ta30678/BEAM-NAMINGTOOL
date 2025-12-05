@@ -401,79 +401,26 @@
         margin: 0;
         z-index: 9999;
         border-radius: 0;
+        border: none;
         background: #ffffff;
+        overflow: hidden;
       }
 
       #drawing.fullscreen #drawing-svg {
+        width: 100vw;
         height: 100vh;
         border-radius: 0;
+        border: none;
       }
 
-      /* 全螢幕控制器 */
+      /* 全螢幕模式下隱藏所有控制元素 */
+      #drawing.fullscreen > div:not(#drawing-svg) {
+        display: none !important;
+      }
+
+      /* 全螢幕控制器（完全隱藏） */
       #fullscreen-controls {
-        display: none;
-        position: fixed;
-        top: 20px;
-        left: 50%;
-        transform: translateX(-50%);
-        z-index: 10000;
-        background: rgba(255, 255, 255, 0.95);
-        padding: 15px 25px;
-        border-radius: 12px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-        border: 1px solid var(--theme-border);
-        gap: 15px;
-        align-items: center;
-      }
-
-      #drawing.fullscreen #fullscreen-controls {
-        display: flex;
-      }
-
-      #fullscreen-controls .floor-info {
-        font-size: 1.1em;
-        font-weight: 600;
-        color: var(--theme-text-primary);
-        min-width: 150px;
-        text-align: center;
-      }
-
-      #fullscreen-controls .controls-group {
-        display: flex;
-        gap: 10px;
-        align-items: center;
-      }
-
-      #fullscreen-controls button {
-        padding: 8px 16px;
-        border: 1px solid var(--theme-border);
-        background: var(--theme-surface);
-        color: var(--theme-text-primary);
-        border-radius: 6px;
-        cursor: pointer;
-        font-size: 0.9em;
-        transition: all 0.2s;
-      }
-
-      #fullscreen-controls button:hover {
-        background: var(--theme-bg);
-        border-color: var(--theme-accent);
-      }
-
-      #fullscreen-controls select {
-        padding: 8px 12px;
-        border: 1px solid var(--theme-border);
-        border-radius: 6px;
-        background: var(--theme-surface);
-        color: var(--theme-text-primary);
-        font-size: 0.9em;
-        cursor: pointer;
-      }
-
-      #fullscreen-controls .keyboard-hint {
-        font-size: 0.85em;
-        color: var(--theme-text-secondary);
-        margin-left: 10px;
+        display: none !important;
       }
 
       #drawing-svg:active {
@@ -2191,30 +2138,38 @@
       // ============ 鍵盤快捷鍵 ============
 
       document.addEventListener("keydown", function (event) {
-        const drawingDiv = document.getElementById("drawing");
-        const isFullscreen = drawingDiv.classList.contains("fullscreen");
-
-        // 在對話框打開時忽略快捷鍵
+        // 在對話框打開時忽略快捷鍵（但不包括 Ctrl+F 和 ESC）
         const isDialogOpen =
           document.getElementById("beam-edit-dialog").style.display === "block" ||
           document.getElementById("batch-edit-dialog").style.display !== "none" ||
           document.getElementById("search-member-dialog").style.display !== "none";
 
-        if (isDialogOpen) return;
-
-        // 不要干擾 Ctrl+F (由 onKeyDown 函數處理)
+        // Ctrl+F - 打開搜尋對話框（優先處理，使用捕獲階段）
         if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-          return; // 讓其他事件處理器處理
-        }
-
-        // ESC 鍵 - 離開全螢幕
-        if (event.key === "Escape" && isFullscreen) {
           event.preventDefault();
-          toggleFullscreen();
+          event.stopPropagation();
+          openSearchMemberDialog();
           return;
         }
 
-        // 上下鍵切換樓層（僅在全螢幕模式或無其他元素獲得焦點時）
+        const drawingDiv = document.getElementById("drawing");
+        const isFullscreen = drawingDiv.classList.contains("fullscreen");
+
+        // ESC 鍵處理
+        if (event.key === "Escape") {
+          // 如果在全螢幕模式，離開全螢幕
+          if (isFullscreen) {
+            event.preventDefault();
+            toggleFullscreen();
+            return;
+          }
+          // 否則由 onKeyDown 函數處理（關閉對話框或清除選擇）
+          return;
+        }
+
+        if (isDialogOpen) return;
+
+        // 上下鍵切換樓層
         const activeElement = document.activeElement;
         const isInputFocused = activeElement && (
           activeElement.tagName === "INPUT" ||
@@ -2224,6 +2179,7 @@
 
         if (!isInputFocused && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
           event.preventDefault();
+          event.stopPropagation();
 
           if (event.key === "ArrowUp") {
             previousFloor();
@@ -2231,7 +2187,7 @@
             nextFloor();
           }
         }
-      });
+      }, true); // 使用捕獲階段
 
       // ============================================
 
