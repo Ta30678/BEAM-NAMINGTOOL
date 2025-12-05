@@ -389,6 +389,93 @@
         cursor: grab;
       }
 
+      /* 全螢幕模式樣式 */
+      #drawing.fullscreen {
+        position: fixed;
+        top: 0;
+        left: 0;
+        width: 100vw;
+        height: 100vh;
+        max-height: 100vh;
+        padding: 0;
+        margin: 0;
+        z-index: 9999;
+        border-radius: 0;
+        background: #ffffff;
+      }
+
+      #drawing.fullscreen #drawing-svg {
+        height: 100vh;
+        border-radius: 0;
+      }
+
+      /* 全螢幕控制器 */
+      #fullscreen-controls {
+        display: none;
+        position: fixed;
+        top: 20px;
+        left: 50%;
+        transform: translateX(-50%);
+        z-index: 10000;
+        background: rgba(255, 255, 255, 0.95);
+        padding: 15px 25px;
+        border-radius: 12px;
+        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+        border: 1px solid var(--theme-border);
+        gap: 15px;
+        align-items: center;
+      }
+
+      #drawing.fullscreen #fullscreen-controls {
+        display: flex;
+      }
+
+      #fullscreen-controls .floor-info {
+        font-size: 1.1em;
+        font-weight: 600;
+        color: var(--theme-text-primary);
+        min-width: 150px;
+        text-align: center;
+      }
+
+      #fullscreen-controls .controls-group {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      #fullscreen-controls button {
+        padding: 8px 16px;
+        border: 1px solid var(--theme-border);
+        background: var(--theme-surface);
+        color: var(--theme-text-primary);
+        border-radius: 6px;
+        cursor: pointer;
+        font-size: 0.9em;
+        transition: all 0.2s;
+      }
+
+      #fullscreen-controls button:hover {
+        background: var(--theme-bg);
+        border-color: var(--theme-accent);
+      }
+
+      #fullscreen-controls select {
+        padding: 8px 12px;
+        border: 1px solid var(--theme-border);
+        border-radius: 6px;
+        background: var(--theme-surface);
+        color: var(--theme-text-primary);
+        font-size: 0.9em;
+        cursor: pointer;
+      }
+
+      #fullscreen-controls .keyboard-hint {
+        font-size: 0.85em;
+        color: var(--theme-text-secondary);
+        margin-left: 10px;
+      }
+
       #drawing-svg:active {
         cursor: grabbing;
       }
@@ -826,11 +913,34 @@
 
       <div id="output">
         <div id="drawing">
+          <!-- 全螢幕控制器 -->
+          <div id="fullscreen-controls">
+            <div class="controls-group">
+              <button onclick="previousFloor()" title="上一個樓層 (↑)">↑ 上一層</button>
+              <div class="floor-info">
+                <span id="fullscreen-story-name">所有樓層合併</span>
+              </div>
+              <button onclick="nextFloor()" title="下一個樓層 (↓)">↓ 下一層</button>
+            </div>
+            <div class="controls-group">
+              <select id="fullscreen-story-selector" onchange="handleFullscreenStoryChange()">
+                <option value="all">All Floors</option>
+              </select>
+              <span class="keyboard-hint">↑↓ 切換樓層 | Esc 離開全螢幕</span>
+            </div>
+            <button onclick="toggleFullscreen()">✕ 離開全螢幕</button>
+          </div>
+
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0;">結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
-            <button class="btn-process" onclick="openSearchMemberDialog()" style="padding: 8px 16px;">
-              🔍 搜尋桿件 (Ctrl+F)
-            </button>
+            <div style="display: flex; gap: 10px;">
+              <button class="btn-process" onclick="openSearchMemberDialog()" style="padding: 8px 16px;">
+                🔍 搜尋桿件 (Ctrl+F)
+              </button>
+              <button class="btn-process" onclick="toggleFullscreen()" style="padding: 8px 16px;" title="全螢幕 (F11)">
+                <span id="fullscreen-icon">⛶</span> 全螢幕
+              </button>
+            </div>
           </div>
           <div style="margin-bottom: 10px; padding: 10px; background: var(--theme-bg); border-radius: 8px; font-size: 0.9em; color: var(--theme-text-secondary);">
             <strong style="color: var(--theme-accent);">💡 選取功能說明（類似 AutoCAD）：</strong><br>
@@ -1820,6 +1930,9 @@
 
       function populateStorySelector() {
         const selector = document.getElementById("storySelector");
+        const fullscreenSelector = document.getElementById("fullscreen-story-selector");
+
+        // 填充主選擇器
         selector.innerHTML = '<option value="all">All Floors</option>';
         availableStories.forEach((story) => {
           const option = document.createElement("option");
@@ -1827,6 +1940,16 @@
           option.textContent = story;
           selector.appendChild(option);
         });
+
+        // 填充全螢幕選擇器
+        fullscreenSelector.innerHTML = '<option value="all">All Floors</option>';
+        availableStories.forEach((story) => {
+          const option = document.createElement("option");
+          option.value = story;
+          option.textContent = story;
+          fullscreenSelector.appendChild(option);
+        });
+
         selector.disabled = false;
         document.getElementById("beamTypeSelector").disabled = false;
         // 【在最後一行後面加上】
@@ -1840,8 +1963,12 @@
         const selectedBeamType = beamTypeSelector.value;
         const svg = document.getElementById("drawing-svg");
 
-        document.getElementById("plan-story-name").textContent =
-          selectedStory === "all" ? "All Floors Combined" : selectedStory;
+        const storyDisplayName = selectedStory === "all" ? "All Floors Combined" : selectedStory;
+        document.getElementById("plan-story-name").textContent = storyDisplayName;
+        document.getElementById("fullscreen-story-name").textContent = storyDisplayName;
+
+        // 同步全螢幕選擇器
+        document.getElementById("fullscreen-story-selector").value = selectedStory;
 
         let beamsToDisplay = fullProcessedBeams;
         let backgroundBeams = fullDrawableBeams;
@@ -2003,6 +2130,111 @@
           }
         }
       }
+
+      // ============ 全螢幕功能 ============
+
+      function toggleFullscreen() {
+        const drawingDiv = document.getElementById("drawing");
+        const fullscreenIcon = document.getElementById("fullscreen-icon");
+
+        if (drawingDiv.classList.contains("fullscreen")) {
+          // 離開全螢幕
+          drawingDiv.classList.remove("fullscreen");
+          fullscreenIcon.textContent = "⛶";
+        } else {
+          // 進入全螢幕
+          drawingDiv.classList.add("fullscreen");
+          fullscreenIcon.textContent = "✕";
+        }
+
+        // 重新調整 SVG pan-zoom
+        if (panZoomInstance) {
+          setTimeout(() => {
+            panZoomInstance.resize();
+            panZoomInstance.fit();
+            panZoomInstance.center();
+          }, 100);
+        }
+      }
+
+      function handleFullscreenStoryChange() {
+        const fullscreenSelector = document.getElementById("fullscreen-story-selector");
+        const mainSelector = document.getElementById("storySelector");
+
+        // 同步到主選擇器
+        mainSelector.value = fullscreenSelector.value;
+
+        // 觸發主選擇器的變更事件
+        handleStoryChange();
+      }
+
+      function previousFloor() {
+        const selector = document.getElementById("storySelector");
+        const currentIndex = selector.selectedIndex;
+
+        if (currentIndex > 0) {
+          selector.selectedIndex = currentIndex - 1;
+          handleStoryChange();
+        }
+      }
+
+      function nextFloor() {
+        const selector = document.getElementById("storySelector");
+        const currentIndex = selector.selectedIndex;
+
+        if (currentIndex < selector.options.length - 1) {
+          selector.selectedIndex = currentIndex + 1;
+          handleStoryChange();
+        }
+      }
+
+      // ============ 鍵盤快捷鍵 ============
+
+      document.addEventListener("keydown", function (event) {
+        const drawingDiv = document.getElementById("drawing");
+        const isFullscreen = drawingDiv.classList.contains("fullscreen");
+
+        // 在對話框打開時忽略快捷鍵
+        const isDialogOpen =
+          document.getElementById("beam-edit-dialog").style.display === "block" ||
+          document.getElementById("batch-edit-dialog").style.display !== "none" ||
+          document.getElementById("search-member-dialog").style.display !== "none";
+
+        if (isDialogOpen) return;
+
+        // ESC 鍵 - 離開全螢幕
+        if (event.key === "Escape" && isFullscreen) {
+          event.preventDefault();
+          toggleFullscreen();
+          return;
+        }
+
+        // 上下鍵切換樓層（僅在全螢幕模式或無其他元素獲得焦點時）
+        const activeElement = document.activeElement;
+        const isInputFocused = activeElement && (
+          activeElement.tagName === "INPUT" ||
+          activeElement.tagName === "TEXTAREA" ||
+          activeElement.tagName === "SELECT"
+        );
+
+        if (!isInputFocused && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+          event.preventDefault();
+
+          if (event.key === "ArrowUp") {
+            previousFloor();
+          } else if (event.key === "ArrowDown") {
+            nextFloor();
+          }
+        }
+
+        // F11 - 切換全螢幕（可選，某些瀏覽器可能會被原生全螢幕覆蓋）
+        if (event.key === "F11") {
+          event.preventDefault();
+          toggleFullscreen();
+        }
+      });
+
+      // ============================================
 
       function summarizeFloors(floors, storyOrder) {
         if (!floors || floors.length === 0) return "";
