@@ -670,6 +670,7 @@
       .grid-bubble.draggable {
         cursor: move;
         transition: r 0.2s ease, stroke-width 0.2s ease;
+        user-select: none;
       }
 
       .grid-bubble.draggable:hover {
@@ -680,6 +681,7 @@
       .grid-bubble.dragging {
         cursor: grabbing;
         opacity: 0.8;
+        user-select: none;
       }
 
       .grid-bubble-connector.rubber-band {
@@ -691,6 +693,21 @@
         to {
           stroke-dashoffset: -10;
         }
+      }
+
+      /* [新增] 拖動時防止選取文字 */
+      body.dragging-bubble {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
+      }
+
+      body.dragging-bubble * {
+        user-select: none !important;
+        -webkit-user-select: none !important;
+        -moz-user-select: none !important;
+        -ms-user-select: none !important;
       }
 
       /* [新增] Hidden state for grid elements */
@@ -1748,7 +1765,7 @@
         currentBubble: null,
         currentText: null,
         currentConnector: null,
-        gridLineStart: null,
+        originalBubblePos: null,  // [新增] 記錄原始位置
         gridLineEnd: null,
         startMousePos: null
       };
@@ -1773,6 +1790,7 @@
       function handleBubbleMouseDown(e) {
         // 防止與圈選功能衝突
         e.stopPropagation();
+        e.preventDefault();
 
         const bubble = e.currentTarget;
         const coordsystem = bubble.getAttribute("data-coordsystem");
@@ -1813,11 +1831,13 @@
         dragState.currentText = matchingText;
         dragState.currentConnector = matchingConnector;
 
-        // 獲取 grid line 的端點（connector 的另一端）
-        dragState.gridLineStart = {
+        // [修改] 記錄原始位置（用於回彈）
+        dragState.originalBubblePos = {
           x: bubbleCx,
           y: bubbleCy
         };
+
+        // 獲取 grid line 的固定端點（connector 的另一端）
         dragState.gridLineEnd = {
           x: parseFloat(matchingConnector.getAttribute("x2")),
           y: parseFloat(matchingConnector.getAttribute("y2"))
@@ -1827,9 +1847,10 @@
         const pt = getSVGPoint(svg, e);
         dragState.startMousePos = pt;
 
-        // 添加樣式
+        // [新增] 添加樣式防止文字選取
         bubble.classList.add("dragging");
         matchingConnector.classList.add("rubber-band");
+        document.body.classList.add("dragging-bubble");
 
         console.log("Started dragging bubble", coordsystem);
       }
@@ -1842,28 +1863,9 @@
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
 
-        // 計算 grid line 的方向向量
-        const dx = dragState.gridLineEnd.x - dragState.gridLineStart.x;
-        const dy = dragState.gridLineEnd.y - dragState.gridLineStart.y;
-        const lineLength = Math.sqrt(dx * dx + dy * dy);
-
-        if (lineLength < 0.01) return; // 避免除以零
-
-        // 單位方向向量
-        const dirX = dx / lineLength;
-        const dirY = dy / lineLength;
-
-        // 計算滑鼠相對於 grid line 起點的向量
-        const mouseDx = pt.x - dragState.gridLineEnd.x;
-        const mouseDy = pt.y - dragState.gridLineEnd.y;
-
-        // 投影到 grid line 方向（計算滑鼠位置沿著 grid line 的投影）
-        const projection = mouseDx * dirX + mouseDy * dirY;
-
-        // 限制 bubble 只能在 grid line 的延伸線上移動
-        // 計算新的 bubble 位置（沿著 grid line 方向偏移）
-        const newCx = dragState.gridLineEnd.x + projection * dirX;
-        const newCy = dragState.gridLineEnd.y + projection * dirY;
+        // [修改] bubble 直接跟隨滑鼠游標（不限制在 grid line 上）
+        const newCx = pt.x;
+        const newCy = pt.y;
 
         // 更新 bubble 位置
         dragState.currentBubble.setAttribute("cx", newCx);
@@ -1875,13 +1877,48 @@
           dragState.currentText.setAttribute("y", newCy);
         }
 
-        // 更新 connector (橡膠拉伸效果)
+        // 更新 connector (橡膠拉伸效果 - 從 bubble 拉到 grid line 端點)
         dragState.currentConnector.setAttribute("x1", newCx);
         dragState.currentConnector.setAttribute("y1", newCy);
       }
 
       function handleBubbleMouseUp(e) {
         if (!dragState.isDragging) return;
+
+        // [新增] 回到原始位置（橡膠回彈效果）
+        if (dragState.currentBubble && dragState.originalBubblePos) {
+          // 平滑過渡回原位
+          dragState.currentBubble.style.transition = "cx 0.3s ease-out, cy 0.3s ease-out";
+          dragState.currentBubble.setAttribute("cx", dragState.originalBubblePos.x);
+          dragState.currentBubble.setAttribute("cy", dragState.originalBubblePos.y);
+
+          // 更新 text 位置
+          if (dragState.currentText) {
+            dragState.currentText.style.transition = "x 0.3s ease-out, y 0.3s ease-out";
+            dragState.currentText.setAttribute("x", dragState.originalBubblePos.x);
+            dragState.currentText.setAttribute("y", dragState.originalBubblePos.y);
+          }
+
+          // 更新 connector 位置
+          if (dragState.currentConnector) {
+            dragState.currentConnector.style.transition = "x1 0.3s ease-out, y1 0.3s ease-out";
+            dragState.currentConnector.setAttribute("x1", dragState.originalBubblePos.x);
+            dragState.currentConnector.setAttribute("y1", dragState.originalBubblePos.y);
+          }
+
+          // 動畫完成後移除 transition
+          setTimeout(() => {
+            if (dragState.currentBubble) {
+              dragState.currentBubble.style.transition = "";
+            }
+            if (dragState.currentText) {
+              dragState.currentText.style.transition = "";
+            }
+            if (dragState.currentConnector) {
+              dragState.currentConnector.style.transition = "";
+            }
+          }, 300);
+        }
 
         // 移除樣式
         if (dragState.currentBubble) {
@@ -1890,15 +1927,16 @@
         if (dragState.currentConnector) {
           dragState.currentConnector.classList.remove("rubber-band");
         }
+        document.body.classList.remove("dragging-bubble");
 
-        console.log("Stopped dragging bubble");
+        console.log("Stopped dragging bubble - returned to original position");
 
         // 重置拖曳狀態
         dragState.isDragging = false;
         dragState.currentBubble = null;
         dragState.currentText = null;
         dragState.currentConnector = null;
-        dragState.gridLineStart = null;
+        dragState.originalBubblePos = null;
         dragState.gridLineEnd = null;
         dragState.startMousePos = null;
       }
@@ -2910,7 +2948,12 @@
             const cx_bottom = transformX(p1.globalX) - offsetDx;
             const cy_bottom = transformY(p1.globalY) + offsetDy;
 
-            if (loc === "End" || loc === "Both" || !loc) {
+            // [修改] 根據 BUBBLELOC 決定顯示位置
+            // X軸(垂直線): DEFAULT=上側(top), SWITCHED=下側(bottom)
+            const showTop = !loc || loc.toUpperCase() === "DEFAULT";
+            const showBottom = loc && (loc.toUpperCase() === "SWITCHED" || loc.toUpperCase() === "BOTH");
+
+            if (showTop) {
               // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const topConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -2948,7 +2991,7 @@
               gridLabelsGroup.appendChild(topText);
             }
 
-            if (loc === "Start" || loc === "Both") {
+            if (showBottom) {
               // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const bottomConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3008,7 +3051,12 @@
             const cx_right = transformX(p2.globalX) - offsetDx;
             const cy_right = transformY(p2.globalY) + offsetDy;
 
-            if (loc === "Start" || loc === "Both" || !loc) {
+            // [修改] 根據 BUBBLELOC 決定顯示位置
+            // Y軸(水平線): DEFAULT=左側(left), SWITCHED=右側(right)
+            const showLeft = !loc || loc.toUpperCase() === "DEFAULT";
+            const showRight = loc && (loc.toUpperCase() === "SWITCHED" || loc.toUpperCase() === "BOTH");
+
+            if (showLeft) {
               // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const leftConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3046,7 +3094,7 @@
               gridLabelsGroup.appendChild(leftText);
             }
 
-            if (loc === "End" || loc === "Both") {
+            if (showRight) {
               // [修改] 連接線從 Bubble 到旋轉後的 Grid Line 端點
               const rightConnector = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3578,17 +3626,23 @@
           if (gridDollarSection) {
             const lines = gridDollarSection[1].trim().split("\n");
             lines.forEach((line) => {
-              // 解析格式: GRID "COORDSYSTEM"  LABEL "name"  DIR "X/Y"  COORD value
+              // [修改] 解析格式: GRID "COORDSYSTEM"  LABEL "name"  DIR "X/Y"  COORD value  [BUBBLELOC "DEFAULT/SWITCHED"]
               const match = line.match(
                 /GRID\s+"([^"]+)"\s+LABEL\s+"([^"]+)"\s+DIR\s+"(X|Y)"\s+COORD\s+([-\d\.E]+)/i,
               );
               if (match) {
                 const [, coordsystem, name, type, ordinate] = match;
+
+                // [新增] 解析 BUBBLELOC
+                const bubbleLocMatch = line.match(/BUBBLELOC\s+"([^"]+)"/i);
+                const bubbleLoc = bubbleLocMatch ? bubbleLocMatch[1] : "DEFAULT";
+
                 const gridInfo = {
                   name,
                   type,
                   ordinate: parseFloat(ordinate),
-                  coordsystem, // 新增：保存 COORDSYSTEM 信息
+                  coordsystem, // 保存 COORDSYSTEM 信息
+                  bubbleLoc,   // [新增] 保存 BUBBLELOC 信息
                 };
                 if (type.toUpperCase() === "X") grids.x.push(gridInfo);
                 else if (type.toUpperCase() === "Y") grids.y.push(gridInfo);
