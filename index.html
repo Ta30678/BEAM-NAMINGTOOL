@@ -411,10 +411,11 @@
         height: 100vh;
         border-radius: 0;
         border: none;
+        display: block !important;
       }
 
-      /* 全螢幕模式下隱藏所有控制元素 */
-      #drawing.fullscreen > div:not(#drawing-svg) {
+      /* 全螢幕模式下隱藏所有控制元素（只保留 SVG） */
+      #drawing.fullscreen > div {
         display: none !important;
       }
 
