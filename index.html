@@ -2343,8 +2343,8 @@
         const maxY = Math.max(...allY);
 
         const padding = 60;
-        const svgWidth = svg.clientWidth;
-        const svgHeight = svg.clientHeight;
+        const svgWidth = svg.clientWidth || 1000;
+        const svgHeight = svg.clientHeight || 800;
         const contentWidth = maxX - minX;
         const contentHeight = maxY - minY;
 
@@ -2359,6 +2359,10 @@
         const transformY = (y) => svgHeight - padding - (y - minY) * scale;
 
         svg.innerHTML = "";
+
+        // 設定 viewBox 以支援 svg-pan-zoom 的 fit() 和 center() 功能
+        // viewBox 定義 SVG 的座標系統，讓 svg-pan-zoom 能正確計算內容邊界
+        svg.setAttribute("viewBox", `0 0 ${svgWidth} ${svgHeight}`);
 
         const allDrawableBeams = allBeams.filter((b) => b.j1 && b.j2);
         allDrawableBeams.forEach((beam) => {
