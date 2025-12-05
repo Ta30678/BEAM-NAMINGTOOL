@@ -596,6 +596,109 @@
         background: rgba(0, 0, 0, 0.5);
         z-index: 999;
       }
+
+      /* [新增] Grid System Toggle Switches */
+      .grid-system-toggle {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 10px 15px;
+        background: var(--theme-surface);
+        border: 2px solid var(--theme-border);
+        border-radius: 8px;
+        transition: all 0.2s ease;
+      }
+
+      .grid-system-toggle:hover {
+        border-color: var(--theme-accent);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+      }
+
+      .grid-system-toggle label {
+        font-weight: 500;
+        cursor: pointer;
+        user-select: none;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .grid-system-color-indicator {
+        width: 16px;
+        height: 16px;
+        border-radius: 50%;
+        border: 2px solid #fff;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      /* Toggle Switch Styling */
+      .toggle-switch {
+        position: relative;
+        width: 50px;
+        height: 26px;
+        background-color: #ccc;
+        border-radius: 13px;
+        cursor: pointer;
+        transition: background-color 0.3s ease;
+      }
+
+      .toggle-switch input {
+        display: none;
+      }
+
+      .toggle-switch-slider {
+        position: absolute;
+        top: 3px;
+        left: 3px;
+        width: 20px;
+        height: 20px;
+        background-color: white;
+        border-radius: 50%;
+        transition: transform 0.3s ease;
+        box-shadow: 0 2px 4px rgba(0, 0, 0, 0.2);
+      }
+
+      .toggle-switch input:checked + .toggle-switch-slider {
+        transform: translateX(24px);
+      }
+
+      .toggle-switch.active {
+        background-color: var(--theme-accent);
+      }
+
+      /* [新增] Draggable Grid Bubble Styles */
+      .grid-bubble.draggable {
+        cursor: move;
+        transition: r 0.2s ease, stroke-width 0.2s ease;
+      }
+
+      .grid-bubble.draggable:hover {
+        r: 22;
+        stroke-width: 2.5;
+      }
+
+      .grid-bubble.dragging {
+        cursor: grabbing;
+        opacity: 0.8;
+      }
+
+      .grid-bubble-connector.rubber-band {
+        stroke-dasharray: 5, 5;
+        animation: dash 0.5s linear infinite;
+      }
+
+      @keyframes dash {
+        to {
+          stroke-dashoffset: -10;
+        }
+      }
+
+      /* [新增] Hidden state for grid elements */
+      .grid-bubble.hidden,
+      .grid-bubble-text.hidden,
+      .grid-bubble-connector.hidden {
+        display: none;
+      }
     </style>
   </head>
   <body>
@@ -862,6 +965,19 @@
         </div>
       </div>
 
+      <!-- [新增] Grid Bubble 顯示控制面板 -->
+      <div id="grid-bubble-control-panel" style="display: none; margin-bottom: 20px">
+        <div class="control-area">
+          <h3>🎯 Grid Line 顯示控制</h3>
+          <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.95em;">
+            💡 提示：可以針對不同 Grid Line 系統開關顯示，或拖動 Bubble 調整位置
+          </p>
+          <div style="display: flex; flex-wrap: wrap; gap: 15px;" id="grid-system-toggles">
+            <!-- 動態生成的開關將顯示在這裡 -->
+          </div>
+        </div>
+      </div>
+
       <div id="output">
         <div id="drawing">
           <!-- 全螢幕控制器 -->
@@ -885,6 +1001,9 @@
           <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
             <h3 style="margin: 0;">結構平面圖 (<span id="plan-story-name">所有樓層合併</span>)</h3>
             <div style="display: flex; gap: 10px;">
+              <button class="btn-process" onclick="toggleGridBubbleControlPanel()" style="padding: 8px 16px;" title="Grid Line 顯示控制">
+                🎯 Grid 控制
+              </button>
               <button class="btn-process" onclick="openSearchMemberDialog()" style="padding: 8px 16px;">
                 🔍 搜尋桿件 (Ctrl+F)
               </button>
@@ -1513,6 +1632,286 @@
       // [新增] 取消配置
       function cancelGridConfig() {
         document.getElementById("grid-config-panel").style.display = "none";
+      }
+
+      // [新增] Grid Bubble 顯示控制相關函數
+      let gridSystemVisibility = {}; // 儲存各 COORDSYSTEM 的顯示狀態
+      let currentGridData = null; // 儲存當前的 grid 資料供拖曳使用
+
+      // 切換 Grid Bubble 控制面板的顯示
+      function toggleGridBubbleControlPanel() {
+        const panel = document.getElementById("grid-bubble-control-panel");
+        if (panel.style.display === "none") {
+          // 初始化控制面板（如果還沒有初始化）
+          initializeGridBubbleControls();
+          panel.style.display = "block";
+        } else {
+          panel.style.display = "none";
+        }
+      }
+
+      // 初始化 Grid Bubble 控制開關
+      function initializeGridBubbleControls() {
+        if (!gridData || !gridData.coordSystems) {
+          console.log("No grid data available");
+          return;
+        }
+
+        const togglesContainer = document.getElementById("grid-system-toggles");
+        togglesContainer.innerHTML = ""; // 清空現有內容
+
+        // 獲取所有 COORDSYSTEM
+        const coordSystems = Object.keys(gridData.coordSystems);
+
+        if (coordSystems.length === 0) {
+          togglesContainer.innerHTML = '<p style="color: var(--theme-text-secondary);">沒有可用的 Grid Line 系統</p>';
+          return;
+        }
+
+        // 顏色配置（與繪圖時使用的相同）
+        const COORDSYSTEM_COLORS = {
+          'GLOBAL': '#4A90E2',
+          'O2': '#E24A4A',
+          'A2': '#50C878',
+          'A3': '#F39C12',
+          'DEFAULT': '#9B59B6'
+        };
+
+        // 為每個 COORDSYSTEM 創建開關
+        coordSystems.forEach(systemName => {
+          // 初始化為顯示狀態
+          if (gridSystemVisibility[systemName] === undefined) {
+            gridSystemVisibility[systemName] = true;
+          }
+
+          const color = COORDSYSTEM_COLORS[systemName] || COORDSYSTEM_COLORS['DEFAULT'];
+          const isVisible = gridSystemVisibility[systemName];
+
+          const toggleDiv = document.createElement('div');
+          toggleDiv.className = 'grid-system-toggle';
+          toggleDiv.innerHTML = `
+            <label for="toggle-${systemName}">
+              <span class="grid-system-color-indicator" style="background-color: ${color};"></span>
+              <span>${systemName}</span>
+            </label>
+            <div class="toggle-switch ${isVisible ? 'active' : ''}" onclick="toggleGridSystem('${systemName}')">
+              <input type="checkbox" id="toggle-${systemName}" ${isVisible ? 'checked' : ''}>
+              <div class="toggle-switch-slider"></div>
+            </div>
+          `;
+          togglesContainer.appendChild(toggleDiv);
+        });
+      }
+
+      // 切換特定 Grid System 的顯示狀態
+      function toggleGridSystem(systemName) {
+        // 切換狀態
+        gridSystemVisibility[systemName] = !gridSystemVisibility[systemName];
+        const isVisible = gridSystemVisibility[systemName];
+
+        // 更新 UI 開關狀態
+        const checkbox = document.getElementById(`toggle-${systemName}`);
+        const toggleSwitch = checkbox.parentElement;
+        checkbox.checked = isVisible;
+        if (isVisible) {
+          toggleSwitch.classList.add('active');
+        } else {
+          toggleSwitch.classList.remove('active');
+        }
+
+        // 更新 SVG 中的元素顯示狀態
+        const svg = document.getElementById("drawing-svg");
+        if (!svg) return;
+
+        // 找出所有該 COORDSYSTEM 的 bubble, text, connector
+        const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${systemName}"]`);
+        const texts = svg.querySelectorAll(`.grid-bubble-text[data-coordsystem="${systemName}"]`);
+        const connectors = svg.querySelectorAll(`.grid-bubble-connector[data-coordsystem="${systemName}"]`);
+
+        // 切換 hidden class
+        [bubbles, texts, connectors].forEach(elements => {
+          elements.forEach(el => {
+            if (isVisible) {
+              el.classList.remove('hidden');
+            } else {
+              el.classList.add('hidden');
+            }
+          });
+        });
+
+        console.log(`${systemName} system ${isVisible ? 'shown' : 'hidden'}`);
+      }
+
+      // [新增] Grid Bubble 拖曳功能
+      let dragState = {
+        isDragging: false,
+        currentBubble: null,
+        currentText: null,
+        currentConnector: null,
+        gridLineStart: null,
+        gridLineEnd: null,
+        startMousePos: null
+      };
+
+      // 初始化拖曳事件監聽器（在繪製完成後呼叫）
+      function initializeBubbleDragging() {
+        const svg = document.getElementById("drawing-svg");
+        if (!svg) return;
+
+        // 為所有可拖曳的 bubble 添加事件監聽器
+        const bubbles = svg.querySelectorAll(".grid-bubble.draggable");
+        bubbles.forEach(bubble => {
+          bubble.addEventListener("mousedown", handleBubbleMouseDown);
+        });
+
+        // 全域 mousemove 和 mouseup 事件
+        svg.addEventListener("mousemove", handleBubbleMouseMove);
+        svg.addEventListener("mouseup", handleBubbleMouseUp);
+        svg.addEventListener("mouseleave", handleBubbleMouseUp);
+      }
+
+      function handleBubbleMouseDown(e) {
+        // 防止與圈選功能衝突
+        e.stopPropagation();
+
+        const bubble = e.currentTarget;
+        const coordsystem = bubble.getAttribute("data-coordsystem");
+
+        // 找到對應的 text 和 connector
+        const bubbleCx = parseFloat(bubble.getAttribute("cx"));
+        const bubbleCy = parseFloat(bubble.getAttribute("cy"));
+
+        const svg = document.getElementById("drawing-svg");
+        const texts = svg.querySelectorAll(`.grid-bubble-text[data-coordsystem="${coordsystem}"]`);
+        const connectors = svg.querySelectorAll(`.grid-bubble-connector[data-coordsystem="${coordsystem}"]`);
+
+        // 找到位置相同的 text
+        let matchingText = null;
+        texts.forEach(text => {
+          const tx = parseFloat(text.getAttribute("x"));
+          const ty = parseFloat(text.getAttribute("y"));
+          if (Math.abs(tx - bubbleCx) < 1 && Math.abs(ty - bubbleCy) < 1) {
+            matchingText = text;
+          }
+        });
+
+        // 找到連接到這個 bubble 的 connector
+        let matchingConnector = null;
+        connectors.forEach(conn => {
+          const x1 = parseFloat(conn.getAttribute("x1"));
+          const y1 = parseFloat(conn.getAttribute("y1"));
+          if (Math.abs(x1 - bubbleCx) < 1 && Math.abs(y1 - bubbleCy) < 1) {
+            matchingConnector = conn;
+          }
+        });
+
+        if (!matchingConnector) return;
+
+        // 儲存拖曳狀態
+        dragState.isDragging = true;
+        dragState.currentBubble = bubble;
+        dragState.currentText = matchingText;
+        dragState.currentConnector = matchingConnector;
+
+        // 獲取 grid line 的端點（connector 的另一端）
+        dragState.gridLineStart = {
+          x: bubbleCx,
+          y: bubbleCy
+        };
+        dragState.gridLineEnd = {
+          x: parseFloat(matchingConnector.getAttribute("x2")),
+          y: parseFloat(matchingConnector.getAttribute("y2"))
+        };
+
+        // 獲取 SVG 座標系中的滑鼠位置
+        const pt = getSVGPoint(svg, e);
+        dragState.startMousePos = pt;
+
+        // 添加樣式
+        bubble.classList.add("dragging");
+        matchingConnector.classList.add("rubber-band");
+
+        console.log("Started dragging bubble", coordsystem);
+      }
+
+      function handleBubbleMouseMove(e) {
+        if (!dragState.isDragging) return;
+
+        e.preventDefault();
+
+        const svg = document.getElementById("drawing-svg");
+        const pt = getSVGPoint(svg, e);
+
+        // 計算 grid line 的方向向量
+        const dx = dragState.gridLineEnd.x - dragState.gridLineStart.x;
+        const dy = dragState.gridLineEnd.y - dragState.gridLineStart.y;
+        const lineLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (lineLength < 0.01) return; // 避免除以零
+
+        // 單位方向向量
+        const dirX = dx / lineLength;
+        const dirY = dy / lineLength;
+
+        // 計算滑鼠相對於 grid line 起點的向量
+        const mouseDx = pt.x - dragState.gridLineEnd.x;
+        const mouseDy = pt.y - dragState.gridLineEnd.y;
+
+        // 投影到 grid line 方向（計算滑鼠位置沿著 grid line 的投影）
+        const projection = mouseDx * dirX + mouseDy * dirY;
+
+        // 限制 bubble 只能在 grid line 的延伸線上移動
+        // 計算新的 bubble 位置（沿著 grid line 方向偏移）
+        const newCx = dragState.gridLineEnd.x + projection * dirX;
+        const newCy = dragState.gridLineEnd.y + projection * dirY;
+
+        // 更新 bubble 位置
+        dragState.currentBubble.setAttribute("cx", newCx);
+        dragState.currentBubble.setAttribute("cy", newCy);
+
+        // 更新 text 位置
+        if (dragState.currentText) {
+          dragState.currentText.setAttribute("x", newCx);
+          dragState.currentText.setAttribute("y", newCy);
+        }
+
+        // 更新 connector (橡膠拉伸效果)
+        dragState.currentConnector.setAttribute("x1", newCx);
+        dragState.currentConnector.setAttribute("y1", newCy);
+      }
+
+      function handleBubbleMouseUp(e) {
+        if (!dragState.isDragging) return;
+
+        // 移除樣式
+        if (dragState.currentBubble) {
+          dragState.currentBubble.classList.remove("dragging");
+        }
+        if (dragState.currentConnector) {
+          dragState.currentConnector.classList.remove("rubber-band");
+        }
+
+        console.log("Stopped dragging bubble");
+
+        // 重置拖曳狀態
+        dragState.isDragging = false;
+        dragState.currentBubble = null;
+        dragState.currentText = null;
+        dragState.currentConnector = null;
+        dragState.gridLineStart = null;
+        dragState.gridLineEnd = null;
+        dragState.startMousePos = null;
+      }
+
+      // 輔助函數：獲取 SVG 座標系中的滑鼠位置
+      function getSVGPoint(svg, e) {
+        const pt = svg.createSVGPoint();
+        pt.x = e.clientX;
+        pt.y = e.clientY;
+
+        // 轉換到 SVG 座標系
+        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
+        return svgPt;
       }
 
       async function processE2k() {
@@ -2523,6 +2922,7 @@
               topConnector.setAttribute("y2", transformY(p2.globalY));
               topConnector.setAttribute("class", "grid-bubble-connector");
               topConnector.setAttribute("stroke", color);
+              topConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(topConnector);
 
               const topBubble = document.createElementNS(
@@ -2532,7 +2932,7 @@
               topBubble.setAttribute("cx", cx_top);
               topBubble.setAttribute("cy", cy_top);
               topBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
-              topBubble.setAttribute("class", "grid-bubble");
+              topBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               topBubble.setAttribute("stroke", color);
               topBubble.setAttribute("data-coordsystem", coordsystem);
               const topText = document.createElementNS(
@@ -2542,6 +2942,7 @@
               topText.setAttribute("x", cx_top);
               topText.setAttribute("y", cy_top);
               topText.setAttribute("class", "grid-bubble-text");
+              topText.setAttribute("data-coordsystem", coordsystem); // [新增]
               topText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(topBubble);
               gridLabelsGroup.appendChild(topText);
@@ -2559,6 +2960,7 @@
               bottomConnector.setAttribute("y2", transformY(p1.globalY));
               bottomConnector.setAttribute("class", "grid-bubble-connector");
               bottomConnector.setAttribute("stroke", color);
+              bottomConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(bottomConnector);
 
               const bottomBubble = document.createElementNS(
@@ -2568,7 +2970,7 @@
               bottomBubble.setAttribute("cx", cx_bottom);
               bottomBubble.setAttribute("cy", cy_bottom);
               bottomBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
-              bottomBubble.setAttribute("class", "grid-bubble");
+              bottomBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               bottomBubble.setAttribute("stroke", color);
               bottomBubble.setAttribute("data-coordsystem", coordsystem);
               const bottomText = document.createElementNS(
@@ -2578,6 +2980,7 @@
               bottomText.setAttribute("x", cx_bottom);
               bottomText.setAttribute("y", cy_bottom);
               bottomText.setAttribute("class", "grid-bubble-text");
+              bottomText.setAttribute("data-coordsystem", coordsystem); // [新增]
               bottomText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(bottomBubble);
               gridLabelsGroup.appendChild(bottomText);
@@ -2617,6 +3020,7 @@
               leftConnector.setAttribute("y2", transformY(p1.globalY));
               leftConnector.setAttribute("class", "grid-bubble-connector");
               leftConnector.setAttribute("stroke", color);
+              leftConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(leftConnector);
 
               const leftBubble = document.createElementNS(
@@ -2626,7 +3030,7 @@
               leftBubble.setAttribute("cx", cx_left);
               leftBubble.setAttribute("cy", cy_left);
               leftBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
-              leftBubble.setAttribute("class", "grid-bubble");
+              leftBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               leftBubble.setAttribute("stroke", color);
               leftBubble.setAttribute("data-coordsystem", coordsystem);
               const leftText = document.createElementNS(
@@ -2636,6 +3040,7 @@
               leftText.setAttribute("x", cx_left);
               leftText.setAttribute("y", cy_left);
               leftText.setAttribute("class", "grid-bubble-text");
+              leftText.setAttribute("data-coordsystem", coordsystem); // [新增]
               leftText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(leftBubble);
               gridLabelsGroup.appendChild(leftText);
@@ -2653,6 +3058,7 @@
               rightConnector.setAttribute("y2", transformY(p2.globalY));
               rightConnector.setAttribute("class", "grid-bubble-connector");
               rightConnector.setAttribute("stroke", color);
+              rightConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(rightConnector);
 
               const rightBubble = document.createElementNS(
@@ -2662,7 +3068,7 @@
               rightBubble.setAttribute("cx", cx_right);
               rightBubble.setAttribute("cy", cy_right);
               rightBubble.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS);
-              rightBubble.setAttribute("class", "grid-bubble");
+              rightBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               rightBubble.setAttribute("stroke", color);
               rightBubble.setAttribute("data-coordsystem", coordsystem);
               const rightText = document.createElementNS(
@@ -2672,12 +3078,16 @@
               rightText.setAttribute("x", cx_right);
               rightText.setAttribute("y", cy_right);
               rightText.setAttribute("class", "grid-bubble-text");
+              rightText.setAttribute("data-coordsystem", coordsystem); // [新增]
               rightText.textContent = gridLine.name;
               gridLabelsGroup.appendChild(rightBubble);
               gridLabelsGroup.appendChild(rightText);
             }
           });
           svg.appendChild(gridLabelsGroup);
+
+          // [新增] 初始化 Grid Bubble 拖曳功能
+          initializeBubbleDragging();
         }
         // ... 之後繪製梁 (beam) 和標籤 (label) 的程式碼維持不變 ...
         const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
