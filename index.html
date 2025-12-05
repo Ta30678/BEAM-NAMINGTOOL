@@ -937,7 +937,7 @@
               <button class="btn-process" onclick="openSearchMemberDialog()" style="padding: 8px 16px;">
                 🔍 搜尋桿件 (Ctrl+F)
               </button>
-              <button class="btn-process" onclick="toggleFullscreen()" style="padding: 8px 16px;" title="全螢幕 (F11)">
+              <button class="btn-process" onclick="toggleFullscreen()" style="padding: 8px 16px;" title="全螢幕顯示">
                 <span id="fullscreen-icon">⛶</span> 全螢幕
               </button>
             </div>
@@ -2202,6 +2202,11 @@
 
         if (isDialogOpen) return;
 
+        // 不要干擾 Ctrl+F (由 onKeyDown 函數處理)
+        if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
+          return; // 讓其他事件處理器處理
+        }
+
         // ESC 鍵 - 離開全螢幕
         if (event.key === "Escape" && isFullscreen) {
           event.preventDefault();
@@ -2225,12 +2230,6 @@
           } else if (event.key === "ArrowDown") {
             nextFloor();
           }
-        }
-
-        // F11 - 切換全螢幕（可選，某些瀏覽器可能會被原生全螢幕覆蓋）
-        if (event.key === "F11") {
-          event.preventDefault();
-          toggleFullscreen();
         }
       });
 
@@ -5732,8 +5731,8 @@
           const storySelector = document.getElementById('storySelector');
           const currentStory = storySelector.value;
 
-          // 如果不是在該樓層或全部樓層，就切換到該樓層
-          if (currentStory !== beam.story && currentStory !== 'all') {
+          // 如果當前不是該樓層，就切換到該樓層（包括從 'all' 切換）
+          if (currentStory !== beam.story) {
             storySelector.value = beam.story;
             handleStoryChange(); // 重新繪製平面圖
           }
