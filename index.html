@@ -406,6 +406,13 @@
         overflow: hidden;
       }
 
+      /* 全螢幕時移除 body 的 padding 和 margin，消除白邊 */
+      body:has(#drawing.fullscreen) {
+        padding: 0 !important;
+        margin: 0 !important;
+        overflow: hidden !important;
+      }
+
       #drawing.fullscreen #drawing-svg {
         width: 100vw;
         height: 100vh;
@@ -2138,39 +2145,20 @@
 
       // ============ 鍵盤快捷鍵 ============
 
+      // 使用捕獲階段和 stopImmediatePropagation，確保最優先處理
       document.addEventListener("keydown", function (event) {
-        // 在對話框打開時忽略快捷鍵（但不包括 Ctrl+F 和 ESC）
-        const isDialogOpen =
-          document.getElementById("beam-edit-dialog").style.display === "block" ||
-          document.getElementById("batch-edit-dialog").style.display !== "none" ||
-          document.getElementById("search-member-dialog").style.display !== "none";
-
-        // Ctrl+F - 打開搜尋對話框（優先處理，使用捕獲階段）
-        if ((event.ctrlKey || event.metaKey) && event.key === 'f') {
-          event.preventDefault();
-          event.stopPropagation();
-          openSearchMemberDialog();
-          return;
-        }
-
         const drawingDiv = document.getElementById("drawing");
-        const isFullscreen = drawingDiv.classList.contains("fullscreen");
+        const isFullscreen = drawingDiv && drawingDiv.classList.contains("fullscreen");
 
-        // ESC 鍵處理
-        if (event.key === "Escape") {
-          // 如果在全螢幕模式，離開全螢幕
-          if (isFullscreen) {
-            event.preventDefault();
-            toggleFullscreen();
-            return;
-          }
-          // 否則由 onKeyDown 函數處理（關閉對話框或清除選擇）
-          return;
+        // Ctrl+F - 最高優先級，立即攔截
+        if ((event.ctrlKey || event.metaKey) && (event.key === 'f' || event.key === 'F' || event.keyCode === 70)) {
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          openSearchMemberDialog();
+          return false;
         }
 
-        if (isDialogOpen) return;
-
-        // 上下鍵切換樓層
+        // 上下鍵 - 在非輸入框時攔截
         const activeElement = document.activeElement;
         const isInputFocused = activeElement && (
           activeElement.tagName === "INPUT" ||
@@ -2178,16 +2166,28 @@
           activeElement.tagName === "SELECT"
         );
 
-        if (!isInputFocused && (event.key === "ArrowUp" || event.key === "ArrowDown")) {
+        if (!isInputFocused && (event.key === "ArrowUp" || event.key === "ArrowDown" || event.keyCode === 38 || event.keyCode === 40)) {
           event.preventDefault();
-          event.stopPropagation();
+          event.stopImmediatePropagation();
 
-          if (event.key === "ArrowUp") {
+          if (event.key === "ArrowUp" || event.keyCode === 38) {
             previousFloor();
-          } else if (event.key === "ArrowDown") {
+          } else if (event.key === "ArrowDown" || event.keyCode === 40) {
             nextFloor();
           }
+          return false;
         }
+
+        // ESC 鍵處理
+        if (event.key === "Escape" || event.keyCode === 27) {
+          if (isFullscreen) {
+            event.preventDefault();
+            event.stopImmediatePropagation();
+            toggleFullscreen();
+            return false;
+          }
+        }
+
       }, true); // 使用捕獲階段
 
       // ============================================
