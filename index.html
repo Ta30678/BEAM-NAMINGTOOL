@@ -391,34 +391,30 @@
 
       /* 全螢幕模式樣式 */
       #drawing.fullscreen {
-        position: fixed;
-        top: 0;
-        left: 0;
-        width: 100vw;
-        height: 100vh;
-        max-height: 100vh;
-        padding: 0;
-        margin: 0;
-        z-index: 9999;
-        border-radius: 0;
-        border: none;
-        background: #ffffff;
-        overflow: hidden;
-      }
-
-      /* 全螢幕時移除 body 的 padding 和 margin，消除白邊 */
-      body:has(#drawing.fullscreen) {
+        position: fixed !important;
+        top: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
         padding: 0 !important;
         margin: 0 !important;
+        z-index: 9999 !important;
+        border-radius: 0 !important;
+        border: none !important;
+        background: #ffffff !important;
         overflow: hidden !important;
       }
 
       #drawing.fullscreen #drawing-svg {
-        width: 100vw;
-        height: 100vh;
-        border-radius: 0;
-        border: none;
+        width: 100vw !important;
+        height: 100vh !important;
+        border-radius: 0 !important;
+        border: none !important;
         display: block !important;
+        position: absolute !important;
+        top: 0 !important;
+        left: 0 !important;
       }
 
       /* 全螢幕模式下隱藏所有控制元素（只保留 SVG） */
@@ -2091,15 +2087,33 @@
       function toggleFullscreen() {
         const drawingDiv = document.getElementById("drawing");
         const fullscreenIcon = document.getElementById("fullscreen-icon");
+        const htmlElement = document.documentElement;
+        const bodyElement = document.body;
 
         if (drawingDiv.classList.contains("fullscreen")) {
           // 離開全螢幕
           drawingDiv.classList.remove("fullscreen");
           fullscreenIcon.textContent = "⛶";
+
+          // 恢復 html 和 body 的樣式
+          htmlElement.style.padding = "";
+          htmlElement.style.margin = "";
+          htmlElement.style.overflow = "";
+          bodyElement.style.padding = "";
+          bodyElement.style.margin = "";
+          bodyElement.style.overflow = "";
         } else {
           // 進入全螢幕
           drawingDiv.classList.add("fullscreen");
           fullscreenIcon.textContent = "✕";
+
+          // 強制移除 html 和 body 的 padding/margin
+          htmlElement.style.padding = "0";
+          htmlElement.style.margin = "0";
+          htmlElement.style.overflow = "hidden";
+          bodyElement.style.padding = "0";
+          bodyElement.style.margin = "0";
+          bodyElement.style.overflow = "hidden";
         }
 
         // 重新調整 SVG pan-zoom
