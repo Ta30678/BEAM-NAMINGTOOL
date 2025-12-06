@@ -94,5 +94,8 @@ None. All changes are additive and backward compatible.
 1. `0884126` - feat: add grid bubble toggle and drag functionality
 2. `562c156` - fix: improve grid bubble drag behavior
 3. `f19ec5d` - feat: parse and apply BUBBLELOC from E2K files
+4. `609a57c` - fix: improve grid bubble drag behavior
+5. `56d00e4` - fix: correct grid line direction and expand clickable area
+6. `29ff54a` - fix: reverse rotation direction and simplify text click handling
 
 **Branch:** `claude/grid-bubble-toggle-drag-01GaJgn6GKiKukhaF596u1JQ`
