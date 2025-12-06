@@ -1799,9 +1799,7 @@
 
       // [新增] 處理文字點擊 - 找到對應的 bubble 並開始拖動
       function handleTextMouseDown(e) {
-        e.stopPropagation();
-        e.preventDefault();
-
+        // [修改] 直接調用 handleBubbleMouseDown，避免事件循環
         const text = e.currentTarget;
         const coordsystem = text.getAttribute("data-coordsystem");
         const textX = parseFloat(text.getAttribute("x"));
@@ -1821,14 +1819,14 @@
         });
 
         if (matchingBubble) {
-          // 觸發 bubble 的 mousedown 事件
-          const bubbleEvent = new MouseEvent('mousedown', {
-            bubbles: true,
-            cancelable: true,
-            clientX: e.clientX,
-            clientY: e.clientY
-          });
-          matchingBubble.dispatchEvent(bubbleEvent);
+          // [修改] 創建一個偽造的事件對象，currentTarget 指向 bubble
+          const fakeEvent = {
+            ...e,
+            currentTarget: matchingBubble,
+            stopPropagation: () => e.stopPropagation(),
+            preventDefault: () => e.preventDefault()
+          };
+          handleBubbleMouseDown(fakeEvent);
         }
       }
 
@@ -1890,7 +1888,7 @@
 
         // [修改] 計算 grid line 的方向向量
         // connector 從 bubble 指向 grid line，所以它垂直於 grid line
-        // grid line 的方向 = connector 方向旋轉 90 度
+        // grid line 的方向 = connector 方向旋轉 90 度（順時針）
         const connectorDx = dragState.gridLineEnd.x - bubbleCx;
         const connectorDy = dragState.gridLineEnd.y - bubbleCy;
         const connectorLength = Math.sqrt(connectorDx * connectorDx + connectorDy * connectorDy);
@@ -1900,14 +1898,16 @@
           const connectorUnitX = connectorDx / connectorLength;
           const connectorUnitY = connectorDy / connectorLength;
 
-          // 旋轉 90 度得到 grid line 方向（逆時針旋轉）
+          // [修正] 順時針旋轉 90 度得到 grid line 方向
           dragState.gridLineDirection = {
-            x: -connectorUnitY,  // 旋轉 90 度: (x,y) -> (-y,x)
-            y: connectorUnitX
+            x: connectorUnitY,   // 順時針旋轉 90 度: (x,y) -> (y,-x)
+            y: -connectorUnitX
           };
         } else {
           dragState.gridLineDirection = { x: 1, y: 0 }; // 預設水平方向
         }
+
+        console.log("Grid line direction:", dragState.gridLineDirection, "Connector:", {x: connectorUnitX, y: connectorUnitY});
 
         // [新增] 設定最大拖曳距離 = 5 個 bubble 半徑
         const bubbleRadius = parseFloat(bubble.getAttribute("r")) || INITIAL_GRID_BUBBLE_RADIUS;
@@ -1933,7 +1933,7 @@
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
 
-        // [修改] 計算沿著 grid line 方向的投影位移
+        // 計算沿著 grid line 方向的投影位移
         // 滑鼠相對於原始位置的位移
         const mouseDx = pt.x - dragState.originalBubblePos.x;
         const mouseDy = pt.y - dragState.originalBubblePos.y;
@@ -1942,7 +1942,7 @@
         const projectionLength = mouseDx * dragState.gridLineDirection.x +
                                  mouseDy * dragState.gridLineDirection.y;
 
-        // [新增] 限制在 ±maxDragDistance 範圍內
+        // 限制在 ±maxDragDistance 範圍內
         const clampedLength = Math.max(-dragState.maxDragDistance,
                                        Math.min(dragState.maxDragDistance, projectionLength));
 
