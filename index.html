@@ -1765,9 +1765,11 @@
         currentBubble: null,
         currentText: null,
         currentConnector: null,
-        originalBubblePos: null,  // [新增] 記錄原始位置
+        originalBubblePos: null,  // 記錄原始位置
         gridLineEnd: null,
-        startMousePos: null
+        gridLineDirection: null,  // [新增] grid line 方向向量
+        startMousePos: null,
+        maxDragDistance: null     // [新增] 最大拖曳距離 (±5 bubble)
       };
 
       // 初始化拖曳事件監聽器（在繪製完成後呼叫）
@@ -1831,7 +1833,7 @@
         dragState.currentText = matchingText;
         dragState.currentConnector = matchingConnector;
 
-        // [修改] 記錄原始位置（用於回彈）
+        // 記錄原始位置（用於回彈）
         dragState.originalBubblePos = {
           x: bubbleCx,
           y: bubbleCy
@@ -1843,16 +1845,34 @@
           y: parseFloat(matchingConnector.getAttribute("y2"))
         };
 
+        // [新增] 計算 grid line 的方向向量
+        const dx = dragState.gridLineEnd.x - bubbleCx;
+        const dy = dragState.gridLineEnd.y - bubbleCy;
+        const lineLength = Math.sqrt(dx * dx + dy * dy);
+
+        if (lineLength > 0.01) {
+          dragState.gridLineDirection = {
+            x: dx / lineLength,  // 單位向量
+            y: dy / lineLength
+          };
+        } else {
+          dragState.gridLineDirection = { x: 0, y: 1 }; // 預設垂直方向
+        }
+
+        // [新增] 設定最大拖曳距離 = 5 個 bubble 半徑
+        const bubbleRadius = parseFloat(bubble.getAttribute("r")) || INITIAL_GRID_BUBBLE_RADIUS;
+        dragState.maxDragDistance = 5 * bubbleRadius;
+
         // 獲取 SVG 座標系中的滑鼠位置
         const pt = getSVGPoint(svg, e);
         dragState.startMousePos = pt;
 
-        // [新增] 添加樣式防止文字選取
+        // 添加樣式防止文字選取
         bubble.classList.add("dragging");
         matchingConnector.classList.add("rubber-band");
         document.body.classList.add("dragging-bubble");
 
-        console.log("Started dragging bubble", coordsystem);
+        console.log("Started dragging bubble", coordsystem, "maxDistance:", dragState.maxDragDistance);
       }
 
       function handleBubbleMouseMove(e) {
@@ -1863,9 +1883,22 @@
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
 
-        // [修改] bubble 直接跟隨滑鼠游標（不限制在 grid line 上）
-        const newCx = pt.x;
-        const newCy = pt.y;
+        // [修改] 計算沿著 grid line 方向的投影位移
+        // 滑鼠相對於原始位置的位移
+        const mouseDx = pt.x - dragState.originalBubblePos.x;
+        const mouseDy = pt.y - dragState.originalBubblePos.y;
+
+        // 投影到 grid line 方向（點積）
+        const projectionLength = mouseDx * dragState.gridLineDirection.x +
+                                 mouseDy * dragState.gridLineDirection.y;
+
+        // [新增] 限制在 ±maxDragDistance 範圍內
+        const clampedLength = Math.max(-dragState.maxDragDistance,
+                                       Math.min(dragState.maxDragDistance, projectionLength));
+
+        // 計算新的 bubble 位置（沿著 grid line 方向偏移）
+        const newCx = dragState.originalBubblePos.x + clampedLength * dragState.gridLineDirection.x;
+        const newCy = dragState.originalBubblePos.y + clampedLength * dragState.gridLineDirection.y;
 
         // 更新 bubble 位置
         dragState.currentBubble.setAttribute("cx", newCx);
@@ -1885,39 +1918,76 @@
       function handleBubbleMouseUp(e) {
         if (!dragState.isDragging) return;
 
-        // [新增] 回到原始位置（橡膠回彈效果）
+        // [修改] 使用簡諧運動（彈簧效果）回到原始位置
         if (dragState.currentBubble && dragState.originalBubblePos) {
-          // 平滑過渡回原位
-          dragState.currentBubble.style.transition = "cx 0.3s ease-out, cy 0.3s ease-out";
-          dragState.currentBubble.setAttribute("cx", dragState.originalBubblePos.x);
-          dragState.currentBubble.setAttribute("cy", dragState.originalBubblePos.y);
+          const bubble = dragState.currentBubble;
+          const text = dragState.currentText;
+          const connector = dragState.currentConnector;
+          const targetX = dragState.originalBubblePos.x;
+          const targetY = dragState.originalBubblePos.y;
 
-          // 更新 text 位置
-          if (dragState.currentText) {
-            dragState.currentText.style.transition = "x 0.3s ease-out, y 0.3s ease-out";
-            dragState.currentText.setAttribute("x", dragState.originalBubblePos.x);
-            dragState.currentText.setAttribute("y", dragState.originalBubblePos.y);
-          }
+          // 獲取當前位置
+          let currentX = parseFloat(bubble.getAttribute("cx"));
+          let currentY = parseFloat(bubble.getAttribute("cy"));
 
-          // 更新 connector 位置
-          if (dragState.currentConnector) {
-            dragState.currentConnector.style.transition = "x1 0.3s ease-out, y1 0.3s ease-out";
-            dragState.currentConnector.setAttribute("x1", dragState.originalBubblePos.x);
-            dragState.currentConnector.setAttribute("y1", dragState.originalBubblePos.y);
-          }
+          // 簡諧運動參數
+          let velocity = { x: 0, y: 0 };
+          const stiffness = 0.15;      // 彈簧剛度 (越大越硬)
+          const damping = 0.7;         // 阻尼係數 (0-1，越大阻力越大)
+          const minDistance = 0.1;     // 停止閾值
 
-          // 動畫完成後移除 transition
-          setTimeout(() => {
-            if (dragState.currentBubble) {
-              dragState.currentBubble.style.transition = "";
+          // 動畫循環
+          const animate = () => {
+            // 計算位移
+            const dx = targetX - currentX;
+            const dy = targetY - currentY;
+            const distance = Math.sqrt(dx * dx + dy * dy);
+
+            // 如果已經很接近目標，停止動畫
+            if (distance < minDistance && Math.abs(velocity.x) < 0.01 && Math.abs(velocity.y) < 0.01) {
+              bubble.setAttribute("cx", targetX);
+              bubble.setAttribute("cy", targetY);
+              if (text) {
+                text.setAttribute("x", targetX);
+                text.setAttribute("y", targetY);
+              }
+              if (connector) {
+                connector.setAttribute("x1", targetX);
+                connector.setAttribute("y1", targetY);
+              }
+              return;
             }
-            if (dragState.currentText) {
-              dragState.currentText.style.transition = "";
+
+            // 彈簧力 F = -k * x
+            const forceX = dx * stiffness;
+            const forceY = dy * stiffness;
+
+            // 更新速度（加入阻尼）
+            velocity.x = (velocity.x + forceX) * damping;
+            velocity.y = (velocity.y + forceY) * damping;
+
+            // 更新位置
+            currentX += velocity.x;
+            currentY += velocity.y;
+
+            // 應用到元素
+            bubble.setAttribute("cx", currentX);
+            bubble.setAttribute("cy", currentY);
+            if (text) {
+              text.setAttribute("x", currentX);
+              text.setAttribute("y", currentY);
             }
-            if (dragState.currentConnector) {
-              dragState.currentConnector.style.transition = "";
+            if (connector) {
+              connector.setAttribute("x1", currentX);
+              connector.setAttribute("y1", currentY);
             }
-          }, 300);
+
+            // 繼續動畫
+            requestAnimationFrame(animate);
+          };
+
+          // 開始動畫
+          animate();
         }
 
         // 移除樣式
@@ -1929,7 +1999,7 @@
         }
         document.body.classList.remove("dragging-bubble");
 
-        console.log("Stopped dragging bubble - returned to original position");
+        console.log("Stopped dragging bubble - spring animation started");
 
         // 重置拖曳狀態
         dragState.isDragging = false;
@@ -1938,6 +2008,8 @@
         dragState.currentConnector = null;
         dragState.originalBubblePos = null;
         dragState.gridLineEnd = null;
+        dragState.gridLineDirection = null;
+        dragState.maxDragDistance = null;
         dragState.startMousePos = null;
       }
 
