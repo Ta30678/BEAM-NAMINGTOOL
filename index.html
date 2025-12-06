@@ -1777,16 +1777,59 @@
         const svg = document.getElementById("drawing-svg");
         if (!svg) return;
 
-        // 為所有可拖曳的 bubble 添加事件監聽器
+        // [修改] 為所有可拖曳的 bubble 和 text 添加事件監聽器
         const bubbles = svg.querySelectorAll(".grid-bubble.draggable");
+        const texts = svg.querySelectorAll(".grid-bubble-text");
+
         bubbles.forEach(bubble => {
           bubble.addEventListener("mousedown", handleBubbleMouseDown);
+        });
+
+        // [新增] 文字也可以點擊拖動
+        texts.forEach(text => {
+          text.addEventListener("mousedown", handleTextMouseDown);
+          text.style.cursor = "move";  // 設定游標樣式
         });
 
         // 全域 mousemove 和 mouseup 事件
         svg.addEventListener("mousemove", handleBubbleMouseMove);
         svg.addEventListener("mouseup", handleBubbleMouseUp);
         svg.addEventListener("mouseleave", handleBubbleMouseUp);
+      }
+
+      // [新增] 處理文字點擊 - 找到對應的 bubble 並開始拖動
+      function handleTextMouseDown(e) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        const text = e.currentTarget;
+        const coordsystem = text.getAttribute("data-coordsystem");
+        const textX = parseFloat(text.getAttribute("x"));
+        const textY = parseFloat(text.getAttribute("y"));
+
+        // 找到位置相同的 bubble
+        const svg = document.getElementById("drawing-svg");
+        const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);
+
+        let matchingBubble = null;
+        bubbles.forEach(bubble => {
+          const bx = parseFloat(bubble.getAttribute("cx"));
+          const by = parseFloat(bubble.getAttribute("cy"));
+          if (Math.abs(bx - textX) < 1 && Math.abs(by - textY) < 1) {
+            matchingBubble = bubble;
+          }
+        });
+
+        if (matchingBubble) {
+          // 觸發 bubble 的 mousedown 事件
+          const bubbleEvent = new MouseEvent('mousedown', {
+            bubbles: true,
+            cancelable: true,
+            clientX: e.clientX,
+            clientY: e.clientY
+          });
+          matchingBubble.dispatchEvent(bubbleEvent);
+        }
       }
 
       function handleBubbleMouseDown(e) {
@@ -1845,18 +1888,25 @@
           y: parseFloat(matchingConnector.getAttribute("y2"))
         };
 
-        // [新增] 計算 grid line 的方向向量
-        const dx = dragState.gridLineEnd.x - bubbleCx;
-        const dy = dragState.gridLineEnd.y - bubbleCy;
-        const lineLength = Math.sqrt(dx * dx + dy * dy);
+        // [修改] 計算 grid line 的方向向量
+        // connector 從 bubble 指向 grid line，所以它垂直於 grid line
+        // grid line 的方向 = connector 方向旋轉 90 度
+        const connectorDx = dragState.gridLineEnd.x - bubbleCx;
+        const connectorDy = dragState.gridLineEnd.y - bubbleCy;
+        const connectorLength = Math.sqrt(connectorDx * connectorDx + connectorDy * connectorDy);
 
-        if (lineLength > 0.01) {
+        if (connectorLength > 0.01) {
+          // connector 的單位向量
+          const connectorUnitX = connectorDx / connectorLength;
+          const connectorUnitY = connectorDy / connectorLength;
+
+          // 旋轉 90 度得到 grid line 方向（逆時針旋轉）
           dragState.gridLineDirection = {
-            x: dx / lineLength,  // 單位向量
-            y: dy / lineLength
+            x: -connectorUnitY,  // 旋轉 90 度: (x,y) -> (-y,x)
+            y: connectorUnitX
           };
         } else {
-          dragState.gridLineDirection = { x: 0, y: 1 }; // 預設垂直方向
+          dragState.gridLineDirection = { x: 1, y: 0 }; // 預設水平方向
         }
 
         // [新增] 設定最大拖曳距離 = 5 個 bubble 半徑
