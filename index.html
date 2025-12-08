@@ -1778,13 +1778,18 @@
         if (!svg) return;
 
         // [修改] 先移除舊的全域事件監聽器，避免重複綁定
-        svg.removeEventListener("mousemove", handleBubbleMouseMove);
-        svg.removeEventListener("mouseup", handleBubbleMouseUp);
-        svg.removeEventListener("mouseleave", handleBubbleMouseUp);
+        // 綁定到 document 而不是 svg，確保即使鼠標移出 SVG 範圍也能繼續拖曳
+        document.removeEventListener("mousemove", handleBubbleMouseMove);
+        document.removeEventListener("mouseup", handleBubbleMouseUp);
 
         // [修改] 為所有可拖曳的 bubble 和 text 添加事件監聽器
         const bubbles = svg.querySelectorAll(".grid-bubble.draggable");
         const texts = svg.querySelectorAll(".grid-bubble-text");
+
+        console.log("[DEBUG] Initializing bubble dragging:", {
+          bubblesCount: bubbles.length,
+          textsCount: texts.length
+        });
 
         bubbles.forEach(bubble => {
           // 先移除舊的監聽器（如果有），避免重複綁定
@@ -1800,10 +1805,11 @@
           text.style.cursor = "move";  // 設定游標樣式
         });
 
-        // 全域 mousemove 和 mouseup 事件
-        svg.addEventListener("mousemove", handleBubbleMouseMove);
-        svg.addEventListener("mouseup", handleBubbleMouseUp);
-        svg.addEventListener("mouseleave", handleBubbleMouseUp);
+        // 全域 mousemove 和 mouseup 事件綁定到 document
+        document.addEventListener("mousemove", handleBubbleMouseMove);
+        document.addEventListener("mouseup", handleBubbleMouseUp);
+
+        console.log("[DEBUG] Bubble dragging initialized successfully");
       }
 
       // [新增] 處理文字點擊 - 找到對應的 bubble 並開始拖動
@@ -1855,27 +1861,52 @@
         const texts = svg.querySelectorAll(`.grid-bubble-text[data-coordsystem="${coordsystem}"]`);
         const connectors = svg.querySelectorAll(`.grid-bubble-connector[data-coordsystem="${coordsystem}"]`);
 
-        // 找到位置相同的 text
+        console.log("[DEBUG] Bubble mousedown:", {
+          coordsystem,
+          bubbleCx,
+          bubbleCy,
+          textsCount: texts.length,
+          connectorsCount: connectors.length
+        });
+
+        // 找到位置相同的 text（放寬匹配條件到 5 像素）
         let matchingText = null;
+        let minTextDist = Infinity;
         texts.forEach(text => {
           const tx = parseFloat(text.getAttribute("x"));
           const ty = parseFloat(text.getAttribute("y"));
-          if (Math.abs(tx - bubbleCx) < 1 && Math.abs(ty - bubbleCy) < 1) {
+          const dist = Math.sqrt((tx - bubbleCx) ** 2 + (ty - bubbleCy) ** 2);
+          if (dist < 10 && dist < minTextDist) {
             matchingText = text;
+            minTextDist = dist;
           }
         });
 
-        // 找到連接到這個 bubble 的 connector
+        // 找到連接到這個 bubble 的 connector（放寬匹配條件到 5 像素）
         let matchingConnector = null;
+        let minConnDist = Infinity;
         connectors.forEach(conn => {
           const x1 = parseFloat(conn.getAttribute("x1"));
           const y1 = parseFloat(conn.getAttribute("y1"));
-          if (Math.abs(x1 - bubbleCx) < 1 && Math.abs(y1 - bubbleCy) < 1) {
+          const dist = Math.sqrt((x1 - bubbleCx) ** 2 + (y1 - bubbleCy) ** 2);
+          console.log("[DEBUG] Checking connector:", { x1, y1, dist });
+          if (dist < 10 && dist < minConnDist) {
             matchingConnector = conn;
+            minConnDist = dist;
           }
         });
 
-        if (!matchingConnector) return;
+        if (!matchingConnector) {
+          console.warn("[WARN] No matching connector found for bubble at", bubbleCx, bubbleCy);
+          return;
+        }
+
+        console.log("[DEBUG] Found connector:", {
+          x1: matchingConnector.getAttribute("x1"),
+          y1: matchingConnector.getAttribute("y1"),
+          x2: matchingConnector.getAttribute("x2"),
+          y2: matchingConnector.getAttribute("y2")
+        });
 
         // 儲存拖曳狀態
         dragState.isDragging = true;
@@ -1902,10 +1933,13 @@
         const connectorDy = dragState.gridLineEnd.y - bubbleCy;
         const connectorLength = Math.sqrt(connectorDx * connectorDx + connectorDy * connectorDy);
 
+        // connector 的單位向量
+        let connectorUnitX = 0;
+        let connectorUnitY = 0;
+
         if (connectorLength > 0.01) {
-          // connector 的單位向量
-          const connectorUnitX = connectorDx / connectorLength;
-          const connectorUnitY = connectorDy / connectorLength;
+          connectorUnitX = connectorDx / connectorLength;
+          connectorUnitY = connectorDy / connectorLength;
 
           // [修正] 順時針旋轉 90 度得到 grid line 方向
           dragState.gridLineDirection = {
@@ -1916,10 +1950,10 @@
           dragState.gridLineDirection = { x: 1, y: 0 }; // 預設水平方向
         }
 
-        console.log("Grid line direction:", dragState.gridLineDirection, "Connector:", {x: connectorUnitX, y: connectorUnitY});
+        console.log("[DEBUG] Grid line direction:", dragState.gridLineDirection, "Connector unit:", {x: connectorUnitX, y: connectorUnitY});
 
         // [新增] 設定最大拖曳距離 = 5 個 bubble 半徑
-        const bubbleRadius = parseFloat(bubble.getAttribute("r")) || INITIAL_GRID_BUBBLE_RADIUS;
+        const bubbleRadius = parseFloat(bubble.getAttribute("r")) || 20;
         dragState.maxDragDistance = 5 * bubbleRadius;
 
         // 獲取 SVG 座標系中的滑鼠位置
@@ -1931,13 +1965,17 @@
         matchingConnector.classList.add("rubber-band");
         document.body.classList.add("dragging-bubble");
 
-        console.log("Started dragging bubble", coordsystem, "maxDistance:", dragState.maxDragDistance);
+        console.log("[SUCCESS] Started dragging bubble", coordsystem, "maxDistance:", dragState.maxDragDistance, "isDragging:", dragState.isDragging);
       }
 
       function handleBubbleMouseMove(e) {
-        if (!dragState.isDragging) return;
+        if (!dragState.isDragging) {
+          // console.log("[DEBUG] MouseMove but not dragging");
+          return;
+        }
 
         e.preventDefault();
+        e.stopPropagation();
 
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
@@ -1959,6 +1997,8 @@
         const newCx = dragState.originalBubblePos.x + clampedLength * dragState.gridLineDirection.x;
         const newCy = dragState.originalBubblePos.y + clampedLength * dragState.gridLineDirection.y;
 
+        // console.log("[DEBUG] Moving bubble:", { newCx, newCy, clampedLength });
+
         // 更新 bubble 位置
         dragState.currentBubble.setAttribute("cx", newCx);
         dragState.currentBubble.setAttribute("cy", newCy);
@@ -1976,6 +2016,8 @@
 
       function handleBubbleMouseUp(e) {
         if (!dragState.isDragging) return;
+
+        console.log("[DEBUG] Mouse up - starting spring animation");
 
         // [修改] 使用簡諧運動（彈簧效果）回到原始位置
         if (dragState.currentBubble && dragState.originalBubblePos) {
