@@ -1977,9 +1977,9 @@
 
         console.log("[DEBUG] Grid line direction:", dragState.gridLineDirection, "Connector unit:", {x: connectorUnitX, y: connectorUnitY});
 
-        // [新增] 設定最大拖曳距離 = 5 個 bubble 半徑
-        const bubbleRadius = parseFloat(bubble.getAttribute("r")) || 20;
-        dragState.maxDragDistance = 5 * bubbleRadius;
+        // [修正] 設定統一的最大拖曳距離，確保所有 BUBBLE 有相同的移動感受
+        // 使用固定距離而非基於 bubble 半徑，避免不同 BUBBLE 有不同的速度感
+        dragState.maxDragDistance = 100;  // 固定 100 單位的拖曳範圍
 
         // 獲取 SVG 座標系中的滑鼠位置
         const pt = getSVGPoint(svg, e);
@@ -2005,12 +2005,11 @@
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
 
-        // 計算沿著 grid line 方向的投影位移
-        // 滑鼠相對於原始位置的位移
-        const mouseDx = pt.x - dragState.originalBubblePos.x;
-        const mouseDy = pt.y - dragState.originalBubblePos.y;
+        // [修正] 計算鼠標相對於初始點擊位置的移動量（而不是相對於 BUBBLE 原始位置）
+        const mouseDx = pt.x - dragState.startMousePos.x;
+        const mouseDy = pt.y - dragState.startMousePos.y;
 
-        // 投影到 grid line 方向（點積）
+        // 投影到 connector 方向（點積）
         const projectionLength = mouseDx * dragState.gridLineDirection.x +
                                  mouseDy * dragState.gridLineDirection.y;
 
@@ -2018,11 +2017,11 @@
         const clampedLength = Math.max(-dragState.maxDragDistance,
                                        Math.min(dragState.maxDragDistance, projectionLength));
 
-        // 計算新的 bubble 位置（沿著 grid line 方向偏移）
+        // 計算新的 bubble 位置（從原始位置沿 connector 方向偏移）
         const newCx = dragState.originalBubblePos.x + clampedLength * dragState.gridLineDirection.x;
         const newCy = dragState.originalBubblePos.y + clampedLength * dragState.gridLineDirection.y;
 
-        // console.log("[DEBUG] Moving bubble:", { newCx, newCy, clampedLength });
+        // console.log("[DEBUG] Moving bubble:", { mouseDx, mouseDy, projectionLength, clampedLength, newCx, newCy });
 
         // 更新 bubble 位置
         dragState.currentBubble.setAttribute("cx", newCx);
@@ -2056,11 +2055,11 @@
           let currentX = parseFloat(bubble.getAttribute("cx"));
           let currentY = parseFloat(bubble.getAttribute("cy"));
 
-          // 簡諧運動參數
+          // [優化] 簡諧運動參數 - 提高剛度和阻尼，讓回彈更快更一致
           let velocity = { x: 0, y: 0 };
-          const stiffness = 0.15;      // 彈簧剛度 (越大越硬)
-          const damping = 0.7;         // 阻尼係數 (0-1，越大阻力越大)
-          const minDistance = 0.1;     // 停止閾值
+          const stiffness = 0.25;      // 彈簧剛度 (提高到 0.25，回彈更快)
+          const damping = 0.75;        // 阻尼係數 (提高到 0.75，減少震盪)
+          const minDistance = 0.5;     // 停止閾值 (提高到 0.5，更快停止)
 
           // 動畫循環
           const animate = () => {
