@@ -465,9 +465,8 @@
         text-anchor: middle;
         dominant-baseline: middle;
         font-size: 14px; /* [修改] 固定字體大小，不再由 JS 反向縮放 */
-        /* [新增] 讓文字可以點擊拖曳 */
-        pointer-events: all;
-        cursor: move;
+        /* [修改] 讓點擊穿透到 hitarea，統一由 hitarea 處理所有點擊 */
+        pointer-events: none;
         user-select: none;
       }
 
@@ -1801,27 +1800,17 @@
         document.removeEventListener("mousemove", handleBubbleMouseMove);
         document.removeEventListener("mouseup", handleBubbleMouseUp);
 
-        // [修改] 為所有可拖曳的 bubble 和 text 添加事件監聽器
-        const bubbles = svg.querySelectorAll(".grid-bubble.draggable");
-        const texts = svg.querySelectorAll(".grid-bubble-text");
+        // [重構] 統一由 hitarea 處理所有點擊，移除分散的事件監聽器
+        const hitareas = svg.querySelectorAll(".grid-bubble-hitarea.draggable");
 
         console.log("[DEBUG] Initializing bubble dragging:", {
-          bubblesCount: bubbles.length,
-          textsCount: texts.length
+          hitareasCount: hitareas.length
         });
 
-        bubbles.forEach(bubble => {
+        hitareas.forEach(hitarea => {
           // 先移除舊的監聽器（如果有），避免重複綁定
-          bubble.removeEventListener("mousedown", handleBubbleMouseDown);
-          bubble.addEventListener("mousedown", handleBubbleMouseDown);
-        });
-
-        // [新增] 文字也可以點擊拖動
-        texts.forEach(text => {
-          // 先移除舊的監聽器（如果有），避免重複綁定
-          text.removeEventListener("mousedown", handleTextMouseDown);
-          text.addEventListener("mousedown", handleTextMouseDown);
-          text.style.cursor = "move";  // 設定游標樣式
+          hitarea.removeEventListener("mousedown", handleBubbleMouseDown);
+          hitarea.addEventListener("mousedown", handleBubbleMouseDown);
         });
 
         // 全域 mousemove 和 mouseup 事件綁定到 document
@@ -1829,55 +1818,6 @@
         document.addEventListener("mouseup", handleBubbleMouseUp);
 
         console.log("[DEBUG] Bubble dragging initialized successfully");
-      }
-
-      // [新增] 處理文字點擊 - 找到對應的 hitarea 並開始拖動
-      function handleTextMouseDown(e) {
-        // [修改] 找到對應的 hitarea 或 bubble
-        const text = e.currentTarget;
-        const coordsystem = text.getAttribute("data-coordsystem");
-        const textX = parseFloat(text.getAttribute("x"));
-        const textY = parseFloat(text.getAttribute("y"));
-
-        const svg = document.getElementById("drawing-svg");
-
-        // 先嘗試找 hitarea（因為現在 bubble 是 pointer-events: none）
-        let hitareas = svg.querySelectorAll(`.grid-bubble-hitarea[data-coordsystem="${coordsystem}"]`);
-        let matchingElement = null;
-
-        hitareas.forEach(hitarea => {
-          const cx = parseFloat(hitarea.getAttribute("cx"));
-          const cy = parseFloat(hitarea.getAttribute("cy"));
-          if (Math.abs(cx - textX) < 5 && Math.abs(cy - textY) < 5) {
-            matchingElement = hitarea;
-          }
-        });
-
-        // 如果沒找到 hitarea，嘗試找 bubble
-        if (!matchingElement) {
-          const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);
-          bubbles.forEach(bubble => {
-            const bx = parseFloat(bubble.getAttribute("cx"));
-            const by = parseFloat(bubble.getAttribute("cy"));
-            if (Math.abs(bx - textX) < 5 && Math.abs(by - textY) < 5) {
-              matchingElement = bubble;
-            }
-          });
-        }
-
-        if (matchingElement) {
-          console.log("[DEBUG] Text clicked, found matching element:", matchingElement.getAttribute("class"));
-          // [修改] 創建一個偽造的事件對象，currentTarget 指向找到的元素
-          const fakeEvent = {
-            ...e,
-            currentTarget: matchingElement,
-            stopPropagation: () => e.stopPropagation(),
-            preventDefault: () => e.preventDefault()
-          };
-          handleBubbleMouseDown(fakeEvent);
-        } else {
-          console.warn("[WARN] Text clicked but no matching element found");
-        }
       }
 
       function handleBubbleMouseDown(e) {
