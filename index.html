@@ -1777,16 +1777,25 @@
         const svg = document.getElementById("drawing-svg");
         if (!svg) return;
 
+        // [修改] 先移除舊的全域事件監聽器，避免重複綁定
+        svg.removeEventListener("mousemove", handleBubbleMouseMove);
+        svg.removeEventListener("mouseup", handleBubbleMouseUp);
+        svg.removeEventListener("mouseleave", handleBubbleMouseUp);
+
         // [修改] 為所有可拖曳的 bubble 和 text 添加事件監聽器
         const bubbles = svg.querySelectorAll(".grid-bubble.draggable");
         const texts = svg.querySelectorAll(".grid-bubble-text");
 
         bubbles.forEach(bubble => {
+          // 先移除舊的監聽器（如果有），避免重複綁定
+          bubble.removeEventListener("mousedown", handleBubbleMouseDown);
           bubble.addEventListener("mousedown", handleBubbleMouseDown);
         });
 
         // [新增] 文字也可以點擊拖動
         texts.forEach(text => {
+          // 先移除舊的監聽器（如果有），避免重複綁定
+          text.removeEventListener("mousedown", handleTextMouseDown);
           text.addEventListener("mousedown", handleTextMouseDown);
           text.style.cursor = "move";  // 設定游標樣式
         });
