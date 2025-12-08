@@ -2805,6 +2805,13 @@
               panZoomInstance.fit();
               panZoomInstance.center();
 
+              // 全螢幕模式下，放大內容以減少周圍空白
+              // fit() 預設會留有 padding，這裡額外放大讓內容填滿更多螢幕空間
+              const currentZoom = panZoomInstance.getZoom();
+              const fullscreenZoomMultiplier = 1.15; // 放大 15% 以減少空白
+              panZoomInstance.zoom(currentZoom * fullscreenZoomMultiplier);
+              panZoomInstance.center();
+
               console.log("  最終 zoom:", panZoomInstance.getZoom());
               console.log("  最終 pan:", panZoomInstance.getPan());
               console.log("  Sizes:", panZoomInstance.getSizes());
