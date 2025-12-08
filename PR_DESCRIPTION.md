@@ -100,10 +100,43 @@ None. All changes are additive and backward compatible.
 7. `c4c52b6` - fix: prevent duplicate event listener binding in bubble dragging
 8. `bd7565d` - docs: update PR description with event listener fix
 9. `e62d82d` - fix: 修復 BUBBLE 拖曳功能，確保沿 grid line 方向移動並帶阻尼回彈
+10. `fb49b69` - docs: update PR description with complete drag fix details
+11. `e257662` - fix: 修正 BUBBLE 拖曳方向，沿著 connector 方向（垂直於 grid line）移動
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (e62d82d) - 完整修復拖曳功能
+## 🆕 Latest Update (e257662) - 修正拖曳方向邏輯 ⚡ 關鍵修復
+
+**問題說明**：
+之前的實現錯誤地將 connector 方向旋轉了 90 度，導致 BUBBLE 沿著 grid line 本身移動，而不是垂直於 grid line 的方向移動。
+
+**修正內容**：
+- ❌ **之前（錯誤）**：BUBBLE 沿著 grid line 切線方向移動（旋轉 90 度後）
+  - Y 軸 BUBBLE（如 Y16-1）會水平移動 ⬅️➡️
+  - X 軸 BUBBLE 會垂直移動 ⬆️⬇️
+
+- ✅ **現在（正確）**：BUBBLE 沿著 connector 方向移動（垂直於 grid line）
+  - Y 軸 BUBBLE（如 Y16-1）會垂直移動 ⬆️⬇️
+  - X 軸 BUBBLE 會水平移動 ⬅️➡️
+
+**技術細節**：
+```javascript
+// 之前的錯誤邏輯（旋轉 90 度）
+dragState.gridLineDirection = {
+  x: connectorUnitY,   // 順時針旋轉 90 度
+  y: -connectorUnitX
+};
+
+// 現在的正確邏輯（直接使用 connector 方向）
+dragState.gridLineDirection = {
+  x: connectorUnitX,   // 沿著 connector 方向
+  y: connectorUnitY
+};
+```
+
+---
+
+## 📝 Previous Update (e62d82d) - 完整修復拖曳功能
 
 **主要修復問題**：
 1. **事件綁定位置錯誤** - 將 `mousemove`/`mouseup` 從 SVG 移到 `document`

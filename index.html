@@ -1926,9 +1926,8 @@
           y: parseFloat(matchingConnector.getAttribute("y2"))
         };
 
-        // [修改] 計算 grid line 的方向向量
-        // connector 從 bubble 指向 grid line，所以它垂直於 grid line
-        // grid line 的方向 = connector 方向旋轉 90 度（順時針）
+        // [修正] BUBBLE 應該沿著 connector 的方向移動（垂直於 grid line）
+        // 計算從 bubble 指向 grid line 的方向向量
         const connectorDx = dragState.gridLineEnd.x - bubbleCx;
         const connectorDy = dragState.gridLineEnd.y - bubbleCy;
         const connectorLength = Math.sqrt(connectorDx * connectorDx + connectorDy * connectorDy);
@@ -1941,13 +1940,14 @@
           connectorUnitX = connectorDx / connectorLength;
           connectorUnitY = connectorDy / connectorLength;
 
-          // [修正] 順時針旋轉 90 度得到 grid line 方向
+          // [修正] 直接使用 connector 的方向（不需要旋轉）
+          // BUBBLE 沿著垂直於 grid line 的方向移動
           dragState.gridLineDirection = {
-            x: connectorUnitY,   // 順時針旋轉 90 度: (x,y) -> (y,-x)
-            y: -connectorUnitX
+            x: connectorUnitX,
+            y: connectorUnitY
           };
         } else {
-          dragState.gridLineDirection = { x: 1, y: 0 }; // 預設水平方向
+          dragState.gridLineDirection = { x: 0, y: 1 }; // 預設垂直方向
         }
 
         console.log("[DEBUG] Grid line direction:", dragState.gridLineDirection, "Connector unit:", {x: connectorUnitX, y: connectorUnitY});
