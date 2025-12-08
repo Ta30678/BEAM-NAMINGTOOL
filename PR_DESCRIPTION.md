@@ -106,10 +106,55 @@ None. All changes are additive and backward compatible.
 13. `8eb8cf9` - fix: 優化 BUBBLE 拖曳體驗 - 修復斜向跳動並統一速度感受
 14. `4330cf3` - docs: update PR description with drag optimization details
 15. `705ccdf` - fix: 擴大 BUBBLE 點擊範圍並支持雙向拖曳
+16. `7af8355` - docs: update PR description with hitarea fix details
+17. `1aae41b` - fix: 修復 BUBBLE 文字點擊無法觸發拖曳的問題
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (705ccdf) - 完美點擊體驗 🎯 最終優化
+## 🆕 Latest Update (1aae41b) - 修復文字點擊 ✅ 最終完善
+
+**解決的問題**：
+- ❌ **點擊 BUBBLE 內的文字無法拖曳** → ✅ 文字完全可點擊
+
+**修復詳情**：
+
+### 1. 添加文字 CSS 樣式 🎨
+```css
+.grid-bubble-text {
+  pointer-events: all;    /* 讓文字接收點擊事件 */
+  cursor: move;           /* 提示可拖曳 */
+  user-select: none;      /* 防止拖曳時選中文字 */
+}
+```
+
+### 2. 修復 handleTextMouseDown 函數 🔧
+由於實際的 bubble 已設置 `pointer-events: none`，文字點擊需要找到對應的 hitarea：
+
+```javascript
+// 先找 hitarea（現在的點擊接收者）
+let hitareas = svg.querySelectorAll(`.grid-bubble-hitarea[...]`);
+hitareas.forEach(hitarea => {
+  const cx = parseFloat(hitarea.getAttribute("cx"));
+  const cy = parseFloat(hitarea.getAttribute("cy"));
+  if (Math.abs(cx - textX) < 5 && Math.abs(cy - textY) < 5) {
+    matchingElement = hitarea;  // 找到對應的 hitarea
+  }
+});
+
+// 向後兼容：如果找不到 hitarea，嘗試找 bubble
+if (!matchingElement) {
+  // ... 查找 bubble 邏輯
+}
+```
+
+**測試確認**：
+- ✅ 點擊 BUBBLE 圓圈 → 可以拖曳
+- ✅ 點擊 BUBBLE 內文字 → 可以拖曳
+- ✅ 點擊 BUBBLE 周圍區域（hitarea）→ 可以拖曳
+
+---
+
+## 📝 Previous Update (705ccdf) - 完美點擊體驗
 
 **解決的核心問題**：
 1. ❌ **點擊判定太嚴格** → ✅ 整個圓圈都可點擊
