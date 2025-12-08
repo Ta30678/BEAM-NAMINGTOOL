@@ -696,11 +696,26 @@
         cursor: move;
         transition: r 0.2s ease, stroke-width 0.2s ease;
         user-select: none;
+        pointer-events: all;
       }
 
       .grid-bubble.draggable:hover {
         r: 22;
         stroke-width: 2.5;
+      }
+
+      /* [新增] 擴大 bubble 的實際點擊範圍 - 使用較粗的透明描邊 */
+      .grid-bubble.draggable {
+        stroke-width: 3px;
+      }
+
+      /* [新增] 為 bubble 添加不可見的點擊區域 */
+      .grid-bubble-hitarea {
+        fill: transparent;
+        stroke: transparent;
+        stroke-width: 20px;  /* 擴大點擊範圍 */
+        pointer-events: all;
+        cursor: move;
       }
 
       .grid-bubble.dragging {
@@ -3176,6 +3191,20 @@
               topConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(topConnector);
 
+              // [新增] 創建不可見的擴大點擊區域
+              const topHitArea = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              topHitArea.setAttribute("cx", cx_top);
+              topHitArea.setAttribute("cy", cy_top);
+              topHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);  // 擴大 10 個單位的點擊範圍
+              topHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
+              topHitArea.setAttribute("data-coordsystem", coordsystem);
+              topHitArea.setAttribute("fill", "transparent");
+              topHitArea.setAttribute("stroke", "transparent");
+              topHitArea.setAttribute("stroke-width", "20");
+
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -3186,6 +3215,8 @@
               topBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               topBubble.setAttribute("stroke", color);
               topBubble.setAttribute("data-coordsystem", coordsystem);
+              topBubble.setAttribute("pointer-events", "none");  // [新增] 讓實際的 bubble 不接收點擊事件，由 hitarea 處理
+
               const topText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
@@ -3195,6 +3226,8 @@
               topText.setAttribute("class", "grid-bubble-text");
               topText.setAttribute("data-coordsystem", coordsystem); // [新增]
               topText.textContent = gridLine.name;
+
+              gridLabelsGroup.appendChild(topHitArea);  // 先添加 hitarea（在底層）
               gridLabelsGroup.appendChild(topBubble);
               gridLabelsGroup.appendChild(topText);
             }
@@ -3214,6 +3247,20 @@
               bottomConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(bottomConnector);
 
+              // [新增] 創建不可見的擴大點擊區域
+              const bottomHitArea = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              bottomHitArea.setAttribute("cx", cx_bottom);
+              bottomHitArea.setAttribute("cy", cy_bottom);
+              bottomHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              bottomHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
+              bottomHitArea.setAttribute("data-coordsystem", coordsystem);
+              bottomHitArea.setAttribute("fill", "transparent");
+              bottomHitArea.setAttribute("stroke", "transparent");
+              bottomHitArea.setAttribute("stroke-width", "20");
+
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -3224,6 +3271,8 @@
               bottomBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               bottomBubble.setAttribute("stroke", color);
               bottomBubble.setAttribute("data-coordsystem", coordsystem);
+              bottomBubble.setAttribute("pointer-events", "none");
+
               const bottomText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
@@ -3233,6 +3282,8 @@
               bottomText.setAttribute("class", "grid-bubble-text");
               bottomText.setAttribute("data-coordsystem", coordsystem); // [新增]
               bottomText.textContent = gridLine.name;
+
+              gridLabelsGroup.appendChild(bottomHitArea);
               gridLabelsGroup.appendChild(bottomBubble);
               gridLabelsGroup.appendChild(bottomText);
             }
@@ -3279,6 +3330,20 @@
               leftConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(leftConnector);
 
+              // [新增] 創建不可見的擴大點擊區域
+              const leftHitArea = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              leftHitArea.setAttribute("cx", cx_left);
+              leftHitArea.setAttribute("cy", cy_left);
+              leftHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              leftHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
+              leftHitArea.setAttribute("data-coordsystem", coordsystem);
+              leftHitArea.setAttribute("fill", "transparent");
+              leftHitArea.setAttribute("stroke", "transparent");
+              leftHitArea.setAttribute("stroke-width", "20");
+
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -3289,6 +3354,8 @@
               leftBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               leftBubble.setAttribute("stroke", color);
               leftBubble.setAttribute("data-coordsystem", coordsystem);
+              leftBubble.setAttribute("pointer-events", "none");
+
               const leftText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
@@ -3298,6 +3365,8 @@
               leftText.setAttribute("class", "grid-bubble-text");
               leftText.setAttribute("data-coordsystem", coordsystem); // [新增]
               leftText.textContent = gridLine.name;
+
+              gridLabelsGroup.appendChild(leftHitArea);
               gridLabelsGroup.appendChild(leftBubble);
               gridLabelsGroup.appendChild(leftText);
             }
@@ -3317,6 +3386,20 @@
               rightConnector.setAttribute("data-coordsystem", coordsystem); // [新增]
               gridLabelsGroup.appendChild(rightConnector);
 
+              // [新增] 創建不可見的擴大點擊區域
+              const rightHitArea = document.createElementNS(
+                "http://www.w3.org/2000/svg",
+                "circle",
+              );
+              rightHitArea.setAttribute("cx", cx_right);
+              rightHitArea.setAttribute("cy", cy_right);
+              rightHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              rightHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
+              rightHitArea.setAttribute("data-coordsystem", coordsystem);
+              rightHitArea.setAttribute("fill", "transparent");
+              rightHitArea.setAttribute("stroke", "transparent");
+              rightHitArea.setAttribute("stroke-width", "20");
+
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "circle",
@@ -3327,6 +3410,8 @@
               rightBubble.setAttribute("class", "grid-bubble draggable"); // [修改] 加入 draggable class
               rightBubble.setAttribute("stroke", color);
               rightBubble.setAttribute("data-coordsystem", coordsystem);
+              rightBubble.setAttribute("pointer-events", "none");
+
               const rightText = document.createElementNS(
                 "http://www.w3.org/2000/svg",
                 "text",
@@ -3336,6 +3421,8 @@
               rightText.setAttribute("class", "grid-bubble-text");
               rightText.setAttribute("data-coordsystem", coordsystem); // [新增]
               rightText.textContent = gridLine.name;
+
+              gridLabelsGroup.appendChild(rightHitArea);
               gridLabelsGroup.appendChild(rightBubble);
               gridLabelsGroup.appendChild(rightText);
             }
