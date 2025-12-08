@@ -102,10 +102,57 @@ None. All changes are additive and backward compatible.
 9. `e62d82d` - fix: 修復 BUBBLE 拖曳功能，確保沿 grid line 方向移動並帶阻尼回彈
 10. `fb49b69` - docs: update PR description with complete drag fix details
 11. `e257662` - fix: 修正 BUBBLE 拖曳方向，沿著 connector 方向（垂直於 grid line）移動
+12. `9bef274` - docs: update PR description with direction fix explanation
+13. `8eb8cf9` - fix: 優化 BUBBLE 拖曳體驗 - 修復斜向跳動並統一速度感受
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (e257662) - 修正拖曳方向邏輯 ⚡ 關鍵修復
+## 🆕 Latest Update (8eb8cf9) - 完美拖曳體驗 🎯 終極優化
+
+**解決的問題**：
+1. ❌ **斜向 BUBBLE 會跳動** → ✅ 平滑跟隨鼠標
+2. ❌ **不同 BUBBLE 速度不一致** → ✅ 統一移動感受
+3. ❌ **回彈動畫過慢** → ✅ 快速流暢回彈
+
+**修復詳情**：
+
+### 1. 修復斜向 BUBBLE 跳動問題
+```javascript
+// ❌ 之前（錯誤）：相對於 BUBBLE 原始位置計算
+const mouseDx = pt.x - dragState.originalBubblePos.x;
+const mouseDy = pt.y - dragState.originalBubblePos.y;
+// 導致點擊時如果鼠標不在 BUBBLE 中心，會立即跳到投影位置
+
+// ✅ 現在（正確）：相對於初始點擊位置計算
+const mouseDx = pt.x - dragState.startMousePos.x;
+const mouseDy = pt.y - dragState.startMousePos.y;
+// BUBBLE 平滑跟隨鼠標移動，不會跳動
+```
+
+### 2. 統一拖曳速度感受
+```javascript
+// ❌ 之前：基於 bubble 半徑（不同 BUBBLE 不同範圍）
+dragState.maxDragDistance = 5 * bubbleRadius;
+
+// ✅ 現在：固定距離（所有 BUBBLE 一致）
+dragState.maxDragDistance = 100;  // 統一 100 單位
+```
+
+### 3. 優化回彈動畫參數
+| 參數 | 之前 | 現在 | 效果 |
+|------|------|------|------|
+| 彈簧剛度 (stiffness) | 0.15 | 0.25 | 回彈更快 ⚡ |
+| 阻尼係數 (damping) | 0.70 | 0.75 | 減少震盪 🎯 |
+| 停止閾值 (minDistance) | 0.1 | 0.5 | 更快停止 ✅ |
+
+**視覺效果對比**：
+- 水平 BUBBLE（X 軸）：⬅️➡️ 流暢拖曳 + 快速回彈
+- 垂直 BUBBLE（Y 軸）：⬆️⬇️ 流暢拖曳 + 快速回彈
+- 斜向 BUBBLE：↗️↘️ **不再跳動** + 一致速度感
+
+---
+
+## 📝 Previous Update (e257662) - 修正拖曳方向邏輯
 
 **問題說明**：
 之前的實現錯誤地將 connector 方向旋轉了 90 度，導致 BUBBLE 沿著 grid line 本身移動，而不是垂直於 grid line 的方向移動。
