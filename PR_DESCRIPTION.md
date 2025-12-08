@@ -98,15 +98,42 @@ None. All changes are additive and backward compatible.
 5. `56d00e4` - fix: correct grid line direction and expand clickable area
 6. `29ff54a` - fix: reverse rotation direction and simplify text click handling
 7. `c4c52b6` - fix: prevent duplicate event listener binding in bubble dragging
+8. `bd7565d` - docs: update PR description with event listener fix
+9. `e62d82d` - fix: 修復 BUBBLE 拖曳功能，確保沿 grid line 方向移動並帶阻尼回彈
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (c4c52b6)
+## 🆕 Latest Update (e62d82d) - 完整修復拖曳功能
 
-**防止重複綁定事件監聽器**：
-- 優化 `initializeBubbleDragging()` 函數
-- 在添加新的事件監聽器之前先移除舊的監聽器
-- 避免多次調用導致事件處理器重複執行
-- 確保拖曳功能的穩定性和可靠性
+**主要修復問題**：
+1. **事件綁定位置錯誤** - 將 `mousemove`/`mouseup` 從 SVG 移到 `document`
+   - 修復：鼠標移出 SVG 範圍時拖曳會中斷的問題
+   - 確保在整個頁面範圍內都能順暢拖曳
 
-這個修復確保了即使 `initializeBubbleDragging()` 被多次調用（例如在切換樓層或重新渲染時），事件監聽器也不會重複綁定，從而避免潛在的性能問題和異常行為。
+2. **元素匹配條件過於嚴格** - 從 1px 放寬到 10px
+   - 修復：無法找到對應 connector 導致拖曳完全失效
+   - 使用最近距離匹配，提高容錯性
+
+3. **變量作用域問題** - `connectorUnitX/Y` 移到外層
+   - 修復：console.log 中引用未定義變量導致 JavaScript 錯誤
+   - 確保程式碼正確執行
+
+4. **詳細調試日誌** - 添加 `[DEBUG]`, `[WARN]`, `[SUCCESS]` 標籤
+   - 幫助快速診斷問題
+   - 可以透過瀏覽器控制台追蹤拖曳流程
+
+**功能特性（已完整實現）**：
+✅ **沿 Grid Line 方向拖曳** - 使用向量投影確保移動軌跡正確
+✅ **限制拖曳範圍** - ±5 個 bubble 半徑，防止拖曳過遠
+✅ **跟隨鼠標移動** - 實時更新 bubble、text 和 connector 位置
+✅ **橡皮筋視覺效果** - connector 拉伸動畫，虛線閃爍
+✅ **阻尼回彈動畫** - 彈簧物理模擬（stiffness=0.15, damping=0.7）
+✅ **平滑 60fps 動畫** - 使用 `requestAnimationFrame` 實現流暢回彈
+
+**測試建議**：
+1. 打開瀏覽器開發者工具的 Console 標籤
+2. 上傳 E2K 文件並執行編號
+3. 顯示 Grid Bubble（點擊 "🎯 Grid 控制"）
+4. 點擊任一 BUBBLE，觀察 Console 輸出 `[SUCCESS] Started dragging...`
+5. 拖動 BUBBLE，應該能沿著 grid line 方向順暢移動
+6. 鬆開鼠標，觀察 BUBBLE 平滑回彈到原位（帶阻尼效果）
