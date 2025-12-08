@@ -104,10 +104,55 @@ None. All changes are additive and backward compatible.
 11. `e257662` - fix: 修正 BUBBLE 拖曳方向，沿著 connector 方向（垂直於 grid line）移動
 12. `9bef274` - docs: update PR description with direction fix explanation
 13. `8eb8cf9` - fix: 優化 BUBBLE 拖曳體驗 - 修復斜向跳動並統一速度感受
+14. `4330cf3` - docs: update PR description with drag optimization details
+15. `705ccdf` - fix: 擴大 BUBBLE 點擊範圍並支持雙向拖曳
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (8eb8cf9) - 完美拖曳體驗 🎯 終極優化
+## 🆕 Latest Update (705ccdf) - 完美點擊體驗 🎯 最終優化
+
+**解決的核心問題**：
+1. ❌ **點擊判定太嚴格** → ✅ 整個圓圈都可點擊
+2. ❌ **斜向 BUBBLE 無法往外拉** → ✅ 支持雙向拖曳
+
+**修復詳情**：
+
+### 1. 擴大點擊判定範圍 🎯
+為每個 BUBBLE 添加不可見的 hitarea 圓圈：
+
+```javascript
+// 創建透明的 hitarea（半徑 +10，加上 20px 描邊）
+const hitArea = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+hitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+hitArea.setAttribute("class", "grid-bubble-hitarea draggable");
+hitArea.setAttribute("fill", "transparent");
+hitArea.setAttribute("stroke-width", "20");  // 進一步擴大點擊範圍
+
+// 實際的 bubble 不接收點擊事件
+bubble.setAttribute("pointer-events", "none");
+```
+
+**效果**：從 BUBBLE 中心到最外圍邊緣的整個區域都可以點擊拖曳，不會再出現"點到了卻沒辦法拉動"的問題。
+
+### 2. 支持雙向拖曳 ↔️
+- BUBBLE 可以沿著 connector 方向**雙向移動**
+- 既可以靠近 grid line（往內），也可以遠離 grid line（往外）
+- 投影計算支持正負值，範圍 ±100 單位
+- 斜向 BUBBLE 現在完全可以正常往外拉
+
+### 3. 視覺效果
+- hitarea 完全透明，不影響視覺
+- hover 時 cursor 變為 move，提示可拖曳
+- 所有 BUBBLE（top, bottom, left, right）統一處理
+
+**測試確認**：
+- ✅ 水平 BUBBLE - 點擊邊緣也能拖曳
+- ✅ 垂直 BUBBLE - 點擊邊緣也能拖曳
+- ✅ 斜向 BUBBLE - **可以往外拉** + 點擊靈敏
+
+---
+
+## 📝 Previous Update (8eb8cf9) - 完美拖曳體驗
 
 **解決的問題**：
 1. ❌ **斜向 BUBBLE 會跳動** → ✅ 平滑跟隨鼠標
