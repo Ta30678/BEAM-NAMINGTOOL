@@ -97,5 +97,16 @@ None. All changes are additive and backward compatible.
 4. `609a57c` - fix: improve grid bubble drag behavior
 5. `56d00e4` - fix: correct grid line direction and expand clickable area
 6. `29ff54a` - fix: reverse rotation direction and simplify text click handling
+7. `c4c52b6` - fix: prevent duplicate event listener binding in bubble dragging
 
-**Branch:** `claude/grid-bubble-toggle-drag-01GaJgn6GKiKukhaF596u1JQ`
+**Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
+
+## 🆕 Latest Update (c4c52b6)
+
+**防止重複綁定事件監聽器**：
+- 優化 `initializeBubbleDragging()` 函數
+- 在添加新的事件監聽器之前先移除舊的監聽器
+- 避免多次調用導致事件處理器重複執行
+- 確保拖曳功能的穩定性和可靠性
+
+這個修復確保了即使 `initializeBubbleDragging()` 被多次調用（例如在切換樓層或重新渲染時），事件監聽器也不會重複綁定，從而避免潛在的性能問題和異常行為。
