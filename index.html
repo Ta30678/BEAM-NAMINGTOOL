@@ -513,6 +513,10 @@
         text-anchor: middle;
         dominant-baseline: middle;
         font-size: 14px; /* [修改] 固定字體大小，不再由 JS 反向縮放 */
+        /* [新增] 讓文字可以點擊拖曳 */
+        pointer-events: all;
+        cursor: move;
+        user-select: none;
       }
 
       .beam-line {
@@ -1875,36 +1879,52 @@
         console.log("[DEBUG] Bubble dragging initialized successfully");
       }
 
-      // [新增] 處理文字點擊 - 找到對應的 bubble 並開始拖動
+      // [新增] 處理文字點擊 - 找到對應的 hitarea 並開始拖動
       function handleTextMouseDown(e) {
-        // [修改] 直接調用 handleBubbleMouseDown，避免事件循環
+        // [修改] 找到對應的 hitarea 或 bubble
         const text = e.currentTarget;
         const coordsystem = text.getAttribute("data-coordsystem");
         const textX = parseFloat(text.getAttribute("x"));
         const textY = parseFloat(text.getAttribute("y"));
 
-        // 找到位置相同的 bubble
         const svg = document.getElementById("drawing-svg");
-        const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);
 
-        let matchingBubble = null;
-        bubbles.forEach(bubble => {
-          const bx = parseFloat(bubble.getAttribute("cx"));
-          const by = parseFloat(bubble.getAttribute("cy"));
-          if (Math.abs(bx - textX) < 1 && Math.abs(by - textY) < 1) {
-            matchingBubble = bubble;
+        // 先嘗試找 hitarea（因為現在 bubble 是 pointer-events: none）
+        let hitareas = svg.querySelectorAll(`.grid-bubble-hitarea[data-coordsystem="${coordsystem}"]`);
+        let matchingElement = null;
+
+        hitareas.forEach(hitarea => {
+          const cx = parseFloat(hitarea.getAttribute("cx"));
+          const cy = parseFloat(hitarea.getAttribute("cy"));
+          if (Math.abs(cx - textX) < 5 && Math.abs(cy - textY) < 5) {
+            matchingElement = hitarea;
           }
         });
 
-        if (matchingBubble) {
-          // [修改] 創建一個偽造的事件對象，currentTarget 指向 bubble
+        // 如果沒找到 hitarea，嘗試找 bubble
+        if (!matchingElement) {
+          const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);
+          bubbles.forEach(bubble => {
+            const bx = parseFloat(bubble.getAttribute("cx"));
+            const by = parseFloat(bubble.getAttribute("cy"));
+            if (Math.abs(bx - textX) < 5 && Math.abs(by - textY) < 5) {
+              matchingElement = bubble;
+            }
+          });
+        }
+
+        if (matchingElement) {
+          console.log("[DEBUG] Text clicked, found matching element:", matchingElement.getAttribute("class"));
+          // [修改] 創建一個偽造的事件對象，currentTarget 指向找到的元素
           const fakeEvent = {
             ...e,
-            currentTarget: matchingBubble,
+            currentTarget: matchingElement,
             stopPropagation: () => e.stopPropagation(),
             preventDefault: () => e.preventDefault()
           };
           handleBubbleMouseDown(fakeEvent);
+        } else {
+          console.warn("[WARN] Text clicked but no matching element found");
         }
       }
 
