@@ -1825,45 +1825,60 @@
         e.stopPropagation();
         e.preventDefault();
 
-        const bubble = e.currentTarget;
-        const coordsystem = bubble.getAttribute("data-coordsystem");
+        const hitarea = e.currentTarget;  // [修改] 明確標示這是 hitarea
+        const coordsystem = hitarea.getAttribute("data-coordsystem");
 
-        // 找到對應的 text 和 connector
-        const bubbleCx = parseFloat(bubble.getAttribute("cx"));
-        const bubbleCy = parseFloat(bubble.getAttribute("cy"));
+        // 找到對應的 bubble、text 和 connector
+        const hitareaCx = parseFloat(hitarea.getAttribute("cx"));
+        const hitareaCy = parseFloat(hitarea.getAttribute("cy"));
 
         const svg = document.getElementById("drawing-svg");
+        const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);  // [新增] 查找真正的 bubble
         const texts = svg.querySelectorAll(`.grid-bubble-text[data-coordsystem="${coordsystem}"]`);
         const connectors = svg.querySelectorAll(`.grid-bubble-connector[data-coordsystem="${coordsystem}"]`);
 
-        console.log("[DEBUG] Bubble mousedown:", {
+        console.log("[DEBUG] Hitarea mousedown:", {
           coordsystem,
-          bubbleCx,
-          bubbleCy,
+          hitareaCx,
+          hitareaCy,
+          bubblesCount: bubbles.length,
           textsCount: texts.length,
           connectorsCount: connectors.length
         });
 
-        // 找到位置相同的 text（放寬匹配條件到 5 像素）
+        // [新增] 找到位置相同的真正 bubble 圓圈
+        let matchingBubble = null;
+        let minBubbleDist = Infinity;
+        bubbles.forEach(bubble => {
+          const bx = parseFloat(bubble.getAttribute("cx"));
+          const by = parseFloat(bubble.getAttribute("cy"));
+          const dist = Math.sqrt((bx - hitareaCx) ** 2 + (by - hitareaCy) ** 2);
+          if (dist < 10 && dist < minBubbleDist) {
+            matchingBubble = bubble;
+            minBubbleDist = dist;
+          }
+        });
+
+        // 找到位置相同的 text（放寬匹配條件到 10 像素）
         let matchingText = null;
         let minTextDist = Infinity;
         texts.forEach(text => {
           const tx = parseFloat(text.getAttribute("x"));
           const ty = parseFloat(text.getAttribute("y"));
-          const dist = Math.sqrt((tx - bubbleCx) ** 2 + (ty - bubbleCy) ** 2);
+          const dist = Math.sqrt((tx - hitareaCx) ** 2 + (ty - hitareaCy) ** 2);
           if (dist < 10 && dist < minTextDist) {
             matchingText = text;
             minTextDist = dist;
           }
         });
 
-        // 找到連接到這個 bubble 的 connector（放寬匹配條件到 5 像素）
+        // 找到連接到這個 bubble 的 connector（放寬匹配條件到 10 像素）
         let matchingConnector = null;
         let minConnDist = Infinity;
         connectors.forEach(conn => {
           const x1 = parseFloat(conn.getAttribute("x1"));
           const y1 = parseFloat(conn.getAttribute("y1"));
-          const dist = Math.sqrt((x1 - bubbleCx) ** 2 + (y1 - bubbleCy) ** 2);
+          const dist = Math.sqrt((x1 - hitareaCx) ** 2 + (y1 - hitareaCy) ** 2);
           console.log("[DEBUG] Checking connector:", { x1, y1, dist });
           if (dist < 10 && dist < minConnDist) {
             matchingConnector = conn;
@@ -1871,28 +1886,37 @@
           }
         });
 
+        // [新增] 檢查是否找到所有必要元素
+        if (!matchingBubble) {
+          console.warn("[WARN] No matching bubble found at", hitareaCx, hitareaCy);
+          return;
+        }
         if (!matchingConnector) {
-          console.warn("[WARN] No matching connector found for bubble at", bubbleCx, bubbleCy);
+          console.warn("[WARN] No matching connector found for bubble at", hitareaCx, hitareaCy);
           return;
         }
 
-        console.log("[DEBUG] Found connector:", {
-          x1: matchingConnector.getAttribute("x1"),
-          y1: matchingConnector.getAttribute("y1"),
-          x2: matchingConnector.getAttribute("x2"),
-          y2: matchingConnector.getAttribute("y2")
+        console.log("[DEBUG] Found all elements:", {
+          bubble: matchingBubble,
+          text: matchingText,
+          connector: {
+            x1: matchingConnector.getAttribute("x1"),
+            y1: matchingConnector.getAttribute("y1"),
+            x2: matchingConnector.getAttribute("x2"),
+            y2: matchingConnector.getAttribute("y2")
+          }
         });
 
-        // 儲存拖曳狀態
+        // 儲存拖曳狀態 - [修改] 使用真正的 bubble 元素
         dragState.isDragging = true;
-        dragState.currentBubble = bubble;
+        dragState.currentBubble = matchingBubble;  // [修改] 保存真正的 bubble 而不是 hitarea
         dragState.currentText = matchingText;
         dragState.currentConnector = matchingConnector;
 
-        // 記錄原始位置（用於回彈）
+        // 記錄原始位置（用於回彈）- [修改] 使用 hitarea 的座標
         dragState.originalBubblePos = {
-          x: bubbleCx,
-          y: bubbleCy
+          x: hitareaCx,
+          y: hitareaCy
         };
 
         // 獲取 grid line 的固定端點（connector 的另一端）
@@ -1902,9 +1926,9 @@
         };
 
         // [修正] BUBBLE 應該沿著 connector 的方向移動（垂直於 grid line）
-        // 計算從 bubble 指向 grid line 的方向向量
-        const connectorDx = dragState.gridLineEnd.x - bubbleCx;
-        const connectorDy = dragState.gridLineEnd.y - bubbleCy;
+        // 計算從 bubble 指向 grid line 的方向向量 - [修改] 使用 hitarea 座標
+        const connectorDx = dragState.gridLineEnd.x - hitareaCx;
+        const connectorDy = dragState.gridLineEnd.y - hitareaCy;
         const connectorLength = Math.sqrt(connectorDx * connectorDx + connectorDy * connectorDy);
 
         // connector 的單位向量
@@ -1935,8 +1959,8 @@
         const pt = getSVGPoint(svg, e);
         dragState.startMousePos = pt;
 
-        // 添加樣式防止文字選取
-        bubble.classList.add("dragging");
+        // 添加樣式防止文字選取 - [修改] 使用真正的 bubble 元素
+        matchingBubble.classList.add("dragging");
         matchingConnector.classList.add("rubber-band");
         document.body.classList.add("dragging-bubble");
 
