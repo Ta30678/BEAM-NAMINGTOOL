@@ -1904,21 +1904,24 @@
         let closestHitarea = null;
         let minDistance = Infinity;
 
+        // [修改] 設定合理的最大點擊距離（SVG 座標單位）
+        // 這個值應該足夠大，讓用戶在 bubble 視覺範圍內的任何點都能點到
+        const MAX_CLICK_DISTANCE = 60;
+
         hitareas.forEach(ha => {
           const cx = parseFloat(ha.getAttribute("cx"));
           const cy = parseFloat(ha.getAttribute("cy"));
-          const r = parseFloat(ha.getAttribute("r"));
           const dist = Math.sqrt((mouseX - cx) ** 2 + (mouseY - cy) ** 2);
 
-          // 只考慮鼠標在 hitarea 範圍內的 bubble
-          if (dist <= r && dist < minDistance) {
+          // [修改] 只要距離是最近的，就選擇它（不再限制必須在 r 範圍內）
+          if (dist < minDistance) {
             closestHitarea = ha;
             minDistance = dist;
           }
         });
 
-        // 如果沒有找到任何 hitarea，說明沒有點擊在 bubble 上，不處理
-        if (!closestHitarea) {
+        // [修改] 如果最近的 bubble 距離太遠（超過閾值），說明沒有點擊在 bubble 上
+        if (!closestHitarea || minDistance > MAX_CLICK_DISTANCE) {
           return;  // 讓其他事件（如圈選）處理
         }
 
@@ -1937,7 +1940,8 @@
           coordsystem,
           mousePos: { x: mouseX, y: mouseY },
           hitareaPos: { cx: hitareaCx, cy: hitareaCy },
-          distance: minDistance
+          distance: minDistance,
+          maxAllowed: MAX_CLICK_DISTANCE
         });
 
         const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);  // [新增] 查找真正的 bubble
