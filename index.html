@@ -2127,7 +2127,7 @@
       function handleBubbleMouseUp(e) {
         if (!dragState.isDragging) return;
 
-        console.log("[DEBUG] Mouse up - starting spring animation");
+        console.log("[DEBUG] Mouse up - checking if bubble moved");
 
         // [修改] 使用簡諧運動（彈簧效果）回到原始位置
         if (dragState.currentBubble && dragState.originalBubblePos) {
@@ -2140,6 +2140,38 @@
           // 獲取當前位置
           let currentX = parseFloat(bubble.getAttribute("cx"));
           let currentY = parseFloat(bubble.getAttribute("cy"));
+
+          // [新增] 檢查 bubble 是否真的移動了（避免點擊時的跳動）
+          const movedDistance = Math.sqrt(
+            (currentX - targetX) ** 2 + (currentY - targetY) ** 2
+          );
+
+          // 如果移動距離小於 1 像素，視為沒有移動，直接重置狀態不執行動畫
+          if (movedDistance < 1) {
+            console.log("[DEBUG] Bubble didn't move, skipping animation");
+            // 直接移除樣式
+            if (dragState.currentBubble) {
+              dragState.currentBubble.classList.remove("dragging");
+            }
+            if (dragState.currentConnector) {
+              dragState.currentConnector.classList.remove("rubber-band");
+            }
+            document.body.classList.remove("dragging-bubble");
+
+            // 重置拖曳狀態
+            dragState.isDragging = false;
+            dragState.currentBubble = null;
+            dragState.currentText = null;
+            dragState.currentConnector = null;
+            dragState.originalBubblePos = null;
+            dragState.gridLineEnd = null;
+            dragState.gridLineDirection = null;
+            dragState.maxDragDistance = null;
+            dragState.startMousePos = null;
+            return;
+          }
+
+          console.log("[DEBUG] Bubble moved, starting spring animation");
 
           // [優化] 簡諧運動參數 - 提高剛度和阻尼，讓回彈更快更一致
           let velocity = { x: 0, y: 0 };
@@ -2786,9 +2818,10 @@
           };
 
           panZoomInstance = svgPanZoom("#drawing-svg", {
-            panEnabled: true,
+            panEnabled: false,  // [修改] 禁用滑鼠拖動平移，只允許滾輪縮放
             zoomEnabled: true,
             dblClickZoomEnabled: true,
+            mouseWheelZoomEnabled: true,  // [新增] 明確啟用滾輪縮放
             controlIconsEnabled: true,
             fit: shouldFitAndCenter,
             center: shouldFitAndCenter,
