@@ -112,10 +112,184 @@ None. All changes are additive and backward compatible.
 19. `c007a20` - refactor: 統一 BUBBLE 點擊偵測至 hitarea 層
 20. `be049d9` - docs: update PR description with unified click detection refactor
 21. `92a6fd0` - fix: 修復 hitarea fill 區域無法接收點擊的問題
+22. `7e12edb` - docs: update PR description with hitarea fill fix explanation
+23. `0552e06` - fix: 修復拖曳時 bubble 圓圈不移動的問題
+24. `fd6eed0` - docs: update PR description with bubble sync fix details
+25. `3265aff` - fix: 防止圈選功能干擾 BUBBLE 拖曳
 
 **Branch:** `claude/draggable-bubble-damping-01XHvrwE4G7QSmJRF19Kognb`
 
-## 🆕 Latest Update (92a6fd0) - 修復 hitarea fill 區域點擊 ✅ 最終解決
+## 🆕 Latest Update (3265aff) - 防止圈選干擾拖曳 ✅ 終極流暢體驗
+
+**解決的問題**：
+- ❌ **點擊 BUBBLE 時會觸發圈選功能，干擾拖曳操作** → ✅ **BUBBLE 區域完全不觸發圈選**
+
+**問題描述** 🔍：
+當使用者點擊 BUBBLE 時，頁面的圈選功能（selection box）會同時被觸發，導致：
+- 出現選取框遮擋視線
+- 干擾 BUBBLE 的拖曳操作
+- 使用者很難抓取或拉動 BUBBLE
+- 拖曳體驗不流暢
+
+**根本原因**：
+`onSelectionStart` 函數監聽 SVG 的所有 mousedown 事件，沒有檢查是否點擊了 BUBBLE 元素，導致即使點擊 BUBBLE 也會啟動圈選功能。
+
+**修復方案**：
+
+### 在圈選功能中添加 BUBBLE 檢查 🛡️
+```javascript
+function onSelectionStart(evt) {
+  // ✅ 新增：檢查是否點擊 BUBBLE 相關元素
+  const target = evt.target;
+  const targetClass = target.getAttribute('class') || '';
+  if (targetClass.includes('grid-bubble') ||
+      targetClass.includes('grid-bubble-hitarea') ||
+      targetClass.includes('grid-bubble-text') ||
+      targetClass.includes('grid-bubble-connector')) {
+    console.log("[DEBUG] Clicked on grid bubble element, skip selection");
+    return;  // 讓 BUBBLE 的拖曳功能處理，不啟動圈選
+  }
+
+  // ... 原有的圈選邏輯
+}
+```
+
+### 雙重防護機制 🔒
+**1. BUBBLE 端防護**（已存在）：
+```javascript
+function handleBubbleMouseDown(e) {
+  e.stopPropagation();  // 阻止事件冒泡
+  e.preventDefault();   // 阻止默認行為
+  // ...
+}
+```
+
+**2. 圈選端防護**（新增）：
+- 主動檢查點擊目標
+- 如果是 BUBBLE 元素就直接返回
+- 確保圈選功能完全不啟動
+
+**為什麼需要兩層防護？**
+- 事件監聽器的執行順序可能不確定
+- `stopPropagation` 可能在某些情況下失效
+- 雙重防護確保 100% 可靠
+
+**測試確認**：
+- ✅ 點擊 BUBBLE → 只觸發拖曳，不出現圈選框
+- ✅ 點擊空白處 → 正常啟動圈選功能
+- ✅ 拖曳 BUBBLE → 流暢無干擾
+- ✅ 圈選梁構件 → 功能正常
+
+**使用者體驗提升**：
+- 🎯 點擊更精準 - 不會誤觸圈選
+- 🖱️ 拖曳更流暢 - 沒有選取框干擾
+- ✨ 操作更直覺 - BUBBLE 專心處理拖曳
+- 🚀 響應更快速 - 減少不必要的事件處理
+
+---
+
+## 📝 Previous Update (0552e06) - 修復 bubble 同步移動
+
+**解決的問題**：
+- ❌ **拖曳時只有文字在動，BUBBLE 圓圈沒有跟著移動** → ✅ **BUBBLE、文字、connector 完全同步**
+
+**根本原因分析** 🔍：
+在統一點擊偵測時，`handleBubbleMouseDown` 中的 `bubble` 變量實際上是 `hitarea` 元素，而不是真正的 BUBBLE 圓圈：
+
+```javascript
+const bubble = e.currentTarget;  // ❌ 這是 hitarea，不是真正的 bubble！
+dragState.currentBubble = bubble;  // ❌ 保存了錯誤的元素
+```
+
+導致在 `handleBubbleMouseMove` 和 `handleBubbleMouseUp` 中更新位置時：
+```javascript
+bubble.setAttribute("cx", newCx);  // ❌ 更新的是 hitarea 的 cx/cy
+bubble.setAttribute("cy", newCy);  // ❌ 而不是真正 bubble 的 cx/cy
+```
+
+結果：只有 text 和 connector 移動，bubble 圓圈完全不動。
+
+**修復詳情**：
+
+### 1. 明確區分 hitarea 和 bubble 🎯
+```javascript
+// ✅ 現在：明確命名，避免混淆
+const hitarea = e.currentTarget;  // 被點擊的 hitarea
+const coordsystem = hitarea.getAttribute("data-coordsystem");
+const hitareaCx = parseFloat(hitarea.getAttribute("cx"));
+const hitareaCy = parseFloat(hitarea.getAttribute("cy"));
+```
+
+### 2. 查找真正的 bubble 元素 🔍
+```javascript
+// ✅ 查找所有相同座標系的 bubble 圓圈
+const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);
+
+// ✅ 找到位置相同的真正 bubble 圓圈
+let matchingBubble = null;
+let minBubbleDist = Infinity;
+bubbles.forEach(bubble => {
+  const bx = parseFloat(bubble.getAttribute("cx"));
+  const by = parseFloat(bubble.getAttribute("cy"));
+  const dist = Math.sqrt((bx - hitareaCx) ** 2 + (by - hitareaCy) ** 2);
+  if (dist < 10 && dist < minBubbleDist) {
+    matchingBubble = bubble;
+    minBubbleDist = dist;
+  }
+});
+```
+
+### 3. 保存正確的元素 💾
+```javascript
+// ✅ 保存真正的 bubble 圓圈到 dragState
+dragState.currentBubble = matchingBubble;  // 不是 hitarea！
+dragState.currentText = matchingText;
+dragState.currentConnector = matchingConnector;
+```
+
+### 4. 添加安全檢查 🛡️
+```javascript
+// ✅ 確保找到所有必要元素
+if (!matchingBubble) {
+  console.warn("[WARN] No matching bubble found");
+  return;
+}
+if (!matchingConnector) {
+  console.warn("[WARN] No matching connector found");
+  return;
+}
+```
+
+### 5. 元素層疊架構 📚
+```
+點擊事件流：
+User Click → [hitarea] → handleBubbleMouseDown
+                ↓
+          找到關聯元素：
+          - matchingBubble (真正的圓圈)
+          - matchingText
+          - matchingConnector
+                ↓
+          保存到 dragState
+                ↓
+          拖曳時同步更新所有元素的位置
+```
+
+**測試確認**：
+- ✅ 拖曳 BUBBLE → bubble 圓圈、文字、connector 完全同步移動
+- ✅ 釋放鼠標 → 所有元素一起平滑回彈
+- ✅ 水平/垂直/斜向 BUBBLE → 全部正常運作
+- ✅ 點擊任何位置 → 立即響應，無延遲
+
+**程式碼改進**：
+- 🏷️ 變量命名更清晰 (`hitarea` vs `matchingBubble`)
+- 🔍 添加元素查找邏輯
+- 🛡️ 添加安全檢查機制
+- 📝 更詳細的調試日誌
+
+---
+
+## 📝 Previous Update (92a6fd0) - 修復 hitarea fill 區域點擊
 
 **解決的問題**：
 - ❌ **只有 BUBBLE 邊框可以拖曳，內部區域無法點擊** → ✅ **整個 BUBBLE 區域 100% 可點擊**
