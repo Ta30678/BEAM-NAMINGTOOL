@@ -1863,9 +1863,14 @@
 
       function handleBubbleMouseDown(e) {
         const svg = document.getElementById("drawing-svg");
+        if (!svg) return;
 
         // [修改] 先獲取鼠標在 SVG 座標系中的位置
         const pt = getSVGPoint(svg, e);
+        if (!pt) {
+          // SVG 尚未完全渲染，讓事件正常傳播
+          return;
+        }
         const mouseX = pt.x;
         const mouseY = pt.y;
 
@@ -2034,6 +2039,10 @@
 
         // 獲取 SVG 座標系中的滑鼠位置
         const pt = getSVGPoint(svg, e);
+        if (!pt) {
+          console.warn("[WARN] Cannot get SVG point, aborting drag");
+          return;
+        }
         dragState.startMousePos = pt;
 
         // 添加樣式防止文字選取 - [修改] 使用真正的 bubble 元素
@@ -2055,6 +2064,7 @@
 
         const svg = document.getElementById("drawing-svg");
         const pt = getSVGPoint(svg, e);
+        if (!pt) return;  // SVG 座標轉換失敗，跳過此次移動
 
         // [修正] 計算鼠標相對於初始點擊位置的移動量（而不是相對於 BUBBLE 原始位置）
         const mouseDx = pt.x - dragState.startMousePos.x;
@@ -2191,13 +2201,23 @@
 
       // 輔助函數：獲取 SVG 座標系中的滑鼠位置
       function getSVGPoint(svg, e) {
-        const pt = svg.createSVGPoint();
-        pt.x = e.clientX;
-        pt.y = e.clientY;
+        try {
+          const pt = svg.createSVGPoint();
+          pt.x = e.clientX;
+          pt.y = e.clientY;
 
-        // 轉換到 SVG 座標系
-        const svgPt = pt.matrixTransform(svg.getScreenCTM().inverse());
-        return svgPt;
+          // 轉換到 SVG 座標系
+          const ctm = svg.getScreenCTM();
+          if (!ctm) {
+            console.warn("[WARN] SVG CTM not available yet");
+            return null;
+          }
+          const svgPt = pt.matrixTransform(ctm.inverse());
+          return svgPt;
+        } catch (error) {
+          console.error("[ERROR] getSVGPoint failed:", error);
+          return null;
+        }
       }
 
       async function processE2k() {
