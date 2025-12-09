@@ -2826,8 +2826,30 @@
                 panZoomInstance.fit();
                 panZoomInstance.center();
 
+                // 計算最佳縮放比例以填滿螢幕
+                // SVG 內容有內建 padding (60px) 和 0.9 倍縮放，需要補償
+                const sizes = panZoomInstance.getSizes();
+                const viewBox = sizes.viewBox;
+                const realZoom = sizes.realZoom;
+
+                // 計算 viewBox 中實際內容區域佔比（考慮 60px padding 和 0.9 縮放係數）
+                const paddingRatio = 120 / Math.min(viewBox.width, viewBox.height); // 兩側各 60px
+                const scaleRatio = 0.9; // 內建的 0.9 縮放
+                const contentRatio = (1 - paddingRatio) * scaleRatio;
+
+                // 計算需要放大多少才能填滿螢幕（留 2% 邊距避免內容被裁切）
+                const targetFillRatio = 0.98;
+                const zoomMultiplier = targetFillRatio / contentRatio;
+
+                // 應用計算出的縮放
+                const newZoom = realZoom * zoomMultiplier;
+                panZoomInstance.zoom(newZoom);
+                panZoomInstance.center();
+
+                console.log("  viewBox:", viewBox);
+                console.log("  contentRatio:", contentRatio);
+                console.log("  zoomMultiplier:", zoomMultiplier);
                 console.log("  最終 zoom:", panZoomInstance.getZoom());
-                console.log("  最終 pan:", panZoomInstance.getPan());
                 console.log("=== toggleFullscreen 完成 ===");
               }, 50);
             }, 100);
