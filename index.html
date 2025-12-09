@@ -2866,33 +2866,8 @@
                 cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
               }
 
-              // [修改] 使用固定的字體大小和偏移量，讓它們隨 SVG 變換自然縮放
-              const beamFontSize = INITIAL_BEAM_FONT_SIZE;
-              const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE;
-              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET;
-              const verticalOffset = INITIAL_VERTICAL_OFFSET;
-              const angledOffset = INITIAL_ANGLED_OFFSET;
-
-              // 批量更新梁標籤
-              for (let i = 0; i < cachedBeamLabels.length; i++) {
-                const label = cachedBeamLabels[i];
-                label.style.fontSize = `${beamFontSize}px`;
-                label.style.strokeWidth = `${beamStrokeWidth}px`;
-
-                const baseX = parseFloat(label.dataset.baseX);
-                const baseY = parseFloat(label.dataset.baseY);
-                const orientation = label.dataset.orientation;
-
-                if (orientation === "horizontal") {
-                  label.setAttribute("y", baseY + horizontalOffset);
-                } else if (orientation === "vertical") {
-                  const newRotatedX = baseX + verticalOffset;
-                  label.setAttribute("x", newRotatedX);
-                  label.setAttribute("transform", `rotate(-90, ${newRotatedX}, ${baseY})`);
-                } else if (orientation === "angled") {
-                  label.setAttribute("dy", -angledOffset);
-                }
-              }
+              // [修改] 字體大小和偏移量已在創建時設定，會隨 SVG transform 自然縮放
+              // 不再需要在 zoom 回調中更新這些屬性
 
               // [修改] Grid Bubble 字體現在也隨 SVG 縮放，不需要額外調整
 
@@ -3431,6 +3406,7 @@
               topText.setAttribute("x", cx_top);
               topText.setAttribute("y", cy_top);
               topText.setAttribute("class", "grid-bubble-text");
+              topText.setAttribute("font-size", INITIAL_GRID_FONT_SIZE); // [新增] SVG 屬性，會隨縮放變化
               topText.setAttribute("data-coordsystem", coordsystem); // [新增]
               topText.textContent = gridLine.name;
 
@@ -3486,6 +3462,7 @@
               bottomText.setAttribute("x", cx_bottom);
               bottomText.setAttribute("y", cy_bottom);
               bottomText.setAttribute("class", "grid-bubble-text");
+              bottomText.setAttribute("font-size", INITIAL_GRID_FONT_SIZE); // [新增] SVG 屬性，會隨縮放變化
               bottomText.setAttribute("data-coordsystem", coordsystem); // [新增]
               bottomText.textContent = gridLine.name;
 
@@ -3568,6 +3545,7 @@
               leftText.setAttribute("x", cx_left);
               leftText.setAttribute("y", cy_left);
               leftText.setAttribute("class", "grid-bubble-text");
+              leftText.setAttribute("font-size", INITIAL_GRID_FONT_SIZE); // [新增] SVG 屬性，會隨縮放變化
               leftText.setAttribute("data-coordsystem", coordsystem); // [新增]
               leftText.textContent = gridLine.name;
 
@@ -3623,6 +3601,7 @@
               rightText.setAttribute("x", cx_right);
               rightText.setAttribute("y", cy_right);
               rightText.setAttribute("class", "grid-bubble-text");
+              rightText.setAttribute("font-size", INITIAL_GRID_FONT_SIZE); // [新增] SVG 屬性，會隨縮放變化
               rightText.setAttribute("data-coordsystem", coordsystem); // [新增]
               rightText.textContent = gridLine.name;
 
@@ -3748,6 +3727,8 @@
           }
 
           text.setAttribute("class", "beam-label");
+          // [新增] 設定 SVG font-size 屬性（會隨 SVG transform 縮放）
+          text.setAttribute("font-size", INITIAL_BEAM_FONT_SIZE);
           text.textContent = beam.newLabel;
           // [新增] 为标签添加 dataset 以支持圈选
           text.dataset.beamName = beam.name;
