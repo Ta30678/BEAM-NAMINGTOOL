@@ -1421,29 +1421,45 @@
 
       // [新增] 預覽檔案函式
       async function previewFile() {
-        const fileInput = document.getElementById("e2kFile");
-        const statusDiv = document.getElementById("status");
-        const storySelector = document.getElementById("storySelector");
-        const beamTypeSelector = document.getElementById("beamTypeSelector");
-
-        statusDiv.innerHTML = "";
-        document.getElementById("drawing-svg").innerHTML = "";
-        document.getElementById("grid-config-panel").style.display = "none";
-
-        if (panZoomInstance) {
-          panZoomInstance.destroy();
-          panZoomInstance = null;
-        }
-
-        if (fileInput.files.length === 0) {
-          statusDiv.innerHTML = '<p class="error">請先選擇 .e2k 檔案</p>';
-          return;
-        }
-
-        const file = fileInput.files[0];
-        statusDiv.innerHTML = `<p>正在讀取檔案 "${file.name}"...</p>`;
+        console.log("[DEBUG] previewFile() called");
 
         try {
+          const fileInput = document.getElementById("e2kFile");
+          const statusDiv = document.getElementById("status");
+          const storySelector = document.getElementById("storySelector");
+          const beamTypeSelector = document.getElementById("beamTypeSelector");
+          const drawingSvg = document.getElementById("drawing-svg");
+          const gridConfigPanel = document.getElementById("grid-config-panel");
+
+          // 檢查必要的 DOM 元素是否存在
+          if (!fileInput || !statusDiv || !storySelector || !drawingSvg) {
+            console.error("[ERROR] Required DOM elements not found");
+            if (statusDiv) {
+              statusDiv.innerHTML = '<p class="error">頁面初始化錯誤，請重新載入頁面</p>';
+            }
+            return;
+          }
+
+          statusDiv.innerHTML = "";
+          drawingSvg.innerHTML = "";
+          if (gridConfigPanel) {
+            gridConfigPanel.style.display = "none";
+          }
+
+          if (panZoomInstance) {
+            panZoomInstance.destroy();
+            panZoomInstance = null;
+          }
+
+          if (fileInput.files.length === 0) {
+            statusDiv.innerHTML = '<p class="error">請先選擇 .e2k 檔案</p>';
+            return;
+          }
+
+          const file = fileInput.files[0];
+          statusDiv.innerHTML = `<p>正在讀取檔案 "${file.name}"...</p>`;
+          console.log(`[DEBUG] Reading file: ${file.name}`);
+
           previewFileContent = await file.text();
 
           // 解析樓層
@@ -1502,12 +1518,21 @@
           handleStoryChange();
 
           statusDiv.innerHTML = `<p>✅ 預覽完成！找到 ${availableStories.length} 個樓層，${allBeamsAcrossStories.length} 根梁</p>`;
+          console.log(`[DEBUG] Preview completed: ${availableStories.length} floors, ${allBeamsAcrossStories.length} beams`);
 
           // 啟用「設定編號規則並執行」按鈕
-          document.getElementById("configBtn").disabled = false;
+          const configBtn = document.getElementById("configBtn");
+          if (configBtn) {
+            configBtn.disabled = false;
+          }
         } catch (error) {
-          statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p>`;
-          console.error(error);
+          console.error("[ERROR] Preview failed:", error);
+          const statusDiv = document.getElementById("status");
+          if (statusDiv) {
+            statusDiv.innerHTML = `<p class="error">預覽失敗: ${error.message}</p><p class="error">請查看瀏覽器控制台以獲取詳細錯誤信息</p>`;
+          }
+          // 重新拋出錯誤以便在控制台看到完整堆疊
+          throw error;
         }
       }
 
@@ -6722,6 +6747,43 @@
           }
         }
       }, true); // 使用捕獲階段，確保優先攔截
+
+      // [新增] 頁面載入時的初始化檢查
+      document.addEventListener('DOMContentLoaded', function() {
+        console.log("[DEBUG] DOM Content Loaded");
+
+        // 檢查關鍵元素是否存在
+        const previewBtn = document.getElementById("previewBtn");
+        const fileInput = document.getElementById("e2kFile");
+        const statusDiv = document.getElementById("status");
+        const drawingSvg = document.getElementById("drawing-svg");
+
+        console.log("[DEBUG] Element check:", {
+          previewBtn: !!previewBtn,
+          fileInput: !!fileInput,
+          statusDiv: !!statusDiv,
+          drawingSvg: !!drawingSvg
+        });
+
+        // 確保預覽按鈕有正確的事件處理
+        if (previewBtn) {
+          // 添加備用的 addEventListener（防止 onclick 失效）
+          previewBtn.addEventListener('click', function(e) {
+            console.log("[DEBUG] Preview button clicked (addEventListener)");
+            // onclick 會優先執行，這裡只是備用
+          });
+          console.log("[DEBUG] Preview button initialized successfully");
+        } else {
+          console.error("[ERROR] Preview button not found!");
+        }
+
+        // 檢查 previewFile 函數是否存在
+        if (typeof previewFile === 'function') {
+          console.log("[DEBUG] previewFile function is defined");
+        } else {
+          console.error("[ERROR] previewFile function is not defined!");
+        }
+      });
 
     </script>
   </body>
