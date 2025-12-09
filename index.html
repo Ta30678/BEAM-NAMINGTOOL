@@ -2261,15 +2261,18 @@
         dragState.startMousePos = null;
       }
 
-      // 輔助函數：獲取 SVG 座標系中的滑鼠位置
+      // 輔助函數：獲取 SVG 座標系中的滑鼠位置（考慮 svg-pan-zoom 的縮放和平移）
       function getSVGPoint(svg, e) {
         try {
           const pt = svg.createSVGPoint();
           pt.x = e.clientX;
           pt.y = e.clientY;
 
-          // 轉換到 SVG 座標系
-          const ctm = svg.getScreenCTM();
+          // [修正] 使用 viewport 的 CTM，而不是 SVG 根元素的 CTM
+          // svg-pan-zoom 會將所有內容包裝在一個 <g> 元素（viewport）中
+          // 使用 viewport 的 CTM 才能正確處理縮放後的座標轉換
+          const viewport = svg.querySelector('g');
+          const ctm = viewport ? viewport.getScreenCTM() : svg.getScreenCTM();
           if (!ctm) {
             console.warn("[WARN] SVG CTM not available yet");
             return null;
