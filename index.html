@@ -512,7 +512,7 @@
         font-weight: 600; /* [修改] 加粗字體 */
         text-anchor: middle;
         dominant-baseline: middle;
-        font-size: 14px; /* [修改] 固定字體大小，不再由 JS 反向縮放 */
+        font-size: 14px; /* [修改] 設定基礎字體大小，會隨 SVG 縮放自然放大縮小 */
         /* [修改] 讓點擊穿透到 hitarea，統一由 hitarea 處理所有點擊 */
         pointer-events: none;
         user-select: none;
@@ -554,7 +554,7 @@
         paint-order: stroke;
         stroke: #ffffff;
         stroke-linejoin: round;
-        /* font-size and stroke-width are now controlled by JS */
+        /* font-size and stroke-width are controlled by JS, will scale with SVG zoom */
       }
 
       /* 圈选功能相关样式 */
@@ -2848,7 +2848,7 @@
           let cachedGridBubbles = null;
           let cachedGridBubbleTexts = null;
 
-          // [新增] 優化的縮放更新函數
+          // [修改] 優化的縮放更新函數 - 移除反向縮放，讓字體隨 SVG 縮放
           const updateZoomOptimized = (newZoom) => {
             // 使用 requestAnimationFrame 批量更新
             if (zoomUpdateScheduled) return;
@@ -2866,16 +2866,12 @@
                 cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
               }
 
-              // 預計算常用值
-              const invZoom = 1 / newZoom;
-              const beamFontSize = INITIAL_BEAM_FONT_SIZE * invZoom;
-              const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE * invZoom;
-              const gridBubbleRadius = INITIAL_GRID_BUBBLE_RADIUS * invZoom;
-              const gridBubbleStroke = INITIAL_GRID_BUBBLE_STROKE * invZoom;
-              const gridFontSize = INITIAL_GRID_FONT_SIZE * invZoom;
-              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
-              const verticalOffset = INITIAL_VERTICAL_OFFSET * invZoom;
-              const angledOffset = INITIAL_ANGLED_OFFSET * invZoom;
+              // [修改] 使用固定的字體大小和偏移量，讓它們隨 SVG 變換自然縮放
+              const beamFontSize = INITIAL_BEAM_FONT_SIZE;
+              const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE;
+              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET;
+              const verticalOffset = INITIAL_VERTICAL_OFFSET;
+              const angledOffset = INITIAL_ANGLED_OFFSET;
 
               // 批量更新梁標籤
               for (let i = 0; i < cachedBeamLabels.length; i++) {
@@ -2898,8 +2894,7 @@
                 }
               }
 
-              // [移除] Grid Bubble 現在不需要縮放（使用固定大小和 vector-effect）
-              // Grid Bubble 的半徑和字體大小現在由 CSS 控制，不隨縮放改變
+              // [修改] Grid Bubble 字體現在也隨 SVG 縮放，不需要額外調整
 
               zoomUpdateScheduled = false;
             });
