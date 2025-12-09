@@ -5966,6 +5966,17 @@
 
       // 开始圈选
       function onSelectionStart(evt) {
+        // [新增] 如果點擊的是 BUBBLE 相關元素，不要啟動選取功能
+        const target = evt.target;
+        const targetClass = target.getAttribute('class') || '';
+        if (targetClass.includes('grid-bubble') ||
+            targetClass.includes('grid-bubble-hitarea') ||
+            targetClass.includes('grid-bubble-text') ||
+            targetClass.includes('grid-bubble-connector')) {
+          console.log("[DEBUG] Clicked on grid bubble element, skip selection");
+          return;  // 讓 BUBBLE 的拖曳功能處理
+        }
+
         // 如果点击的是梁或标签，处理单选
         if (evt.target.tagName === 'line' || evt.target.tagName === 'text') {
           const beamName = evt.target.dataset.beamName;
