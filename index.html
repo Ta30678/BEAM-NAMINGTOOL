@@ -3122,12 +3122,11 @@
               );
               topHitArea.setAttribute("cx", cx_top);
               topHitArea.setAttribute("cy", cy_top);
-              topHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);  // 擴大 10 個單位的點擊範圍
+              topHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
               topHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               topHitArea.setAttribute("data-coordsystem", coordsystem);
-              topHitArea.setAttribute("fill", "transparent");
-              topHitArea.setAttribute("stroke", "transparent");
-              topHitArea.setAttribute("stroke-width", "20");
+              topHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
+              topHitArea.setAttribute("stroke", "none");  // [修改] 不需要 stroke
 
               const topBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3178,12 +3177,11 @@
               );
               bottomHitArea.setAttribute("cx", cx_bottom);
               bottomHitArea.setAttribute("cy", cy_bottom);
-              bottomHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              bottomHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
               bottomHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               bottomHitArea.setAttribute("data-coordsystem", coordsystem);
-              bottomHitArea.setAttribute("fill", "transparent");
-              bottomHitArea.setAttribute("stroke", "transparent");
-              bottomHitArea.setAttribute("stroke-width", "20");
+              bottomHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
+              bottomHitArea.setAttribute("stroke", "none");  // [修改] 不需要 stroke
 
               const bottomBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3261,12 +3259,11 @@
               );
               leftHitArea.setAttribute("cx", cx_left);
               leftHitArea.setAttribute("cy", cy_left);
-              leftHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              leftHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
               leftHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               leftHitArea.setAttribute("data-coordsystem", coordsystem);
-              leftHitArea.setAttribute("fill", "transparent");
-              leftHitArea.setAttribute("stroke", "transparent");
-              leftHitArea.setAttribute("stroke-width", "20");
+              leftHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
+              leftHitArea.setAttribute("stroke", "none");  // [修改] 不需要 stroke
 
               const leftBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
@@ -3317,12 +3314,11 @@
               );
               rightHitArea.setAttribute("cx", cx_right);
               rightHitArea.setAttribute("cy", cy_right);
-              rightHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 10);
+              rightHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
               rightHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               rightHitArea.setAttribute("data-coordsystem", coordsystem);
-              rightHitArea.setAttribute("fill", "transparent");
-              rightHitArea.setAttribute("stroke", "transparent");
-              rightHitArea.setAttribute("stroke-width", "20");
+              rightHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
+              rightHitArea.setAttribute("stroke", "none");  // [修改] 不需要 stroke
 
               const rightBubble = document.createElementNS(
                 "http://www.w3.org/2000/svg",
