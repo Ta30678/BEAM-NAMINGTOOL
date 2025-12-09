@@ -1848,39 +1848,68 @@
         document.removeEventListener("mousemove", handleBubbleMouseMove);
         document.removeEventListener("mouseup", handleBubbleMouseUp);
 
-        // [重構] 統一由 hitarea 處理所有點擊，移除分散的事件監聽器
-        const hitareas = svg.querySelectorAll(".grid-bubble-hitarea.draggable");
-
-        console.log("[DEBUG] Initializing bubble dragging:", {
-          hitareasCount: hitareas.length
-        });
-
-        hitareas.forEach(hitarea => {
-          // 先移除舊的監聽器（如果有），避免重複綁定
-          hitarea.removeEventListener("mousedown", handleBubbleMouseDown);
-          hitarea.addEventListener("mousedown", handleBubbleMouseDown);
-        });
+        // [修改] 移除個別 hitarea 的事件監聽器，改用 SVG 統一處理
+        // 這樣可以在 mousedown 時找到最接近鼠標的 bubble，避免重疊 bubble 誤判
+        svg.removeEventListener("mousedown", handleBubbleMouseDown);
+        svg.addEventListener("mousedown", handleBubbleMouseDown);
 
         // 全域 mousemove 和 mouseup 事件綁定到 document
         document.addEventListener("mousemove", handleBubbleMouseMove);
         document.addEventListener("mouseup", handleBubbleMouseUp);
 
-        console.log("[DEBUG] Bubble dragging initialized successfully");
+        const hitareas = svg.querySelectorAll(".grid-bubble-hitarea.draggable");
+        console.log("[DEBUG] Bubble dragging initialized successfully, hitareas:", hitareas.length);
       }
 
       function handleBubbleMouseDown(e) {
+        const svg = document.getElementById("drawing-svg");
+
+        // [修改] 先獲取鼠標在 SVG 座標系中的位置
+        const pt = getSVGPoint(svg, e);
+        const mouseX = pt.x;
+        const mouseY = pt.y;
+
+        // [修改] 找到所有 hitareas，並計算與鼠標的距離，選擇最近的那個
+        const hitareas = svg.querySelectorAll(".grid-bubble-hitarea.draggable");
+        let closestHitarea = null;
+        let minDistance = Infinity;
+
+        hitareas.forEach(ha => {
+          const cx = parseFloat(ha.getAttribute("cx"));
+          const cy = parseFloat(ha.getAttribute("cy"));
+          const r = parseFloat(ha.getAttribute("r"));
+          const dist = Math.sqrt((mouseX - cx) ** 2 + (mouseY - cy) ** 2);
+
+          // 只考慮鼠標在 hitarea 範圍內的 bubble
+          if (dist <= r && dist < minDistance) {
+            closestHitarea = ha;
+            minDistance = dist;
+          }
+        });
+
+        // 如果沒有找到任何 hitarea，說明沒有點擊在 bubble 上，不處理
+        if (!closestHitarea) {
+          return;  // 讓其他事件（如圈選）處理
+        }
+
         // 防止與圈選功能衝突
         e.stopPropagation();
         e.preventDefault();
 
-        const hitarea = e.currentTarget;  // [修改] 明確標示這是 hitarea
+        const hitarea = closestHitarea;
         const coordsystem = hitarea.getAttribute("data-coordsystem");
 
         // 找到對應的 bubble、text 和 connector
         const hitareaCx = parseFloat(hitarea.getAttribute("cx"));
         const hitareaCy = parseFloat(hitarea.getAttribute("cy"));
 
-        const svg = document.getElementById("drawing-svg");
+        console.log("[DEBUG] Closest hitarea selected:", {
+          coordsystem,
+          mousePos: { x: mouseX, y: mouseY },
+          hitareaPos: { cx: hitareaCx, cy: hitareaCy },
+          distance: minDistance
+        });
+
         const bubbles = svg.querySelectorAll(`.grid-bubble[data-coordsystem="${coordsystem}"]`);  // [新增] 查找真正的 bubble
         const texts = svg.querySelectorAll(`.grid-bubble-text[data-coordsystem="${coordsystem}"]`);
         const connectors = svg.querySelectorAll(`.grid-bubble-connector[data-coordsystem="${coordsystem}"]`);
@@ -3244,9 +3273,9 @@
               topText.setAttribute("data-coordsystem", coordsystem); // [新增]
               topText.textContent = gridLine.name;
 
-              gridLabelsGroup.appendChild(topHitArea);  // 先添加 hitarea（在底層）
               gridLabelsGroup.appendChild(topBubble);
               gridLabelsGroup.appendChild(topText);
+              gridLabelsGroup.appendChild(topHitArea);  // [修改] 最後添加 hitarea，確保在最上層接收點擊事件
             }
 
             if (showBottom) {
@@ -3299,9 +3328,9 @@
               bottomText.setAttribute("data-coordsystem", coordsystem); // [新增]
               bottomText.textContent = gridLine.name;
 
-              gridLabelsGroup.appendChild(bottomHitArea);
               gridLabelsGroup.appendChild(bottomBubble);
               gridLabelsGroup.appendChild(bottomText);
+              gridLabelsGroup.appendChild(bottomHitArea);  // [修改] 最後添加 hitarea，確保在最上層接收點擊事件
             }
           });
 
@@ -3381,9 +3410,9 @@
               leftText.setAttribute("data-coordsystem", coordsystem); // [新增]
               leftText.textContent = gridLine.name;
 
-              gridLabelsGroup.appendChild(leftHitArea);
               gridLabelsGroup.appendChild(leftBubble);
               gridLabelsGroup.appendChild(leftText);
+              gridLabelsGroup.appendChild(leftHitArea);  // [修改] 最後添加 hitarea，確保在最上層接收點擊事件
             }
 
             if (showRight) {
@@ -3436,9 +3465,9 @@
               rightText.setAttribute("data-coordsystem", coordsystem); // [新增]
               rightText.textContent = gridLine.name;
 
-              gridLabelsGroup.appendChild(rightHitArea);
               gridLabelsGroup.appendChild(rightBubble);
               gridLabelsGroup.appendChild(rightText);
+              gridLabelsGroup.appendChild(rightHitArea);  // [修改] 最後添加 hitarea，確保在最上層接收點擊事件
             }
           });
           svg.appendChild(gridLabelsGroup);
