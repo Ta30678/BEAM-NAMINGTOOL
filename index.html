@@ -1328,6 +1328,10 @@
       let selectedBeams = new Set(); // 儲存選中梁的 name
       let svgElement = null;
 
+      // [新增] 滾輪中鍵拖動畫布的狀態變數（類似 AutoCAD）
+      let isMiddleMousePanning = false;
+      let middleMouseStartPos = null;
+
       // [新增] 從 localStorage 載入固定編號規則
       function loadFixedLabelRules() {
         try {
@@ -1905,8 +1909,9 @@
         let minDistance = Infinity;
 
         // [修改] 設定合理的最大點擊距離（SVG 座標單位）
-        // 這個值應該足夠大，讓用戶在 bubble 視覺範圍內的任何點都能點到
-        const MAX_CLICK_DISTANCE = 60;
+        // 使用 hitarea 的實際半徑（INITIAL_GRID_BUBBLE_RADIUS + 20 = 38）
+        // 這樣只有在點擊位置確實在 bubble 範圍內才會觸發拖動
+        const MAX_CLICK_DISTANCE = INITIAL_GRID_BUBBLE_RADIUS + 20;
 
         hitareas.forEach(ha => {
           const cx = parseFloat(ha.getAttribute("cx"));
@@ -2275,6 +2280,86 @@
           console.error("[ERROR] getSVGPoint failed:", error);
           return null;
         }
+      }
+
+      // [新增] 初始化滾輪中鍵拖動畫布功能（類似 AutoCAD）
+      function initializeMiddleMousePan() {
+        const svg = document.getElementById("drawing-svg");
+        if (!svg) return;
+
+        // 移除舊的事件監聽器
+        svg.removeEventListener("mousedown", handleMiddleMouseDown);
+        document.removeEventListener("mousemove", handleMiddleMouseMove);
+        document.removeEventListener("mouseup", handleMiddleMouseUp);
+
+        // 添加事件監聽器
+        svg.addEventListener("mousedown", handleMiddleMouseDown);
+        document.addEventListener("mousemove", handleMiddleMouseMove);
+        document.addEventListener("mouseup", handleMiddleMouseUp);
+
+        // 防止中鍵點擊時的自動滾動行為
+        svg.addEventListener("auxclick", (e) => {
+          if (e.button === 1) {
+            e.preventDefault();
+          }
+        });
+
+        console.log("[DEBUG] Middle mouse pan initialized");
+      }
+
+      function handleMiddleMouseDown(e) {
+        // 只處理滾輪中鍵（button === 1）
+        if (e.button !== 1) return;
+
+        e.preventDefault();
+        e.stopPropagation();
+
+        isMiddleMousePanning = true;
+        middleMouseStartPos = {
+          x: e.clientX,
+          y: e.clientY
+        };
+
+        // 獲取當前的 pan 位置
+        if (panZoomInstance) {
+          middleMouseStartPos.pan = panZoomInstance.getPan();
+        }
+
+        // 添加拖動游標樣式
+        document.body.style.cursor = "grabbing";
+
+        console.log("[DEBUG] Middle mouse pan started at:", middleMouseStartPos);
+      }
+
+      function handleMiddleMouseMove(e) {
+        if (!isMiddleMousePanning || !panZoomInstance) return;
+
+        e.preventDefault();
+
+        // 計算移動距離
+        const dx = e.clientX - middleMouseStartPos.x;
+        const dy = e.clientY - middleMouseStartPos.y;
+
+        // 應用新的 pan 位置
+        panZoomInstance.pan({
+          x: middleMouseStartPos.pan.x + dx,
+          y: middleMouseStartPos.pan.y + dy
+        });
+      }
+
+      function handleMiddleMouseUp(e) {
+        if (!isMiddleMousePanning) return;
+
+        // 只處理滾輪中鍵
+        if (e.button !== 1) return;
+
+        isMiddleMousePanning = false;
+        middleMouseStartPos = null;
+
+        // 恢復游標樣式
+        document.body.style.cursor = "";
+
+        console.log("[DEBUG] Middle mouse pan ended");
       }
 
       async function processE2k() {
@@ -3552,6 +3637,9 @@
 
           // [新增] 初始化 Grid Bubble 拖曳功能
           initializeBubbleDragging();
+
+          // [新增] 初始化滾輪中鍵拖動畫布功能
+          initializeMiddleMousePan();
         }
         // ... 之後繪製梁 (beam) 和標籤 (label) 的程式碼維持不變 ...
         const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
@@ -6761,6 +6849,7 @@
         // 延迟初始化以确保SVG元素已经渲染
         setTimeout(() => {
           initializeSelectionFeature();
+          initializeMiddleMousePan();  // [新增] 初始化滾輪中鍵拖動
         }, 100);
       };
 
