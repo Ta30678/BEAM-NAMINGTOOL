@@ -2062,12 +2062,8 @@
         // 使用固定距離而非基於 bubble 半徑，避免不同 BUBBLE 有不同的速度感
         dragState.maxDragDistance = 100;  // 固定 100 單位的拖曳範圍
 
-        // 獲取 SVG 座標系中的滑鼠位置
-        const pt = getSVGPoint(svg, e);
-        if (!pt) {
-          console.warn("[WARN] Cannot get SVG point, aborting drag");
-          return;
-        }
+        // 獲取 SVG 座標系中的滑鼠位置（使用之前已經獲取的 pt）
+        // 注意：pt 已在函數開頭聲明（line 1894），這裡直接使用
         dragState.startMousePos = pt;
 
         // 添加樣式防止文字選取 - [修改] 使用真正的 bubble 元素
