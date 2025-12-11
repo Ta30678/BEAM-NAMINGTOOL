@@ -2867,17 +2867,36 @@
                 cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
               }
 
+              // 預計算常用值
+              const invZoom = 1 / newZoom;
               // 使用阻尼縮放：fontSize = baseSize / (zoom ^ dampingFactor)
-              // dampingFactor < 1 時，字體大小隨縮放變化更平緩
               const dampedInvZoom = 1 / Math.pow(newZoom, ZOOM_DAMPING_FACTOR);
               const beamFontSize = INITIAL_BEAM_FONT_SIZE * dampedInvZoom;
               const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE * dampedInvZoom;
+              // 位置偏移使用普通反向縮放
+              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
+              const verticalOffset = INITIAL_VERTICAL_OFFSET * invZoom;
+              const angledOffset = INITIAL_ANGLED_OFFSET * invZoom;
 
-              // 更新梁標籤字體大小
+              // 批量更新梁標籤
               for (let i = 0; i < cachedBeamLabels.length; i++) {
                 const label = cachedBeamLabels[i];
                 label.style.fontSize = `${beamFontSize}px`;
                 label.style.strokeWidth = `${beamStrokeWidth}px`;
+
+                const baseX = parseFloat(label.dataset.baseX);
+                const baseY = parseFloat(label.dataset.baseY);
+                const orientation = label.dataset.orientation;
+
+                if (orientation === "horizontal") {
+                  label.setAttribute("y", baseY + horizontalOffset);
+                } else if (orientation === "vertical") {
+                  const newRotatedX = baseX + verticalOffset;
+                  label.setAttribute("x", newRotatedX);
+                  label.setAttribute("transform", `rotate(-90, ${newRotatedX}, ${baseY})`);
+                } else if (orientation === "angled") {
+                  label.setAttribute("dy", -angledOffset);
+                }
               }
 
               // Grid Bubble 保持自然縮放（不需要額外調整）
