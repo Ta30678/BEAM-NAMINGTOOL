@@ -1299,9 +1299,9 @@
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
       // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
-      const INITIAL_HORIZONTAL_OFFSET = 12;
-      const INITIAL_VERTICAL_OFFSET = 8;
-      const INITIAL_ANGLED_OFFSET = 6;
+      const INITIAL_HORIZONTAL_OFFSET = 20;  // 水平梁：編號在梁下方
+      const INITIAL_VERTICAL_OFFSET = 15;    // 垂直梁：編號在梁右側
+      const INITIAL_ANGLED_OFFSET = 15;      // 斜向梁：編號偏移距離
 
       let panZoomInstance = null;
       let fullProcessedBeams = [];
