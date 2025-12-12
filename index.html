@@ -6121,7 +6121,7 @@
       document
         .getElementById("e2kFile")
         .addEventListener("change", function (event) {
-          const fileNameDisplay = document.getElementById("file-name-display");
+          const fileNameDisplay = document.getElementById("fileName");
           if (event.target.files.length > 0) {
             fileNameDisplay.textContent = event.target.files[0].name;
             // 自動預覽結構
