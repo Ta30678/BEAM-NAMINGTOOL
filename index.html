@@ -1298,16 +1298,16 @@
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
-      const INITIAL_BEAM_FONT_SIZE = 18; // [修改] 放大300% (6 * 3)
+      const INITIAL_BEAM_FONT_SIZE = 12; // [修改] 放大300% (6 * 3)
       const ZOOM_DAMPING_FACTOR = 0.6; // 縮放阻尼係數 (0-1)，越小字體變化越不敏感
       const INITIAL_GRID_FONT_SIZE = 7; // [修改] 再縮小30%（10 * 0.7）
-      const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
+      const INITIAL_GRID_BUBBLE_RADIUS = 15; // [修改] 加大 Bubble
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
       // [修改] 定義梁標籤與梁中點之間的固定距離 (單位：SVG座標，縮小至 70%)
-      const INITIAL_HORIZONTAL_OFFSET = 10;  // 水平梁：編號在梁下方
-      const INITIAL_VERTICAL_OFFSET = 10;    // 垂直梁：編號在梁右側
-      const INITIAL_ANGLED_OFFSET = 10;      // 斜向梁：編號偏移距離
+      const INITIAL_HORIZONTAL_OFFSET = 7;  // 水平梁：編號在梁下方
+      const INITIAL_VERTICAL_OFFSET = 7;    // 垂直梁：編號在梁右側
+      const INITIAL_ANGLED_OFFSET = 7;      // 斜向梁：編號偏移距離
 
       let panZoomInstance = null;
       let fullProcessedBeams = [];
