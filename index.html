@@ -2843,8 +2843,10 @@
                 cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
               }
 
-              // [修改] 使用反向縮放調整字體和偏移，確保編號位置正確
-              const invZoom = 1 / newZoom;
+              // [修正] 使用當前實際的 zoom 值，而不是回調參數中的值
+              // 這修復了全螢幕模式下連續觸發 fit()/zoom() 時字體大小不正確的問題
+              const currentZoom = panZoomInstance ? panZoomInstance.getZoom() : newZoom;
+              const invZoom = 1 / currentZoom;
               const beamFontSize = INITIAL_BEAM_FONT_SIZE * invZoom;
               const gridFontSize = INITIAL_GRID_FONT_SIZE * invZoom;
               const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
@@ -2944,6 +2946,16 @@
               panZoomInstance.resize();
               panZoomInstance.fit();
               panZoomInstance.center();
+
+              // [修正] 確保字體大小在離開全螢幕後正確更新
+              requestAnimationFrame(() => {
+                requestAnimationFrame(() => {
+                  const currentZoom = panZoomInstance.getZoom();
+                  panZoomInstance.zoom(currentZoom * 1.0001);
+                  panZoomInstance.zoom(currentZoom);
+                  panZoomInstance.center();
+                });
+              });
             }, 100);
           }
         } else {
@@ -3014,6 +3026,18 @@
                 const newZoom = realZoom * zoomMultiplier;
                 panZoomInstance.zoom(newZoom);
                 panZoomInstance.center();
+
+                // [修正] 確保字體大小在全螢幕切換後正確更新
+                // 使用雙重 RAF 確保 zoom 回調已完成
+                requestAnimationFrame(() => {
+                  requestAnimationFrame(() => {
+                    // 輕微調整 zoom 值強制觸發 onZoom 回調更新字體
+                    const currentZoom = panZoomInstance.getZoom();
+                    panZoomInstance.zoom(currentZoom * 1.0001);
+                    panZoomInstance.zoom(currentZoom);
+                    panZoomInstance.center();
+                  });
+                });
 
                 console.log("  viewBox:", viewBox);
                 console.log("  contentRatio:", contentRatio);
