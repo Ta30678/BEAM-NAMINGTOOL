@@ -476,26 +476,34 @@
         display: none !important;
       }
 
-      /* [新增] 全螢幕模式樓層顯示 Bubble */
+      /* [新增] 全螢幕模式樓層顯示 Bubble（類似 Grid Bubble 樣式） */
       #fullscreen-floor-bubble {
         display: none;
         position: fixed;
         top: 20px;
         right: 20px;
-        background: rgba(30, 41, 59, 0.9);
-        color: white;
-        padding: 12px 20px;
-        border-radius: 25px;
-        font-size: 16px;
-        font-weight: 600;
+        width: 50px;
+        height: 50px;
+        background: white;
+        border: 3px solid #22c55e; /* 綠色邊框，類似 Grid Bubble */
+        border-radius: 50%;
         z-index: 10000;
-        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
         pointer-events: none;
         user-select: none;
       }
 
-      body:has(#drawing.fullscreen) #fullscreen-floor-bubble {
-        display: block;
+      #fullscreen-floor-bubble.visible {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+      }
+
+      #fullscreen-floor-text {
+        font-size: 14px;
+        font-weight: 600;
+        color: #000000;
+        text-align: center;
       }
 
       #drawing-svg:active {
@@ -2870,6 +2878,7 @@
       function toggleFullscreen() {
         const drawingDiv = document.getElementById("drawing");
         const fullscreenIcon = document.getElementById("fullscreen-icon");
+        const floorBubble = document.getElementById("fullscreen-floor-bubble");
         const htmlElement = document.documentElement;
         const bodyElement = document.body;
 
@@ -2882,6 +2891,9 @@
           // 離開全螢幕
           drawingDiv.classList.remove("fullscreen");
           fullscreenIcon.textContent = "⛶";
+
+          // [新增] 隱藏樓層 Bubble
+          floorBubble.classList.remove("visible");
 
           // 恢復 html 和 body 的樣式
           htmlElement.style.padding = "";
@@ -2904,6 +2916,9 @@
           }
         } else {
           console.log("→ 進入全螢幕模式");
+
+          // [新增] 顯示樓層 Bubble
+          floorBubble.classList.add("visible");
 
           // 進入全螢幕
           drawingDiv.classList.add("fullscreen");
