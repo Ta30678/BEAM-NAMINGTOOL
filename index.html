@@ -476,6 +476,28 @@
         display: none !important;
       }
 
+      /* [新增] 全螢幕模式樓層顯示 Bubble */
+      #fullscreen-floor-bubble {
+        display: none;
+        position: fixed;
+        top: 20px;
+        right: 20px;
+        background: rgba(30, 41, 59, 0.9);
+        color: white;
+        padding: 12px 20px;
+        border-radius: 25px;
+        font-size: 16px;
+        font-weight: 600;
+        z-index: 10000;
+        box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+        pointer-events: none;
+        user-select: none;
+      }
+
+      body:has(#drawing.fullscreen) #fullscreen-floor-bubble {
+        display: block;
+      }
+
       #drawing-svg:active {
         cursor: grabbing;
       }
@@ -552,7 +574,7 @@
       .beam-label {
         fill: #1e293b;
         font-weight: 500;
-        font-size: 14px; /* [修改] 固定字體大小，不隨縮放變化 */
+        font-size: 10px; /* [修改] 縮小至原來的 70% (14px * 0.7) */
       }
 
       /* 圈选功能相关样式 */
@@ -1274,10 +1296,10 @@
       const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
-      // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
-      const INITIAL_HORIZONTAL_OFFSET = 25;  // 水平梁：編號在梁下方
-      const INITIAL_VERTICAL_OFFSET = 20;    // 垂直梁：編號在梁右側
-      const INITIAL_ANGLED_OFFSET = 15;      // 斜向梁：編號偏移距離
+      // [修改] 定義梁標籤與梁中點之間的固定距離 (單位：SVG座標，縮小至 70%)
+      const INITIAL_HORIZONTAL_OFFSET = 18;  // 水平梁：編號在梁下方
+      const INITIAL_VERTICAL_OFFSET = 14;    // 垂直梁：編號在梁右側
+      const INITIAL_ANGLED_OFFSET = 10;      // 斜向梁：編號偏移距離
 
       let panZoomInstance = null;
       let fullProcessedBeams = [];
@@ -2744,6 +2766,8 @@
         const storyDisplayName = selectedStory === "all" ? "All Floors Combined" : selectedStory;
         document.getElementById("plan-story-name").textContent = storyDisplayName;
         document.getElementById("fullscreen-story-name").textContent = storyDisplayName;
+        // [新增] 更新全螢幕模式的浮動樓層 Bubble
+        document.getElementById("fullscreen-floor-text").textContent = storyDisplayName;
 
         // 同步全螢幕選擇器
         document.getElementById("fullscreen-story-selector").value = selectedStory;
@@ -3633,6 +3657,7 @@
             text.setAttribute("x", textX);
             text.setAttribute("y", textY + INITIAL_HORIZONTAL_OFFSET);
             text.setAttribute("text-anchor", "middle");
+            text.setAttribute("dominant-baseline", "middle"); // [修改] 從梁中點到文字中心的固定距離
           } else if (isVertical) {
             text.dataset.orientation = "vertical";
             const rotatedX = textX + INITIAL_VERTICAL_OFFSET;
@@ -3660,7 +3685,7 @@
             text.setAttribute("x", textX);
             text.setAttribute("y", textY);
             text.setAttribute("text-anchor", "middle");
-            text.setAttribute("dominant-baseline", "alphabetic");
+            text.setAttribute("dominant-baseline", "middle"); // [修改] 從梁中點到文字中心的固定距離
             text.setAttribute(
               "transform",
               `rotate(${angle}, ${textX}, ${textY})`,
@@ -6815,5 +6840,10 @@
       });
 
     </script>
+
+    <!-- [新增] 全螢幕模式樓層顯示 Bubble（浮動在最上層，不在畫布上） -->
+    <div id="fullscreen-floor-bubble">
+      <span id="fullscreen-floor-text">所有樓層合併</span>
+    </div>
   </body>
 </html>
