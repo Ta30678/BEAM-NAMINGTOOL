@@ -3675,15 +3675,13 @@
             text.setAttribute("dominant-baseline", "middle"); // [修改] 從梁中點到文字中心的固定距離
           } else if (isVertical) {
             text.dataset.orientation = "vertical";
-            const rotatedX = textX + INITIAL_VERTICAL_OFFSET;
-            text.setAttribute("x", rotatedX);
+            // [修改] 垂直梁：文字旋轉後用 dy 控制偏移，確保編號在梁的正確側
+            text.setAttribute("x", textX);
             text.setAttribute("y", textY);
             text.setAttribute("text-anchor", "middle");
             text.setAttribute("dominant-baseline", "middle");
-            text.setAttribute(
-              "transform",
-              `rotate(-90, ${rotatedX}, ${textY})`,
-            );
+            text.setAttribute("transform", `rotate(-90, ${textX}, ${textY})`);
+            text.setAttribute("dy", INITIAL_VERTICAL_OFFSET); // 旋轉後 dy 會往視覺上的右邊偏移
           } else {
             text.dataset.orientation = "angled";
             const x1_svg = transformX(beam.j1.x);
