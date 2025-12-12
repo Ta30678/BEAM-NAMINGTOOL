@@ -1292,15 +1292,16 @@
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
-      const INITIAL_BEAM_FONT_SIZE = 12;
+      const INITIAL_BEAM_FONT_SIZE = 16; // 增大基礎字體
+      const ZOOM_DAMPING_FACTOR = 0.6; // 縮放阻尼係數 (0-1)，越小字體變化越不敏感
       const INITIAL_GRID_FONT_SIZE = 14; // [修改] 增大字體
       const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
       // [新增] 定義梁標籤與梁之間的初始距離 (單位：SVG座標)
-      const INITIAL_HORIZONTAL_OFFSET = 25; // [修改] 增加水平梁編號距離
-      const INITIAL_VERTICAL_OFFSET = 20;   // [修改] 增加垂直梁編號距離
-      const INITIAL_ANGLED_OFFSET = 15;     // [修改] 增加斜梁編號距離
+      const INITIAL_HORIZONTAL_OFFSET = 25;  // 水平梁：編號在梁下方
+      const INITIAL_VERTICAL_OFFSET = 20;    // 垂直梁：編號在梁右側
+      const INITIAL_ANGLED_OFFSET = 15;      // 斜向梁：編號偏移距離
 
       let panZoomInstance = null;
       let fullProcessedBeams = [];
@@ -2848,7 +2849,7 @@
           let cachedGridBubbles = null;
           let cachedGridBubbleTexts = null;
 
-          // [修改] 優化的縮放更新函數 - 移除反向縮放，讓字體隨 SVG 縮放
+          // [修改] 優化的縮放更新函數 - 使用阻尼縮放讓字體變化更平緩
           const updateZoomOptimized = (newZoom) => {
             // 使用 requestAnimationFrame 批量更新
             if (zoomUpdateScheduled) return;
@@ -2866,10 +2867,39 @@
                 cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
               }
 
-              // [修改] 字體大小和偏移量已在創建時設定，會隨 SVG transform 自然縮放
-              // 不再需要在 zoom 回調中更新這些屬性
+              // 預計算常用值
+              const invZoom = 1 / newZoom;
+              // 使用阻尼縮放：fontSize = baseSize / (zoom ^ dampingFactor)
+              const dampedInvZoom = 1 / Math.pow(newZoom, ZOOM_DAMPING_FACTOR);
+              const beamFontSize = INITIAL_BEAM_FONT_SIZE * dampedInvZoom;
+              const beamStrokeWidth = INITIAL_BEAM_LABEL_STROKE * dampedInvZoom;
+              // 位置偏移使用普通反向縮放
+              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
+              const verticalOffset = INITIAL_VERTICAL_OFFSET * invZoom;
+              const angledOffset = INITIAL_ANGLED_OFFSET * invZoom;
 
-              // [修改] Grid Bubble 字體現在也隨 SVG 縮放，不需要額外調整
+              // 批量更新梁標籤
+              for (let i = 0; i < cachedBeamLabels.length; i++) {
+                const label = cachedBeamLabels[i];
+                label.style.fontSize = `${beamFontSize}px`;
+                label.style.strokeWidth = `${beamStrokeWidth}px`;
+
+                const baseX = parseFloat(label.dataset.baseX);
+                const baseY = parseFloat(label.dataset.baseY);
+                const orientation = label.dataset.orientation;
+
+                if (orientation === "horizontal") {
+                  label.setAttribute("y", baseY + horizontalOffset);
+                } else if (orientation === "vertical") {
+                  const newRotatedX = baseX + verticalOffset;
+                  label.setAttribute("x", newRotatedX);
+                  label.setAttribute("transform", `rotate(-90, ${newRotatedX}, ${baseY})`);
+                } else if (orientation === "angled") {
+                  label.setAttribute("dy", -angledOffset);
+                }
+              }
+
+              // Grid Bubble 保持自然縮放（不需要額外調整）
 
               zoomUpdateScheduled = false;
             });
