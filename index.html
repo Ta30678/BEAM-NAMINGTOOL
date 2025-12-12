@@ -411,12 +411,12 @@
       }
 
       #drawing.fullscreen #drawing-svg {
-        width: 100% !important;
-        height: 100% !important;
-        max-width: 100% !important;
-        max-height: 100% !important;
-        min-width: 100% !important;
-        min-height: 100% !important;
+        width: 100vw !important;
+        height: 100vh !important;
+        max-width: 100vw !important;
+        max-height: 100vh !important;
+        min-width: 100vw !important;
+        min-height: 100vh !important;
         border-radius: 0 !important;
         border: none !important;
         display: block !important;
@@ -429,6 +429,7 @@
         background: #ffffff !important;
         margin: 0 !important;
         padding: 0 !important;
+        z-index: 10000 !important;
       }
 
       /* 全螢幕模式下隱藏所有控制元素（只保留 SVG） */
@@ -1289,9 +1290,9 @@
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
-      const INITIAL_BEAM_FONT_SIZE = 16; // 增大基礎字體
+      const INITIAL_BEAM_FONT_SIZE = 8; // [修改] 減小字體以避免重疊
       const ZOOM_DAMPING_FACTOR = 0.6; // 縮放阻尼係數 (0-1)，越小字體變化越不敏感
-      const INITIAL_GRID_FONT_SIZE = 14; // [修改] 增大字體
+      const INITIAL_GRID_FONT_SIZE = 10; // [修改] 減小字體
       const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
       const INITIAL_BEAM_LABEL_STROKE = 1.5;
       const INITIAL_GRID_BUBBLE_STROKE = 1;
