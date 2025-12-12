@@ -236,7 +236,7 @@
       /* Button Row Styles */
       .button-row {
         display: grid;
-        grid-template-columns: repeat(4, 1fr);
+        grid-template-columns: repeat(3, 1fr);
         gap: 12px;
         margin-bottom: 20px;
       }
@@ -814,14 +814,6 @@
             />
             <span id="fileName" class="file-name-display">未選擇檔案</span>
           </div>
-          <div class="checkbox-group">
-            <input type="checkbox" id="mirrorModeToggle" />
-            <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
-          </div>
-          <div class="checkbox-group">
-            <input type="checkbox" id="fixedLabelToggle" onchange="toggleFixedLabelConfig()" />
-            <label for="fixedLabelToggle">啟用特定尺寸梁固定編號</label>
-          </div>
         </div>
 
         <!-- 固定編號設定區 -->
@@ -846,33 +838,6 @@
 
         <!-- 第二排：主要操作按鈕 -->
         <div class="button-row">
-          <button
-            class="btn btn-primary"
-            id="previewBtn"
-            onclick="previewFile()"
-          >
-            <svg
-              width="18"
-              height="18"
-              viewBox="0 0 24 24"
-              fill="none"
-              style="margin-right: 6px"
-            >
-              <path
-                d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-              <circle
-                cx="12"
-                cy="12"
-                r="3"
-                stroke="currentColor"
-                stroke-width="2"
-              />
-            </svg>
-            預覽結構
-          </button>
           <button
             class="btn btn-secondary"
             id="configBtn"
@@ -980,6 +945,19 @@
       <div id="grid-config-panel" style="display: none; margin-bottom: 20px">
         <div class="control-area">
           <h3>格線編號規則設定</h3>
+
+          <!-- 編號選項 -->
+          <div style="display: flex; gap: 20px; margin-bottom: 15px;">
+            <div class="checkbox-group">
+              <input type="checkbox" id="mirrorModeToggle" />
+              <label for="mirrorModeToggle">啟用小梁鏡像對稱編號</label>
+            </div>
+            <div class="checkbox-group">
+              <input type="checkbox" id="fixedLabelToggle" onchange="toggleFixedLabelConfig()" />
+              <label for="fixedLabelToggle">啟用特定尺寸梁固定編號</label>
+            </div>
+          </div>
+
           <p
             style="
               color: var(--theme-text-secondary);
@@ -1290,7 +1268,7 @@
 
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
-      const INITIAL_BEAM_FONT_SIZE = 6; // [修改] 再縮小30%（8 * 0.7）
+      const INITIAL_BEAM_FONT_SIZE = 18; // [修改] 放大300% (6 * 3)
       const ZOOM_DAMPING_FACTOR = 0.6; // 縮放阻尼係數 (0-1)，越小字體變化越不敏感
       const INITIAL_GRID_FONT_SIZE = 7; // [修改] 再縮小30%（10 * 0.7）
       const INITIAL_GRID_BUBBLE_RADIUS = 18; // [修改] 加大 Bubble
@@ -6139,13 +6117,15 @@
           }
         });
 
-      // 檔案選擇時更新檔名顯示
+      // 檔案選擇時更新檔名顯示並自動預覽
       document
         .getElementById("e2kFile")
         .addEventListener("change", function (event) {
           const fileNameDisplay = document.getElementById("file-name-display");
           if (event.target.files.length > 0) {
             fileNameDisplay.textContent = event.target.files[0].name;
+            // 自動預覽結構
+            previewFile();
           } else {
             fileNameDisplay.textContent = "尚未選擇檔案";
           }
@@ -6876,29 +6856,15 @@
         console.log("[DEBUG] DOM Content Loaded");
 
         // 檢查關鍵元素是否存在
-        const previewBtn = document.getElementById("previewBtn");
         const fileInput = document.getElementById("e2kFile");
         const statusDiv = document.getElementById("status");
         const drawingSvg = document.getElementById("drawing-svg");
 
         console.log("[DEBUG] Element check:", {
-          previewBtn: !!previewBtn,
           fileInput: !!fileInput,
           statusDiv: !!statusDiv,
           drawingSvg: !!drawingSvg
         });
-
-        // 確保預覽按鈕有正確的事件處理
-        if (previewBtn) {
-          // 添加備用的 addEventListener（防止 onclick 失效）
-          previewBtn.addEventListener('click', function(e) {
-            console.log("[DEBUG] Preview button clicked (addEventListener)");
-            // onclick 會優先執行，這裡只是備用
-          });
-          console.log("[DEBUG] Preview button initialized successfully");
-        } else {
-          console.error("[ERROR] Preview button not found!");
-        }
 
         // 檢查 previewFile 函數是否存在
         if (typeof previewFile === 'function') {
