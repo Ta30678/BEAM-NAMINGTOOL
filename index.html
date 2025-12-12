@@ -552,7 +552,7 @@
       .beam-label {
         fill: #1e293b;
         font-weight: 500;
-        /* [移除] 移除白色描邊效果，讓文字更專業清晰 */
+        font-size: 14px; /* [修改] 固定字體大小，不隨縮放變化 */
       }
 
       /* 圈选功能相关样式 */
@@ -2819,70 +2819,8 @@
           // [修改] 只在首次創建時自動縮放，否則恢復之前的狀態
           const shouldFitAndCenter = (savedZoom === null || savedPan === null);
 
-          // [新增] 性能優化：緩存 DOM 查詢結果和使用 RAF
-          let zoomUpdateScheduled = false;
-          let cachedBeamLabels = null;
-          let cachedGridBubbles = null;
-          let cachedGridBubbleTexts = null;
-
-          // [修改] 優化的縮放更新函數 - 使用阻尼縮放讓字體變化更平緩
-          const updateZoomOptimized = (newZoom) => {
-            // 使用 requestAnimationFrame 批量更新
-            if (zoomUpdateScheduled) return;
-            zoomUpdateScheduled = true;
-
-            requestAnimationFrame(() => {
-              // 懶加載：只在第一次或緩存失效時查詢 DOM
-              if (!cachedBeamLabels) {
-                cachedBeamLabels = document.querySelectorAll("#drawing-svg .beam-label");
-              }
-              if (!cachedGridBubbles) {
-                cachedGridBubbles = document.querySelectorAll("#drawing-svg .grid-bubble");
-              }
-              if (!cachedGridBubbleTexts) {
-                cachedGridBubbleTexts = document.querySelectorAll("#drawing-svg .grid-bubble-text");
-              }
-
-              // [修正] 使用當前實際的 zoom 值，而不是回調參數中的值
-              // 這修復了全螢幕模式下連續觸發 fit()/zoom() 時字體大小不正確的問題
-              const currentZoom = panZoomInstance ? panZoomInstance.getZoom() : newZoom;
-              const invZoom = 1 / currentZoom;
-              const beamFontSize = INITIAL_BEAM_FONT_SIZE * invZoom;
-              const gridFontSize = INITIAL_GRID_FONT_SIZE * invZoom;
-              const horizontalOffset = INITIAL_HORIZONTAL_OFFSET * invZoom;
-              const verticalOffset = INITIAL_VERTICAL_OFFSET * invZoom;
-              const angledOffset = INITIAL_ANGLED_OFFSET * invZoom;
-
-              // 更新梁標籤
-              for (let i = 0; i < cachedBeamLabels.length; i++) {
-                const label = cachedBeamLabels[i];
-                label.setAttribute("font-size", beamFontSize);
-
-                const baseX = parseFloat(label.dataset.baseX);
-                const baseY = parseFloat(label.dataset.baseY);
-                const orientation = label.dataset.orientation;
-
-                if (orientation === "horizontal") {
-                  label.setAttribute("y", baseY + horizontalOffset);
-                } else if (orientation === "vertical") {
-                  const newRotatedX = baseX + verticalOffset;
-                  label.setAttribute("x", newRotatedX);
-                  label.setAttribute("transform", `rotate(-90, ${newRotatedX}, ${baseY})`);
-                } else if (orientation === "angled") {
-                  label.setAttribute("dy", -angledOffset);
-                }
-              }
-
-              // 更新 Grid Bubble 字體
-              for (let i = 0; i < cachedGridBubbleTexts.length; i++) {
-                const text = cachedGridBubbleTexts[i];
-                text.setAttribute("font-size", gridFontSize);
-              }
-
-              zoomUpdateScheduled = false;
-            });
-          };
-
+          // [修改] 移除 onZoom 回調中的字體動態調整
+          // 改為使用 CSS 固定字體大小，縮放時字體會自然跟著縮放
           panZoomInstance = svgPanZoom("#drawing-svg", {
             panEnabled: false,  // [修改] 禁用滑鼠拖動平移，只允許滾輪縮放
             zoomEnabled: true,
@@ -2893,14 +2831,6 @@
             center: shouldFitAndCenter,
             minZoom: 0.1,
             maxZoom: 50,
-            // [優化] 使用優化的 onZoom 回調
-            onZoom: updateZoomOptimized,
-            // [新增] 當 SVG 內容更新時，清除緩存
-            onUpdated: function() {
-              cachedBeamLabels = null;
-              cachedGridBubbles = null;
-              cachedGridBubbleTexts = null;
-            },
           });
 
           // [新增] 恢復之前保存的縮放和平移狀態
@@ -2946,19 +2876,6 @@
               panZoomInstance.resize();
               panZoomInstance.fit();
               panZoomInstance.center();
-
-              // [修正] 確保字體大小在離開全螢幕後正確更新
-              // 使用 setTimeout 確保 fit/center 完全完成後再觸發字體更新
-              setTimeout(() => {
-                const currentZoom = panZoomInstance.getZoom();
-                console.log("→ 離開全螢幕：強制更新字體，zoom =", currentZoom);
-                // 輕微調整 zoom 值強制觸發 onZoom 回調
-                panZoomInstance.zoom(currentZoom * 1.001);
-                setTimeout(() => {
-                  panZoomInstance.zoom(currentZoom);
-                  panZoomInstance.center();
-                }, 50);
-              }, 100);
             }, 100);
           }
         } else {
@@ -3029,18 +2946,6 @@
                 const newZoom = realZoom * zoomMultiplier;
                 panZoomInstance.zoom(newZoom);
                 panZoomInstance.center();
-
-                // [修正] 確保字體大小在全螢幕切換後正確更新
-                // 使用 setTimeout 確保 zoom 完成後再強制更新字體
-                setTimeout(() => {
-                  const currentZoom = panZoomInstance.getZoom();
-                  console.log("→ 進入全螢幕：強制更新字體，zoom =", currentZoom);
-                  panZoomInstance.zoom(currentZoom * 1.001);
-                  setTimeout(() => {
-                    panZoomInstance.zoom(currentZoom);
-                    panZoomInstance.center();
-                  }, 50);
-                }, 100);
 
                 console.log("  viewBox:", viewBox);
                 console.log("  contentRatio:", contentRatio);
@@ -3209,14 +3114,22 @@
           return;
         }
 
+        // [修改] 使用全局座標系統（基於所有樓層的梁），確保切換樓層時座標系統不變
+        // 這樣切換樓層後，畫面位置（zoom 和 pan）可以保持一致
+        const globalBeamCoords = fullDrawableBeams
+          .flatMap((b) => [b.j1, b.j2])
+          .filter(Boolean);
         const gridCoordsX = grids.x ? grids.x.map((g) => g.ordinate) : [];
         const gridCoordsY = grids.y ? grids.y.map((g) => g.ordinate) : [];
-        const allX = beamCoords.map((p) => p.x).concat(gridCoordsX);
-        const allY = beamCoords.map((p) => p.y).concat(gridCoordsY);
-        const minX = Math.min(...allX);
-        const maxX = Math.max(...allX);
-        const minY = Math.min(...allY);
-        const maxY = Math.max(...allY);
+
+        // 使用全局梁座標來計算邊界（如果沒有全局數據，fallback 到當前樓層）
+        const coordsForBounds = globalBeamCoords.length > 0 ? globalBeamCoords : beamCoords;
+        const globalX = coordsForBounds.map((p) => p.x).concat(gridCoordsX);
+        const globalY = coordsForBounds.map((p) => p.y).concat(gridCoordsY);
+        const minX = Math.min(...globalX);
+        const maxX = Math.max(...globalX);
+        const minY = Math.min(...globalY);
+        const maxY = Math.max(...globalY);
 
         const padding = 60;
         const svgWidth = svg.clientWidth || 1000;
