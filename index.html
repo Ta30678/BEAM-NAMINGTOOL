@@ -2948,14 +2948,17 @@
               panZoomInstance.center();
 
               // [修正] 確保字體大小在離開全螢幕後正確更新
-              requestAnimationFrame(() => {
-                requestAnimationFrame(() => {
-                  const currentZoom = panZoomInstance.getZoom();
-                  panZoomInstance.zoom(currentZoom * 1.0001);
+              // 使用 setTimeout 確保 fit/center 完全完成後再觸發字體更新
+              setTimeout(() => {
+                const currentZoom = panZoomInstance.getZoom();
+                console.log("→ 離開全螢幕：強制更新字體，zoom =", currentZoom);
+                // 輕微調整 zoom 值強制觸發 onZoom 回調
+                panZoomInstance.zoom(currentZoom * 1.001);
+                setTimeout(() => {
                   panZoomInstance.zoom(currentZoom);
                   panZoomInstance.center();
-                });
-              });
+                }, 50);
+              }, 100);
             }, 100);
           }
         } else {
@@ -3028,16 +3031,16 @@
                 panZoomInstance.center();
 
                 // [修正] 確保字體大小在全螢幕切換後正確更新
-                // 使用雙重 RAF 確保 zoom 回調已完成
-                requestAnimationFrame(() => {
-                  requestAnimationFrame(() => {
-                    // 輕微調整 zoom 值強制觸發 onZoom 回調更新字體
-                    const currentZoom = panZoomInstance.getZoom();
-                    panZoomInstance.zoom(currentZoom * 1.0001);
+                // 使用 setTimeout 確保 zoom 完成後再強制更新字體
+                setTimeout(() => {
+                  const currentZoom = panZoomInstance.getZoom();
+                  console.log("→ 進入全螢幕：強制更新字體，zoom =", currentZoom);
+                  panZoomInstance.zoom(currentZoom * 1.001);
+                  setTimeout(() => {
                     panZoomInstance.zoom(currentZoom);
                     panZoomInstance.center();
-                  });
-                });
+                  }, 50);
+                }, 100);
 
                 console.log("  viewBox:", viewBox);
                 console.log("  contentRatio:", contentRatio);
