@@ -245,6 +245,47 @@
         user-select: none;
       }
 
+      /* Toggle Switch Styles */
+      .switch {
+        position: relative;
+        display: inline-block;
+        width: 50px;
+        height: 26px;
+      }
+      .switch input {
+        opacity: 0;
+        width: 0;
+        height: 0;
+      }
+      .switch .slider {
+        position: absolute;
+        cursor: pointer;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background-color: #ccc;
+        transition: 0.3s;
+        border-radius: 26px;
+      }
+      .switch .slider:before {
+        position: absolute;
+        content: "";
+        height: 20px;
+        width: 20px;
+        left: 3px;
+        bottom: 3px;
+        background-color: white;
+        transition: 0.3s;
+        border-radius: 50%;
+      }
+      .switch input:checked + .slider {
+        background-color: #f97316;
+      }
+      .switch input:checked + .slider:before {
+        transform: translateX(24px);
+      }
+
       /* Button Row Styles */
       .button-row {
         display: grid;
@@ -455,8 +496,8 @@
         pointer-events: none !important;
       }
 
-      /* 全螢幕模式時，隱藏其他所有容器內容（但保留對話框） */
-      body:has(#drawing.fullscreen) > *:not(#drawing):not(script):not(style):not(link):not(#batch-edit-dialog):not(#batch-edit-overlay):not(#search-member-dialog):not(#search-member-overlay):not(#fixed-label-dialog):not(#fixed-label-overlay):not(#beam-edit-dialog) {
+      /* 全螢幕模式時，隱藏其他所有容器內容（但保留對話框和樓層 Bubble） */
+      body:has(#drawing.fullscreen) > *:not(#drawing):not(script):not(style):not(link):not(#batch-edit-dialog):not(#batch-edit-overlay):not(#search-member-dialog):not(#search-member-overlay):not(#fixed-label-dialog):not(#fixed-label-overlay):not(#beam-edit-dialog):not(#fullscreen-floor-bubble) {
         visibility: hidden !important;
       }
 
@@ -545,7 +586,8 @@
       }
 
       #fullscreen-floor-bubble.visible {
-        display: flex;
+        display: flex !important;
+        visibility: visible !important;
         align-items: center;
         justify-content: center;
       }
@@ -633,6 +675,8 @@
       .beam-label {
         fill: #1e293b;
         font-weight: 500;
+        cursor: move;  /* [新增] 顯示可移動游標 */
+        pointer-events: all;  /* [新增] 確保可以接收點擊事件 */
         /* font-size 由 JavaScript 動態設定，不在 CSS 中固定 */
       }
 
@@ -658,13 +702,14 @@
       }
 
       .beam-selected {
-        stroke: #0ea5e9 !important;
-        stroke-width: 3 !important;
+        stroke: #ef4444 !important;
+        stroke-width: 2 !important;
       }
 
-      .beam-label-selected {
-        fill: #d97706 !important;
-        font-weight: 700 !important;
+      /* 標籤選取使用相同的 class */
+      text.beam-selected {
+        fill: #ef4444 !important;
+        font-weight: 500 !important; /* 保持與 .beam-label 相同的字體粗細 */
       }
 
       /* 批量编辑对话框样式 */
@@ -801,7 +846,8 @@
         cursor: move;
         transition: r 0.2s ease, stroke-width 0.2s ease;
         user-select: none;
-        pointer-events: all;
+        pointer-events: all;  /* [修改] 保留 pointer-events 讓 bubble 本身可以顯示 hover 效果 */
+        stroke-width: 3px;
       }
 
       .grid-bubble.draggable:hover {
@@ -809,18 +855,13 @@
         stroke-width: 2.5;
       }
 
-      /* [新增] 擴大 bubble 的實際點擊範圍 - 使用較粗的透明描邊 */
-      .grid-bubble.draggable {
-        stroke-width: 3px;
-      }
-
-      /* [新增] 為 bubble 添加不可見的點擊區域 */
+      /* [新增] 為 bubble 添加不可見的點擊區域 - 僅用於擴大點擊範圍 */
       .grid-bubble-hitarea {
-        fill: transparent;
+        fill: rgba(255,255,255,0.01);  /* [修改] 使用近乎透明的填充來接收點擊 */
         stroke: transparent;
-        stroke-width: 20px;  /* 擴大點擊範圍 */
+        stroke-width: 0;
         pointer-events: all;
-        cursor: move;
+        cursor: move;  /* [修改] 游標顯示為 move 表示可拖動 */
       }
 
       .grid-bubble.dragging {
@@ -1031,53 +1072,72 @@
 
       <!-- 格線編號配置面板 -->
       <div id="grid-config-panel" style="display: none; margin-bottom: 20px">
-        <div class="control-area">
-          <h3>格線編號規則設定</h3>
+        <div class="control-area" style="position: relative;">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px;">
+            <h3 style="margin: 0;">格線編號規則設定</h3>
+            <button
+              onclick="toggleGridConfigHelp()"
+              style="
+                min-width: 32px;
+                width: 32px;
+                height: 32px;
+                border-radius: 50%;
+                background-color: var(--theme-accent);
+                color: white;
+                border: none;
+                font-size: 16px;
+                cursor: pointer;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                transition: all 0.2s ease;
+                padding: 0;
+                flex-shrink: 0;
+              "
+              onmouseover="this.style.backgroundColor='var(--theme-accent-hover)'"
+              onmouseout="this.style.backgroundColor='var(--theme-accent)'"
+              title="格線編號說明"
+            >💡</button>
+          </div>
 
-          <!-- 編號選項 -->
-          <div style="display: flex; gap: 20px; margin-bottom: 15px; align-items: center;">
-            <div class="checkbox-group" style="align-items: center;">
-              <input type="checkbox" id="mirrorModeToggle" />
-              <label for="mirrorModeToggle" style="margin: 0;">MIRROR</label>
+          <!-- 編號選項 - 上下兩排黑色按鈕 -->
+          <div style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 15px;">
+            <!-- MIRROR 按鈕列 -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="mirrorModeBtn" onclick="openMirrorSettingsModal()" style="
+                padding: 8px 16px;
+                font-size: 0.9em;
+                font-weight: 600;
+                background: #1e293b;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                min-width: 90px;
+              ">MIRROR</button>
+              <span id="mirrorStatusText" style="font-size: 0.85em; color: #1e293b; font-weight: 500;"></span>
             </div>
-            <button id="fixedLabelBtn" onclick="toggleFixedLabelMode()" class="btn-process" style="padding: 6px 12px; font-size: 0.9em;">FIXED</button>
+            <!-- FIXED 按鈕列 -->
+            <div style="display: flex; gap: 10px; align-items: center;">
+              <button id="fixedLabelBtn" onclick="toggleFixedLabelMode()" style="
+                padding: 8px 16px;
+                font-size: 0.9em;
+                font-weight: 600;
+                background: #1e293b;
+                color: #ffffff;
+                border: none;
+                border-radius: 6px;
+                cursor: pointer;
+                min-width: 90px;
+              ">FIXED</button>
+              <!-- 固定編號摘要顯示 -->
+              <div id="fixedLabelSummary" style="font-size: 0.85em; color: #1e293b; font-weight: 500;"></div>
+            </div>
             <!-- 隱藏的 checkbox 用於保持相容性 -->
+            <input type="checkbox" id="mirrorModeToggle" style="display: none;" />
             <input type="checkbox" id="fixedLabelToggle" style="display: none;" />
           </div>
-          <!-- 固定編號摘要顯示 -->
-          <div id="fixedLabelSummary" style="margin-bottom: 15px; font-size: 0.85em; color: var(--theme-text-secondary);"></div>
 
-          <p
-            style="
-              color: var(--theme-text-secondary);
-              margin-bottom: 15px;
-              font-size: 0.95em;
-            "
-          >
-            💡 提示：<br />
-            • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b>（例如：設定
-            A=1，系統自動設定 B=2, C=3...）<br />
-            • 輸入
-            <code
-              style="
-                background: var(--theme-bg);
-                padding: 2px 6px;
-                border-radius: 3px;
-              "
-              >-</code
-            >
-            /
-            <code
-              style="
-                background: var(--theme-bg);
-                padding: 2px 6px;
-                border-radius: 3px;
-              "
-              >skip</code
-            >
-            / 留空 來跳過不編號的格線<br />
-            • 您隨時可以手動修改任何格線的編號
-          </p>
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px">
             <div>
               <h4
@@ -1407,6 +1467,74 @@
       </div>
     </div>
 
+    <!-- MIRROR 對稱設定對話框 -->
+    <div id="mirror-settings-overlay" class="dialog-overlay" onclick="closeMirrorSettingsModal()"></div>
+    <div id="mirror-settings-dialog" style="
+        display: none;
+        position: fixed;
+        top: 50%;
+        left: 50%;
+        transform: translate(-50%, -50%);
+        z-index: 10002;
+        background: var(--theme-surface);
+        border: 1px solid var(--theme-border);
+        border-radius: 12px;
+        padding: 20px;
+        box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+        min-width: 400px;
+        max-width: 500px;
+      ">
+      <h3 style="margin-top: 0">⚖️ MIRROR 鏡像模式設定</h3>
+
+      <!-- 啟用開關 -->
+      <div style="display: flex; align-items: center; gap: 15px; margin-bottom: 20px; padding: 12px; background: var(--theme-bg); border-radius: 8px;">
+        <label style="font-weight: 600; color: var(--theme-text-primary);">啟用鏡像模式</label>
+        <label class="switch" style="margin-left: auto;">
+          <input type="checkbox" id="mirrorModeToggleInModal" onchange="toggleMirrorModeFromModal()">
+          <span class="slider"></span>
+        </label>
+        <span id="mirrorModeStatusInModal" style="font-size: 0.9em; min-width: 40px;">關閉</span>
+      </div>
+
+      <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+        • <b>及格分數</b>：對稱匹配分數需達到此值才會啟用鏡像編號<br>
+        • <b>配對容許誤差</b>：鏡像梁配對時允許的中點距離誤差
+      </p>
+      <div style="display: flex; flex-direction: column; gap: 15px;">
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <label for="symmetryPassScore" style="min-width: 120px; color: var(--theme-text-secondary);">及格分數 (%)</label>
+          <input
+            type="number"
+            id="symmetryPassScore"
+            value="70"
+            min="10"
+            max="100"
+            step="1"
+            style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-weight: 600; font-size: 1.1em;"
+            onchange="updateSymmetrySettings()"
+            title="🖱️ 滾輪調整"
+          />
+        </div>
+        <div style="display: flex; align-items: center; gap: 15px;">
+          <label for="matchingTolerance" style="min-width: 120px; color: var(--theme-text-secondary);">配對容許誤差 (m)</label>
+          <input
+            type="number"
+            id="matchingTolerance"
+            value="0.80"
+            min="0.01"
+            max="2.00"
+            step="0.01"
+            style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-size: 1.1em;"
+            onchange="updateSymmetrySettings()"
+            title="🖱️ 滾輪調整"
+          />
+        </div>
+      </div>
+      <div style="display: flex; gap: 10px; justify-content: flex-end; margin-top: 20px;">
+        <button class="btn-export" onclick="closeMirrorSettingsModal()">關閉</button>
+      </div>
+    </div>
+
     <script>
       // [修改] 擴充AutoCAD模式縮放的初始尺寸常數
       const INITIAL_BEAM_FONT_SIZE = 6; // [修改] 放大300% (6 * 3)
@@ -1452,8 +1580,13 @@
       let isSelecting = false;
       let selectionStart = null;
       let selectionRect = null;
-      let selectedBeams = new Set(); // 儲存選中梁的 name
+      let selectedBeams = new Set(); // 儲存選中梁的唯一 key (格式: "story|name|joint1|joint2")
       let svgElement = null;
+
+      // [新增] 對稱偵測參數 (可由 UI 調整，這裡設定預設值供後續覆寫)
+      let SYMMETRY_PASS_SCORE = 0.7; // 對稱分數及格門檻 (70%)
+      let SYMMETRY_TOLERANCE = 0.5; // 幾何容許誤差 (公尺)
+      let MATCHING_TOLERANCE = 0.8; // 配對容許誤差 (公尺)
 
       // [新增] 滾輪中鍵拖動畫布的狀態變數（類似 AutoCAD）
 
@@ -1491,7 +1624,114 @@
             updateFontSize();
           });
         }
+
+        // 為對稱評分設定輸入框添加滑鼠滾輪支援
+        initSymmetrySettingsWheelSupport();
+
+        // 載入儲存的對稱評分設定
+        loadSymmetrySettings();
       });
+
+      // [新增] 初始化對稱評分設定的滾輪支援
+      function initSymmetrySettingsWheelSupport() {
+        const passScoreInput = document.getElementById("symmetryPassScore");
+        const matchingToleranceInput = document.getElementById("matchingTolerance");
+
+        // 及格分數滾輪支援 (步長 1%)
+        if (passScoreInput) {
+          passScoreInput.addEventListener("wheel", function(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -1 : 1;
+            let newValue = parseInt(this.value) + delta;
+            newValue = Math.max(10, Math.min(100, newValue));
+            this.value = newValue;
+            updateSymmetrySettings();
+          });
+        }
+
+        // 配對容許誤差滾輪支援 (步長 0.01m)
+        if (matchingToleranceInput) {
+          matchingToleranceInput.addEventListener("wheel", function(e) {
+            e.preventDefault();
+            const delta = e.deltaY > 0 ? -0.01 : 0.01;
+            let newValue = parseFloat(this.value) + delta;
+            newValue = Math.max(0.01, Math.min(2.0, newValue));
+            this.value = newValue.toFixed(2);
+            updateSymmetrySettings();
+          });
+        }
+      }
+
+      // [新增] 更新對稱評分設定 (從 UI 讀取並套用)
+      function updateSymmetrySettings() {
+        const passScoreInput = document.getElementById("symmetryPassScore");
+        const matchingToleranceInput = document.getElementById("matchingTolerance");
+
+        if (passScoreInput) {
+          SYMMETRY_PASS_SCORE = parseInt(passScoreInput.value) / 100;
+        }
+        if (matchingToleranceInput) {
+          MATCHING_TOLERANCE = parseFloat(matchingToleranceInput.value);
+        }
+
+        // 儲存到 localStorage
+        saveSymmetrySettings();
+
+        // 更新 MIRROR 按鈕旁的狀態文字
+        if (typeof updateMirrorStatusText === 'function') {
+          updateMirrorStatusText();
+        }
+
+        console.log(`[對稱評分設定] 及格分數: ${(SYMMETRY_PASS_SCORE * 100).toFixed(0)}%, 配對容許誤差: ${MATCHING_TOLERANCE}m`);
+      }
+
+      // [新增] 儲存對稱評分設定到 localStorage
+      function saveSymmetrySettings() {
+        try {
+          const settings = {
+            passScore: SYMMETRY_PASS_SCORE,
+            matchingTolerance: MATCHING_TOLERANCE
+          };
+          localStorage.setItem('symmetrySettings', JSON.stringify(settings));
+          console.log('✓ 已儲存對稱評分設定');
+        } catch (e) {
+          console.error('儲存對稱評分設定失敗:', e);
+        }
+      }
+
+      // [新增] 從 localStorage 載入對稱評分設定
+      function loadSymmetrySettings() {
+        try {
+          const saved = localStorage.getItem('symmetrySettings');
+          if (saved) {
+            const settings = JSON.parse(saved);
+
+            // 套用設定到全域變數
+            if (settings.passScore !== undefined) {
+              SYMMETRY_PASS_SCORE = settings.passScore;
+            }
+            if (settings.matchingTolerance !== undefined) {
+              MATCHING_TOLERANCE = settings.matchingTolerance;
+            }
+
+            // 更新 UI
+            const passScoreInput = document.getElementById("symmetryPassScore");
+            const matchingToleranceInput = document.getElementById("matchingTolerance");
+
+            if (passScoreInput) {
+              passScoreInput.value = Math.round(SYMMETRY_PASS_SCORE * 100);
+            }
+            if (matchingToleranceInput) {
+              matchingToleranceInput.value = MATCHING_TOLERANCE.toFixed(2);
+            }
+
+            console.log(`✓ 已載入對稱評分設定: 及格分數=${(SYMMETRY_PASS_SCORE * 100).toFixed(0)}%, 配對容許誤差=${MATCHING_TOLERANCE}m`);
+          }
+        } catch (e) {
+          console.error('載入對稱評分設定失敗:', e);
+        }
+      }
+
       let isMiddleMousePanning = false;
       let middleMouseStartPos = null;
 
@@ -1517,6 +1757,131 @@
         } catch (e) {
           console.error('儲存固定編號規則失敗:', e);
         }
+      }
+
+      // [新增] MIRROR 模式切換和設定函數
+      function toggleMirrorModeFromModal() {
+        const modalCheckbox = document.getElementById('mirrorModeToggleInModal');
+        const mainCheckbox = document.getElementById('mirrorModeToggle');
+        const statusInModal = document.getElementById('mirrorModeStatusInModal');
+
+        // 同步兩個 checkbox
+        mainCheckbox.checked = modalCheckbox.checked;
+
+        // 更新彈窗內的狀態文字
+        if (modalCheckbox.checked) {
+          statusInModal.textContent = '開啟';
+          statusInModal.style.color = '#f97316';
+        } else {
+          statusInModal.textContent = '關閉';
+          statusInModal.style.color = 'var(--theme-text-secondary)';
+        }
+
+        updateMirrorStatusText();
+      }
+
+      function updateMirrorStatusText() {
+        const statusText = document.getElementById('mirrorStatusText');
+        if (document.getElementById('mirrorModeToggle').checked) {
+          statusText.innerHTML = `已啟用：及格 ${Math.round(SYMMETRY_PASS_SCORE * 100)}% | 誤差 ${MATCHING_TOLERANCE.toFixed(2)}m`;
+        } else {
+          statusText.textContent = '未啟用';
+        }
+        // 按鈕保持黑色，不隨啟用狀態改變顏色
+      }
+
+      function openMirrorSettingsModal() {
+        // 同步彈窗內的開關狀態
+        const mainCheckbox = document.getElementById('mirrorModeToggle');
+        const modalCheckbox = document.getElementById('mirrorModeToggleInModal');
+        const statusInModal = document.getElementById('mirrorModeStatusInModal');
+
+        modalCheckbox.checked = mainCheckbox.checked;
+        if (mainCheckbox.checked) {
+          statusInModal.textContent = '開啟';
+          statusInModal.style.color = '#f97316';
+        } else {
+          statusInModal.textContent = '關閉';
+          statusInModal.style.color = 'var(--theme-text-secondary)';
+        }
+
+        document.getElementById('mirror-settings-dialog').style.display = 'block';
+        document.getElementById('mirror-settings-overlay').style.display = 'block';
+      }
+
+      function closeMirrorSettingsModal() {
+        document.getElementById('mirror-settings-dialog').style.display = 'none';
+        document.getElementById('mirror-settings-overlay').style.display = 'none';
+        updateMirrorStatusText();
+      }
+
+      // [新增] 格線編號說明提示
+      function toggleGridConfigHelp() {
+        // 檢查是否已有提示框
+        const existingHelp = document.getElementById('grid-config-help-popup');
+        if (existingHelp) {
+          existingHelp.remove();
+          return;
+        }
+
+        // 創建提示框
+        const helpPopup = document.createElement('div');
+        helpPopup.id = 'grid-config-help-popup';
+        helpPopup.style.cssText = `
+          position: fixed;
+          top: 50%;
+          left: 50%;
+          transform: translate(-50%, -50%);
+          z-index: 10003;
+          background: var(--theme-surface);
+          border: 1px solid var(--theme-border);
+          border-radius: 12px;
+          padding: 20px;
+          box-shadow: 0 10px 40px rgba(0, 0, 0, 0.2);
+          max-width: 450px;
+        `;
+        helpPopup.innerHTML = `
+          <h3 style="margin-top: 0; display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 1.2em;">💡</span> 格線編號說明
+          </h3>
+          <div style="color: var(--theme-text-secondary); font-size: 0.95em; line-height: 1.6;">
+            <p style="margin-bottom: 10px;">
+              • 輸入<b>數字</b>後，系統會自動幫後面的格線<b>順號</b><br>
+              <span style="color: var(--theme-text-secondary); font-size: 0.9em; margin-left: 12px;">
+                例如：設定 A=1，系統自動設定 B=2, C=3...
+              </span>
+            </p>
+            <p style="margin-bottom: 10px;">
+              • 輸入 <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">-</code> /
+              <code style="background: var(--theme-bg); padding: 2px 6px; border-radius: 3px;">skip</code> / 留空<br>
+              <span style="color: var(--theme-text-secondary); font-size: 0.9em; margin-left: 12px;">
+                來跳過不編號的格線
+              </span>
+            </p>
+            <p style="margin-bottom: 0;">
+              • 您隨時可以手動修改任何格線的編號
+            </p>
+          </div>
+          <div style="text-align: right; margin-top: 15px;">
+            <button onclick="document.getElementById('grid-config-help-popup').remove()"
+                    class="btn-export" style="padding: 8px 20px;">
+              知道了
+            </button>
+          </div>
+        `;
+
+        // 創建遮罩
+        const overlay = document.createElement('div');
+        overlay.id = 'grid-config-help-overlay';
+        overlay.className = 'dialog-overlay';
+        overlay.style.display = 'block';
+        overlay.onclick = function() {
+          helpPopup.remove();
+          overlay.remove();
+        };
+
+        document.body.appendChild(overlay);
+        document.body.appendChild(helpPopup);
       }
 
       // [新增] 固定編號功能函數
@@ -2126,9 +2491,9 @@
         let minDistance = Infinity;
 
         // [修改] 設定合理的最大點擊距離（SVG 座標單位）
-        // 使用 hitarea 的實際半徑（INITIAL_GRID_BUBBLE_RADIUS + 20 = 38）
+        // 使用 hitarea 的實際半徑（INITIAL_GRID_BUBBLE_RADIUS + 5 = 23）
         // 這樣只有在點擊位置確實在 bubble 範圍內才會觸發拖動
-        const MAX_CLICK_DISTANCE = INITIAL_GRID_BUBBLE_RADIUS + 20;
+        const MAX_CLICK_DISTANCE = INITIAL_GRID_BUBBLE_RADIUS + 5;
 
         hitareas.forEach(ha => {
           const cx = parseFloat(ha.getAttribute("cx"));
@@ -2292,6 +2657,11 @@
         // 注意：pt 已在函數開頭聲明（line 1894），這裡直接使用
         dragState.startMousePos = pt;
 
+        // [新增] 禁用 svg-pan-zoom 的平移功能，避免拖動時整個畫布跟著移動
+        if (panZoomInstance) {
+          panZoomInstance.disablePan();
+        }
+
         // 添加樣式防止文字選取 - [修改] 使用真正的 bubble 元素
         matchingBubble.classList.add("dragging");
         matchingConnector.classList.add("rubber-band");
@@ -2380,6 +2750,11 @@
             }
             document.body.classList.remove("dragging-bubble");
 
+            // [新增] 重新啟用 svg-pan-zoom 的平移功能
+            if (panZoomInstance) {
+              panZoomInstance.enablePan();
+            }
+
             // 重置拖曳狀態
             dragState.isDragging = false;
             dragState.currentBubble = null;
@@ -2465,6 +2840,11 @@
         document.body.classList.remove("dragging-bubble");
 
         console.log("Stopped dragging bubble - spring animation started");
+
+        // [新增] 重新啟用 svg-pan-zoom 的平移功能
+        if (panZoomInstance) {
+          panZoomInstance.enablePan();
+        }
 
         // 重置拖曳狀態
         dragState.isDragging = false;
@@ -2578,6 +2958,11 @@
         // 載入之前儲存的偏移量
         beamLabelDragState.customOffset = beamLabelOffsets[beamName] || 0;
 
+        // [新增] 禁用 svg-pan-zoom 的平移功能，避免拖動時整個畫布跟著移動
+        if (panZoomInstance) {
+          panZoomInstance.disablePan();
+        }
+
         // 添加拖曳樣式
         target.style.cursor = "grabbing";
         target.style.opacity = "0.7";
@@ -2676,9 +3061,9 @@
           (currentX - targetX) ** 2 + (currentY - targetY) ** 2
         );
 
-        // 如果移動距離小於 1 像素，視為沒有移動
+        // 如果移動距離小於 1 像素，視為沒有移動（點擊）
         if (movedDistance < 1) {
-          console.log("[DEBUG] Label didn't move, skipping animation");
+          console.log("[DEBUG] Label didn't move, treating as click - triggering selection");
 
           // 直接移除樣式
           if (label) {
@@ -2686,6 +3071,34 @@
             label.style.opacity = "1";
           }
           document.body.classList.remove("dragging-bubble");
+
+          // [新增] 觸發選取功能 - 沒有移動代表是點擊
+          const beamStory = label.dataset.beamStory;
+          const beamJoint1 = label.dataset.beamJoint1;
+          const beamJoint2 = label.dataset.beamJoint2;
+
+          if (beamName && beamStory) {
+            const beamKey = `${beamStory}|${beamName}|${beamJoint1}|${beamJoint2}`;
+
+            // Shift+Click：取消選擇
+            if (e.shiftKey) {
+              if (selectedBeams.has(beamKey)) {
+                selectedBeams.delete(beamKey);
+                updateBeamVisualState(beamKey, false);
+              }
+            } else {
+              // 普通點擊：累加選擇
+              if (!selectedBeams.has(beamKey)) {
+                selectedBeams.add(beamKey);
+                updateBeamVisualState(beamKey, true);
+              }
+            }
+          }
+
+          // [新增] 重新啟用 svg-pan-zoom 的平移功能
+          if (panZoomInstance) {
+            panZoomInstance.enablePan();
+          }
 
           // 重置拖曳狀態
           beamLabelDragState.isDragging = false;
@@ -2771,6 +3184,11 @@
           label.style.opacity = "1";
         }
         document.body.classList.remove("dragging-bubble");
+
+        // [新增] 重新啟用 svg-pan-zoom 的平移功能
+        if (panZoomInstance) {
+          panZoomInstance.enablePan();
+        }
 
         console.log("[DEBUG] Stopped dragging beam label:", beamName, "offset:", beamLabelDragState.customOffset);
 
@@ -3310,12 +3728,24 @@
           );
         }
 
-        // [新增] 保存當前的縮放和平移狀態
-        let savedZoom = null;
-        let savedPan = null;
+        // [優化] 保存當前的視圖狀態（使用相對座標，確保跨尺寸一致性）
+        let savedViewState = null;
         if (panZoomInstance) {
-          savedZoom = panZoomInstance.getZoom();
-          savedPan = panZoomInstance.getPan();
+          const sizes = panZoomInstance.getSizes();
+          const pan = panZoomInstance.getPan();
+          const zoom = panZoomInstance.getZoom();
+
+          // 計算視圖中心點在 viewBox 中的相對位置（0-1 範圍）
+          // 這樣在不同容器尺寸下都能保持相同的視覺位置
+          const viewCenterX = (sizes.width / 2 - pan.x) / (sizes.viewBox.width * zoom);
+          const viewCenterY = (sizes.height / 2 - pan.y) / (sizes.viewBox.height * zoom);
+
+          savedViewState = {
+            zoom: zoom,
+            centerX: viewCenterX,
+            centerY: viewCenterY
+          };
+
           panZoomInstance.destroy();
           panZoomInstance = null;
         }
@@ -3344,8 +3774,8 @@
         );
 
         if (beamsToDisplay.length > 0 || gridData.x.length > 0) {
-          // [修改] 只在首次創建時自動縮放，否則恢復之前的狀態
-          const shouldFitAndCenter = (savedZoom === null || savedPan === null);
+          // [優化] 只在首次創建時自動縮放，否則恢復之前的狀態
+          const shouldFitAndCenter = (savedViewState === null);
 
           // [修改] 移除 onZoom 回調中的字體動態調整
           // 改為使用 CSS 固定字體大小，縮放時字體會自然跟著縮放
@@ -3361,10 +3791,20 @@
             maxZoom: 50,
           });
 
-          // [新增] 恢復之前保存的縮放和平移狀態
-          if (!shouldFitAndCenter && savedZoom !== null && savedPan !== null) {
-            panZoomInstance.zoom(savedZoom);
-            panZoomInstance.pan(savedPan);
+          // [優化] 恢復之前保存的視圖狀態（使用相對座標計算新的 pan 值）
+          if (!shouldFitAndCenter && savedViewState !== null) {
+            // 使用 requestAnimationFrame 確保 DOM 已更新
+            requestAnimationFrame(() => {
+              const sizes = panZoomInstance.getSizes();
+              const zoom = savedViewState.zoom;
+
+              // 從相對座標計算新的 pan 值
+              const newPanX = sizes.width / 2 - savedViewState.centerX * sizes.viewBox.width * zoom;
+              const newPanY = sizes.height / 2 - savedViewState.centerY * sizes.viewBox.height * zoom;
+
+              panZoomInstance.zoom(zoom);
+              panZoomInstance.pan({ x: newPanX, y: newPanY });
+            });
           }
         }
       }
@@ -3401,13 +3841,28 @@
           bodyElement.style.overflow = "";
           bodyElement.style.background = "";
 
-          // 重新調整 SVG
+          // [優化] 重新調整 SVG，使用相對座標保持視覺位置一致
           if (panZoomInstance) {
+            // 保存當前視圖狀態（使用相對座標）
+            const sizes = panZoomInstance.getSizes();
+            const pan = panZoomInstance.getPan();
+            const zoom = panZoomInstance.getZoom();
+            const viewCenterX = (sizes.width / 2 - pan.x) / (sizes.viewBox.width * zoom);
+            const viewCenterY = (sizes.height / 2 - pan.y) / (sizes.viewBox.height * zoom);
+
             setTimeout(() => {
-              console.log("→ 離開全螢幕：調整 SVG");
+              console.log("→ 離開全螢幕：調整 SVG（保持位置）");
               panZoomInstance.resize();
-              panZoomInstance.fit();
-              panZoomInstance.center();
+              panZoomInstance.updateBBox();
+
+              // 使用相對座標計算新的 pan 值
+              requestAnimationFrame(() => {
+                const newSizes = panZoomInstance.getSizes();
+                const newPanX = newSizes.width / 2 - viewCenterX * newSizes.viewBox.width * zoom;
+                const newPanY = newSizes.height / 2 - viewCenterY * newSizes.viewBox.height * zoom;
+                panZoomInstance.zoom(zoom);
+                panZoomInstance.pan({ x: newPanX, y: newPanY });
+              });
             }, 100);
           }
         } else {
@@ -3445,50 +3900,36 @@
             console.log("  SVG viewBox:", svgElement.getAttribute("viewBox"));
           }
 
-          // 強制重新計算 SVG 尺寸並填滿螢幕
+          // [優化] 進入全螢幕時，使用相對座標保持視覺位置一致
           if (panZoomInstance) {
             console.log("→ 開始調整 panZoomInstance...");
 
-            // 使用多個 setTimeout 確保 DOM 更新完成
+            // 保存當前視圖狀態（使用相對座標）
+            const sizes = panZoomInstance.getSizes();
+            const pan = panZoomInstance.getPan();
+            const zoom = panZoomInstance.getZoom();
+            const viewCenterX = (sizes.width / 2 - pan.x) / (sizes.viewBox.width * zoom);
+            const viewCenterY = (sizes.height / 2 - pan.y) / (sizes.viewBox.height * zoom);
+
+            // 使用 setTimeout 確保 DOM 更新完成
             setTimeout(() => {
-              // 先更新 SVG 尺寸
+              // 更新 SVG 尺寸
               panZoomInstance.resize();
               panZoomInstance.updateBBox();
 
-              // 再次延遲確保尺寸計算正確
-              setTimeout(() => {
-                panZoomInstance.resize();
-                panZoomInstance.updateBBox();
-                panZoomInstance.fit();
-                panZoomInstance.center();
+              // 使用相對座標計算新的 pan 值
+              requestAnimationFrame(() => {
+                const newSizes = panZoomInstance.getSizes();
+                const newPanX = newSizes.width / 2 - viewCenterX * newSizes.viewBox.width * zoom;
+                const newPanY = newSizes.height / 2 - viewCenterY * newSizes.viewBox.height * zoom;
+                panZoomInstance.zoom(zoom);
+                panZoomInstance.pan({ x: newPanX, y: newPanY });
 
-                // 計算最佳縮放比例以填滿螢幕
-                // SVG 內容有內建 padding (60px) 和 0.9 倍縮放，需要補償
-                const sizes = panZoomInstance.getSizes();
-                const viewBox = sizes.viewBox;
-                const realZoom = sizes.realZoom;
-
-                // 計算 viewBox 中實際內容區域佔比（考慮 60px padding 和 0.9 縮放係數）
-                const paddingRatio = 120 / Math.min(viewBox.width, viewBox.height); // 兩側各 60px
-                const scaleRatio = 0.9; // 內建的 0.9 縮放
-                const contentRatio = (1 - paddingRatio) * scaleRatio;
-
-                // 計算需要放大多少才能填滿螢幕（留 2% 邊距避免內容被裁切）
-                const targetFillRatio = 0.98;
-                const zoomMultiplier = targetFillRatio / contentRatio;
-
-                // 應用計算出的縮放
-                const newZoom = realZoom * zoomMultiplier;
-                panZoomInstance.zoom(newZoom);
-                panZoomInstance.center();
-
-                console.log("  viewBox:", viewBox);
-                console.log("  contentRatio:", contentRatio);
-                console.log("  zoomMultiplier:", zoomMultiplier);
-                console.log("  最終 zoom:", panZoomInstance.getZoom());
-                console.log("=== toggleFullscreen 完成 ===");
-              }, 50);
-            }, 100);
+                console.log("  zoom:", zoom);
+                console.log("  viewCenter:", { x: viewCenterX, y: viewCenterY });
+                console.log("=== toggleFullscreen 完成（保持位置）===");
+              });
+            }, 150);
           } else {
             console.warn("⚠️ panZoomInstance 不存在！");
           }
@@ -3862,7 +4303,7 @@
               );
               topHitArea.setAttribute("cx", cx_top);
               topHitArea.setAttribute("cy", cy_top);
-              topHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
+              topHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 5);  // [修改] 輕微擴大半徑提供更好的點擊體驗
               topHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               topHitArea.setAttribute("data-coordsystem", coordsystem);
               topHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
@@ -3917,7 +4358,7 @@
               );
               bottomHitArea.setAttribute("cx", cx_bottom);
               bottomHitArea.setAttribute("cy", cy_bottom);
-              bottomHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
+              bottomHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 5);  // [修改] 輕微擴大半徑提供更好的點擊體驗
               bottomHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               bottomHitArea.setAttribute("data-coordsystem", coordsystem);
               bottomHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
@@ -3999,7 +4440,7 @@
               );
               leftHitArea.setAttribute("cx", cx_left);
               leftHitArea.setAttribute("cy", cy_left);
-              leftHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
+              leftHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 5);  // [修改] 輕微擴大半徑提供更好的點擊體驗
               leftHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               leftHitArea.setAttribute("data-coordsystem", coordsystem);
               leftHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
@@ -4054,7 +4495,7 @@
               );
               rightHitArea.setAttribute("cx", cx_right);
               rightHitArea.setAttribute("cy", cy_right);
-              rightHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 20);  // [修改] 擴大半徑以覆蓋整個區域
+              rightHitArea.setAttribute("r", INITIAL_GRID_BUBBLE_RADIUS + 5);  // [修改] 輕微擴大半徑提供更好的點擊體驗
               rightHitArea.setAttribute("class", "grid-bubble-hitarea draggable");
               rightHitArea.setAttribute("data-coordsystem", coordsystem);
               rightHitArea.setAttribute("fill", "rgba(255,255,255,0.01)");  // [修改] 使用實際透明色讓 fill 區域接收點擊
@@ -4101,6 +4542,9 @@
         // ... 之後繪製梁 (beam) 和標籤 (label) 的程式碼維持不變 ...
         const labeledDrawableBeams = labeledBeams.filter((b) => b.j1 && b.j2);
         labeledDrawableBeams.forEach((beam) => {
+          // [新增] 建立唯一的梁識別 key（用於跨樓層選取）
+          const beamKey = `${beam.story}|${beam.name}|${beam.joint1}|${beam.joint2}`;
+
           const line = document.createElementNS(
             "http://www.w3.org/2000/svg",
             "line",
@@ -4111,19 +4555,19 @@
           line.setAttribute("y2", transformY(beam.j2.y));
 
           // [修改] 判斷梁的類別，WB/FWB 使用黑色
-          let className = "labeled-beam-line";
+          let className = "labeled-beam-line";  // 預設：大梁藍色
           const isWallBeam = beam.isSpecialBeam ||
             beam.prop.toUpperCase().startsWith("WB") ||
             beam.prop.toUpperCase().startsWith("FWB");
 
+          // [修復] 使用 frame section (beam.prop) 判斷是否為小梁，而不是 newLabel
+          // 小梁：包含 SB 或 FSB 的斷面（支援 SB35X65、4sb、3.5sb 等格式）
+          const isSecondaryBeam = beam.prop && /(\d+\.?\d*\s*)?(SB|FSB)/i.test(beam.prop);
+
           if (isWallBeam) {
             className = "wall-beam-line"; // WB/FWB 梁用黑色
-          } else if (
-            beam.newLabel.startsWith("b") ||
-            beam.newLabel.startsWith("fb") ||
-            beam.newLabel === "g1"
-          ) {
-            className = "special-beam-line";
+          } else if (isSecondaryBeam) {
+            className = "secondary-beam-line"; // 小梁用橘色
           }
 
           line.setAttribute("class", className);
@@ -4133,6 +4577,12 @@
           line.dataset.beamJoint1 = beam.joint1;
           line.dataset.beamJoint2 = beam.joint2;
           line.dataset.beamLabel = beam.newLabel || "";
+
+          // [新增] 恢復選取狀態（支援跨樓層選取）
+          if (selectedBeams.has(beamKey)) {
+            line.classList.add('beam-selected');
+          }
+
           // [修改] WB/FWB 梁不可點擊，不可編輯
           if (!isWallBeam) {
             line.style.cursor = "pointer";
@@ -4217,6 +4667,14 @@
           text.dataset.beamLabel = beam.newLabel; // 保存編號用於右鍵顯示
           text.dataset.beamProp = beam.prop || ""; // 保存 section
           text.dataset.beamStory = beam.story || ""; // 保存樓層
+          text.dataset.beamJoint1 = beam.joint1; // [新增] 保存節點資訊用於精確匹配
+          text.dataset.beamJoint2 = beam.joint2; // [新增] 保存節點資訊用於精確匹配
+
+          // [新增] 恢復選取狀態（支援跨樓層選取）
+          if (selectedBeams.has(beamKey)) {
+            text.classList.add('beam-selected');
+          }
+
           // [新增] 標籤也可點擊（现在由圈选功能处理）
           text.style.cursor = "move"; // [修改] 改為 move 游標表示可拖動
 
@@ -4282,8 +4740,8 @@
         const ctm = viewport.getScreenCTM ? viewport.getScreenCTM() : svgElement.getScreenCTM();
         const svgPt = pt.matrixTransform(ctm.inverse());
 
-        // 搜索所有梁線（包括 WB/FWB 梁）
-        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line, .wall-beam-line');
+        // 搜索所有梁線（包括 WB/FWB 梁和小梁）
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .secondary-beam-line, .special-beam-line, .wall-beam-line');
         let nearestBeam = null;
         let minDistance = maxDistance;
 
@@ -5411,8 +5869,7 @@
       // ### 全新鏡像演算法 v4 (最終版，依使用者思路)：開始 ###
       // =================================================================
 
-      const SYMMETRY_TOLERANCE = 0.5; // 幾何容許誤差 (公尺) - 用於判斷梁是否在對稱軸上
-      const MATCHING_TOLERANCE = 0.8; // 配對容許誤差 (公尺) - 用於鏡像梁配對時的中點距離
+      // 注意: SYMMETRY_PASS_SCORE, SYMMETRY_TOLERANCE, MATCHING_TOLERANCE 已在全域變數區定義
       const DIRECTION_TOLERANCE = 0.01; // 用於判斷梁的方向（水平/垂直）
 
       /**
@@ -5499,13 +5956,13 @@
           }
         });
 
-        // 如果對稱分數 > 70%，返回對稱軸
-        if (bestScore > 0.7) {
-          console.log(`[智能偵測] 找到對稱軸 X=${bestAxis.toFixed(3)}, 對稱分數: ${(bestScore * 100).toFixed(1)}%`);
+        // 如果對稱分數 > 及格門檻，返回對稱軸
+        if (bestScore > SYMMETRY_PASS_SCORE) {
+          console.log(`[智能偵測] 找到對稱軸 X=${bestAxis.toFixed(3)}, 對稱分數: ${(bestScore * 100).toFixed(1)}% (及格門檻: ${(SYMMETRY_PASS_SCORE * 100).toFixed(0)}%)`);
           return bestAxis;
         }
 
-        console.log(`[智能偵測] 未找到明顯對稱結構 (最高分數: ${(bestScore * 100).toFixed(1)}%)`);
+        console.log(`[智能偵測] 未找到明顯對稱結構 (最高分數: ${(bestScore * 100).toFixed(1)}%, 及格門檻: ${(SYMMETRY_PASS_SCORE * 100).toFixed(0)}%)`);
         return null;
       }
 
@@ -5770,25 +6227,42 @@
           }
           console.log(`=============================================`);
 
-          // 步驟 2: 識別對稱軸上的梁
+          // [新增] 取得當前樓層名稱（用於 console log）
+          const currentFloor = secondaryBeamsToNumber[0]?.story || '未知樓層';
+
+          // 步驟 2: 識別對稱軸上的梁 - [修復] 同時檢查 master 和 slave 兩邊
           const beamsOnAxis = [];
+          const masterBeamsNotOnAxis = [];
           const slaveBeamsToMirror = [];
 
+          // 檢查 master 的梁
+          master.component.forEach((beam) => {
+            if (isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE)) {
+              beamsOnAxis.push(beam);
+              console.log(
+                `[對稱軸梁 - ${currentFloor}] ${beam.name} (from master) 位於對稱軸上`,
+              );
+            } else {
+              masterBeamsNotOnAxis.push(beam);
+            }
+          });
+
+          // 檢查 slave 的梁
           slave.component.forEach((beam) => {
             if (isBeamOnSymmetryAxis(beam, joints, axisX, SYMMETRY_TOLERANCE)) {
               beamsOnAxis.push(beam);
               console.log(
-                `[對稱軸梁] ${beam.name} 位於對稱軸上，歸入 master 編號`,
+                `[對稱軸梁 - ${currentFloor}] ${beam.name} (from slave) 位於對稱軸上`,
               );
             } else {
               slaveBeamsToMirror.push(beam);
             }
           });
 
-          // 步驟 3: 將對稱軸上的梁併入 master
-          const masterWithAxisBeams = [...master.component, ...beamsOnAxis];
+          // 步驟 3: 對稱軸梁 + master 非對稱軸梁 = master 編號範圍
+          const masterWithAxisBeams = [...masterBeamsNotOnAxis, ...beamsOnAxis];
           console.log(
-            `\n[Master 範圍] 原始梁數: ${master.component.length}, 對稱軸梁: ${beamsOnAxis.length}, 總計: ${masterWithAxisBeams.length}`,
+            `\n[Master 範圍 - ${currentFloor}] 原始梁數: ${master.component.length}, 對稱軸梁: ${beamsOnAxis.length}, 總計: ${masterWithAxisBeams.length}`,
           );
 
           // 步驟 4: 對 master（含對稱軸梁）統一編號
@@ -5798,7 +6272,7 @@
           );
           masterLabels.forEach((value, key) => allLabels.set(key, value));
 
-          console.log(`\n[Master 編號完成] 共編 ${masterLabels.size} 根小梁`);
+          console.log(`\n[Master 編號完成 - ${currentFloor}] 共編 ${masterLabels.size} 根小梁`);
 
           // 步驟 5: 識別哪些 master 梁需要進行鏡像配對（排除對稱軸上的梁）
           const masterBeamsToMirror = master.component.filter(
@@ -5807,7 +6281,7 @@
           );
 
           console.log(
-            `\n[鏡像配對] 需配對的 master 梁: ${masterBeamsToMirror.length}, slave 梁: ${slaveBeamsToMirror.length}`,
+            `\n[鏡像配對 - ${currentFloor}] 需配對的 master 梁: ${masterBeamsToMirror.length}, slave 梁: ${slaveBeamsToMirror.length}`,
           );
 
           // 步驟 6: 進行鏡像配對（使用匈牙利算法思想，確保一對一配對）
@@ -5893,7 +6367,7 @@
             } else {
               // [增強] 顯示為什麼配對失敗
               console.log(
-                `[配對失敗] ${labelInfo.newLabel}: ${masterBeam.name} (中點: ${masterMidpoint.x.toFixed(2)}, ${masterMidpoint.y.toFixed(2)})`,
+                `[配對失敗 - ${currentFloor}] ${labelInfo.newLabel}: ${masterBeam.name} (中點: ${masterMidpoint.x.toFixed(2)}, ${masterMidpoint.y.toFixed(2)})`,
               );
               console.log(
                 `  → 鏡像目標位置: (${mirroredMidpoint.x.toFixed(2)}, ${mirroredMidpoint.y.toFixed(2)})`,
@@ -5960,7 +6434,7 @@
             }
           }
 
-          console.log(`\n[鏡像模式完成] 總共編號 ${allLabels.size} 根小梁`);
+          console.log(`\n[鏡像模式完成 - ${currentFloor}] 總共編號 ${allLabels.size} 根小梁`);
           console.log(`=============================================\n`);
         }
 
@@ -6701,14 +7175,27 @@
 
         // 如果点击的是梁或标签，处理单选
         if (evt.target.tagName === 'line' || evt.target.tagName === 'text') {
+          // [新增] 如果點擊的是標籤且正在拖動，不要選取
+          if (evt.target.tagName === 'text' && evt.target.classList.contains('beam-label')) {
+            // 標籤可以被拖動，讓拖動功能處理
+            // 選取功能會在 mouseup 時由 handleBeamLabelMouseUp 決定是否選取
+            return;
+          }
+
           const beamName = evt.target.dataset.beamName;
-          if (!beamName) return;
+          const beamStory = evt.target.dataset.beamStory;
+          const beamJoint1 = evt.target.dataset.beamJoint1;
+          const beamJoint2 = evt.target.dataset.beamJoint2;
+          if (!beamName || !beamStory) return;
+
+          // [修改] 使用唯一的 beamKey
+          const beamKey = `${beamStory}|${beamName}|${beamJoint1}|${beamJoint2}`;
 
           // Shift+Click：取消選擇該梁（從選擇集合中移除）
           if (evt.shiftKey) {
-            if (selectedBeams.has(beamName)) {
-              selectedBeams.delete(beamName);
-              updateBeamVisualState(beamName, false);
+            if (selectedBeams.has(beamKey)) {
+              selectedBeams.delete(beamKey);
+              updateBeamVisualState(beamKey, false);
             }
             // 如果梁沒有被選中，Shift+點擊不做任何事
             evt.preventDefault();
@@ -6718,9 +7205,9 @@
 
           // 普通點擊：累加選擇（不清除現有選擇）
           // 如果梁已經被選中，再次點擊不做任何事（保持選中狀態）
-          if (!selectedBeams.has(beamName)) {
-            selectedBeams.add(beamName);
-            updateBeamVisualState(beamName, true);
+          if (!selectedBeams.has(beamKey)) {
+            selectedBeams.add(beamKey);
+            updateBeamVisualState(beamKey, true);
           }
           evt.preventDefault();
           evt.stopPropagation();
@@ -6837,7 +7324,7 @@
 
       // 在矩形内选择梁（選擇框和梁在同一座標系統中）
       function selectBeamsInRect(minX, minY, maxX, maxY, isCrossingMode) {
-        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .special-beam-line, .wall-beam-line');
+        const beamLines = svgElement.querySelectorAll('.labeled-beam-line, .secondary-beam-line, .special-beam-line, .wall-beam-line');
 
         let selectedCount = 0;
         let checkedCount = 0;
@@ -6851,8 +7338,14 @@
           const x2 = parseFloat(line.getAttribute('x2'));
           const y2 = parseFloat(line.getAttribute('y2'));
           const beamName = line.dataset.beamName;
+          const beamStory = line.dataset.beamStory;
+          const beamJoint1 = line.dataset.beamJoint1;
+          const beamJoint2 = line.dataset.beamJoint2;
 
-          if (!beamName) return;
+          if (!beamName || !beamStory) return;
+
+          // [修改] 使用唯一的 beamKey
+          const beamKey = `${beamStory}|${beamName}|${beamJoint1}|${beamJoint2}`;
 
           // [新增] 跳過 WB/FWB 梁，不允許被圈選或編輯
           const isWallBeam = line.classList.contains('wall-beam-line');
@@ -6871,12 +7364,12 @@
           }
 
           if (isInside) {
-            selectedBeams.add(beamName);
-            updateBeamVisualState(beamName, true);
+            selectedBeams.add(beamKey);
+            updateBeamVisualState(beamKey, true);
             selectedCount++;
-            selectedList.push(`${beamName}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
+            selectedList.push(`${beamName}@${beamStory}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
           } else if (checkedCount <= 10) {
-            rejectedList.push(`${beamName}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
+            rejectedList.push(`${beamName}@${beamStory}[(${x1.toFixed(0)},${y1.toFixed(0)})→(${x2.toFixed(0)},${y2.toFixed(0)})]`);
           }
         });
 
@@ -6926,21 +7419,29 @@
       }
 
       // 更新梁的视觉状态
-      function updateBeamVisualState(beamName, isSelected) {
-        // 更新梁线
-        const beamLines = svgElement.querySelectorAll(`[data-beam-name="${beamName}"]`);
-        beamLines.forEach(line => {
-          if (line.tagName === 'line') {
-            if (isSelected) {
-              line.classList.add('beam-selected');
-            } else {
-              line.classList.remove('beam-selected');
-            }
-          } else if (line.tagName === 'text') {
-            if (isSelected) {
-              line.classList.add('beam-label-selected');
-            } else {
-              line.classList.remove('beam-label-selected');
+      function updateBeamVisualState(beamKey, isSelected) {
+        // [修改] 從 beamKey 解析資訊
+        const [story, name, joint1, joint2] = beamKey.split('|');
+
+        // 更新梁线和標籤（使用完整條件匹配）
+        const allElements = svgElement.querySelectorAll(`[data-beam-name="${name}"]`);
+        allElements.forEach(element => {
+          // 確認是同一根梁（樓層和接點都要匹配）
+          if (element.dataset.beamStory === story &&
+              element.dataset.beamJoint1 === joint1 &&
+              element.dataset.beamJoint2 === joint2) {
+            if (element.tagName === 'line') {
+              if (isSelected) {
+                element.classList.add('beam-selected');
+              } else {
+                element.classList.remove('beam-selected');
+              }
+            } else if (element.tagName === 'text') {
+              if (isSelected) {
+                element.classList.add('beam-selected');
+              } else {
+                element.classList.remove('beam-selected');
+              }
             }
           }
         });
@@ -6965,11 +7466,18 @@
           openBatchEditDialog();
         }
         // 按 Escape 清除所有选择或關閉對話框
+        // [修改] ESC 行為優先順序：1.關閉搜尋對話框 2.關閉資訊欄 3.取消選取
         else if (evt.key === 'Escape') {
-          // 如果搜尋對話框打開，先關閉它
+          // 1. 如果搜尋對話框打開，先關閉它
           if (document.getElementById('search-member-dialog').style.display === 'block') {
             closeSearchMemberDialog();
-          } else {
+          }
+          // 2. 如果資訊欄（tooltip）打開，關閉它
+          else if (document.getElementById('beam-info-tooltip')) {
+            document.getElementById('beam-info-tooltip').remove();
+          }
+          // 3. 如果有選取的梁，取消選取
+          else if (selectedBeams.size > 0) {
             clearAllSelections();
           }
         }
@@ -7038,9 +7546,17 @@
         let isFirstBeam = true;
 
         // 更新所有选中梁的编号
-        selectedBeams.forEach((beamName) => {
-          // [修復] 在 fullProcessedBeams 中找到对应的梁並更新，必須同時匹配名稱和樓層
-          const beam = fullProcessedBeams.find(b => b.name === beamName && b.story === selectedStory);
+        selectedBeams.forEach((beamKey) => {
+          // [修改] 從 beamKey 解析資訊
+          const [story, name, joint1, joint2] = beamKey.split('|');
+
+          // [修復] 在 fullProcessedBeams 中找到对应的梁並更新
+          const beam = fullProcessedBeams.find(b =>
+            b.name === name &&
+            b.story === story &&
+            b.joint1 === joint1 &&
+            b.joint2 === joint2
+          );
           if (beam) {
             // 記錄第一個梁的舊編號
             if (isFirstBeam) {
@@ -7211,9 +7727,10 @@
           // 清除之前的選擇
           clearAllSelections();
 
-          // 選中該梁
-          selectedBeams.add(beamName);
-          updateBeamVisualState(beamName, true);
+          // [修改] 使用唯一的 beamKey
+          const beamKey = `${beam.story}|${beam.name}|${beam.joint1}|${beam.joint2}`;
+          selectedBeams.add(beamKey);
+          updateBeamVisualState(beamKey, true);
 
           // 計算梁的中心點（用於平移和縮放）
           if (beam && beam.j1 && beam.j2 && panZoomInstance) {
@@ -7269,24 +7786,43 @@
 
       // 清除所有选择
       function clearAllSelections() {
-        selectedBeams.forEach(beamName => {
-          updateBeamVisualState(beamName, false);
+        selectedBeams.forEach(beamKey => {
+          updateBeamVisualState(beamKey, false);
         });
         selectedBeams.clear();
+
+        // [新增] 強制清除所有 SVG 元素的選取樣式（防止殘留）
+        if (svgElement) {
+          const allSelected = svgElement.querySelectorAll('.beam-selected');
+          allSelected.forEach(el => el.classList.remove('beam-selected'));
+        }
       }
 
       // 清除选中梁的编号
       function clearSelectedBeamLabels() {
-        selectedBeams.forEach(beamName => {
-          const beam = fullProcessedBeams.find(b => b.name === beamName);
+        selectedBeams.forEach(beamKey => {
+          // [修改] 從 beamKey 解析資訊
+          const [story, name, joint1, joint2] = beamKey.split('|');
+
+          const beam = fullProcessedBeams.find(b =>
+            b.name === name &&
+            b.story === story &&
+            b.joint1 === joint1 &&
+            b.joint2 === joint2
+          );
           if (beam) {
             // 恢复为原始 ETABS 编号
             beam.newLabel = beam.name;
 
             // 更新SVG中的标签文本
-            const labelElements = svgElement.querySelectorAll(`text[data-beam-name="${beamName}"]`);
+            const labelElements = svgElement.querySelectorAll(`text[data-beam-name="${name}"]`);
             labelElements.forEach(label => {
-              label.textContent = beam.name;
+              // 確認是同一根梁
+              if (label.dataset.beamStory === story &&
+                  label.dataset.beamJoint1 === joint1 &&
+                  label.dataset.beamJoint2 === joint2) {
+                label.textContent = beam.name;
+              }
             });
           }
         });

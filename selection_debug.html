@@ -1,0 +1,307 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>圈選功能測試與調試</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        h1 { color: #333; margin-top: 0; }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border-left: 4px solid #2196F3;
+        }
+        .test-area {
+            border: 2px solid #ddd;
+            padding: 20px;
+            margin: 20px 0;
+            background: #fafafa;
+        }
+        svg {
+            border: 1px solid #999;
+            background: white;
+            cursor: crosshair;
+        }
+        .beam {
+            stroke: #666;
+            stroke-width: 2;
+        }
+        .beam.selected {
+            stroke: #fbbf24;
+            stroke-width: 4;
+            filter: drop-shadow(0 0 4px rgba(251, 191, 36, 0.8));
+        }
+        .selection-box {
+            fill: rgba(59, 130, 246, 0.1);
+            stroke: #3b82f6;
+            stroke-width: 2;
+            stroke-dasharray: 5, 5;
+        }
+        .selection-box.crossing {
+            fill: rgba(34, 197, 94, 0.1);
+            stroke: #22c55e;
+        }
+        .label {
+            fill: #333;
+            font-size: 12px;
+            text-anchor: middle;
+        }
+        .controls {
+            margin: 20px 0;
+            padding: 15px;
+            background: #fff;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        .controls button {
+            padding: 8px 16px;
+            margin-right: 10px;
+            cursor: pointer;
+            background: #2196F3;
+            color: white;
+            border: none;
+            border-radius: 4px;
+        }
+        .controls button:hover {
+            background: #1976D2;
+        }
+        #log {
+            background: #263238;
+            color: #aed581;
+            padding: 15px;
+            font-family: 'Courier New', monospace;
+            font-size: 12px;
+            max-height: 300px;
+            overflow-y: auto;
+            border-radius: 5px;
+            margin-top: 20px;
+        }
+        .log-entry {
+            margin: 2px 0;
+        }
+        .log-entry.error { color: #ef5350; }
+        .log-entry.success { color: #66bb6a; }
+        .log-entry.info { color: #42a5f5; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 圈選功能測試與調試工具</h1>
+
+        <div class="info-box">
+            <strong>📋 測試說明：</strong><br>
+            • 按住 <strong>Ctrl</strong> 並拖曳鼠標來創建選擇框<br>
+            • <strong>左→右</strong>：藍色框 (Window 模式，完全包含)<br>
+            • <strong>右→左</strong>：綠色框 (Crossing 模式，碰到即選)<br>
+            • 查看下方的日誌輸出來調試座標問題
+        </div>
+
+        <div class="controls">
+            <button onclick="clearSelection()">清除選擇</button>
+            <button onclick="clearLog()">清除日誌</button>
+            <button onclick="resetTest()">重置測試</button>
+            <span style="margin-left: 20px;">已選中: <strong id="selectedCount">0</strong> 個梁</span>
+        </div>
+
+        <div class="test-area">
+            <h3>測試區域 (包含 6 根測試梁)</h3>
+            <svg id="testSvg" width="800" height="600" viewBox="0 0 800 600">
+                <!-- 測試用的梁 -->
+                <line class="beam" data-name="B1" x1="100" y1="100" x2="300" y2="100" />
+                <line class="beam" data-name="B2" x1="400" y1="100" x2="600" y2="100" />
+                <line class="beam" data-name="B3" x1="100" y1="250" x2="300" y2="250" />
+                <line class="beam" data-name="B4" x1="400" y1="250" x2="700" y2="250" />
+                <line class="beam" data-name="B5" x1="200" y1="150" x2="200" y2="400" />
+                <line class="beam" data-name="B6" x1="500" y1="150" x2="500" y2="450" />
+
+                <!-- 標籤 -->
+                <text class="label" x="200" y="90">B1</text>
+                <text class="label" x="500" y="90">B2</text>
+                <text class="label" x="200" y="240">B3</text>
+                <text class="label" x="550" y="240">B4</text>
+                <text class="label" x="180" y="275">B5</text>
+                <text class="label" x="480" y="300">B6</text>
+            </svg>
+        </div>
+
+        <div id="log">
+            <div class="log-entry info">🚀 測試工具已就緒，開始測試圈選功能...</div>
+        </div>
+    </div>
+
+    <script>
+        const svg = document.getElementById('testSvg');
+        let isSelecting = false;
+        let startPoint = null;
+        let selectionBox = null;
+        let selectedBeams = new Set();
+
+        // 添加事件監聽
+        svg.addEventListener('mousedown', onMouseDown);
+        svg.addEventListener('mousemove', onMouseMove);
+        svg.addEventListener('mouseup', onMouseUp);
+
+        function log(message, type = 'info') {
+            const logDiv = document.getElementById('log');
+            const entry = document.createElement('div');
+            entry.className = `log-entry ${type}`;
+            entry.textContent = `[${new Date().toLocaleTimeString()}] ${message}`;
+            logDiv.appendChild(entry);
+            logDiv.scrollTop = logDiv.scrollHeight;
+        }
+
+        function getSVGPoint(evt) {
+            const pt = svg.createSVGPoint();
+            pt.x = evt.clientX;
+            pt.y = evt.clientY;
+            const svgP = pt.matrixTransform(svg.getScreenCTM().inverse());
+            return { x: svgP.x, y: svgP.y };
+        }
+
+        function onMouseDown(evt) {
+            if (!evt.ctrlKey) return;
+
+            isSelecting = true;
+            startPoint = getSVGPoint(evt);
+
+            log(`開始選擇 at (${startPoint.x.toFixed(1)}, ${startPoint.y.toFixed(1)})`, 'info');
+
+            selectionBox = document.createElementNS("http://www.w3.org/2000/svg", "rect");
+            selectionBox.setAttribute("x", startPoint.x);
+            selectionBox.setAttribute("y", startPoint.y);
+            selectionBox.setAttribute("width", 0);
+            selectionBox.setAttribute("height", 0);
+            selectionBox.setAttribute("class", "selection-box");
+            svg.appendChild(selectionBox);
+
+            evt.preventDefault();
+        }
+
+        function onMouseMove(evt) {
+            if (!isSelecting) return;
+
+            const currentPoint = getSVGPoint(evt);
+            const width = currentPoint.x - startPoint.x;
+            const height = currentPoint.y - startPoint.y;
+
+            const isCrossing = width < 0;
+            selectionBox.classList.toggle('crossing', isCrossing);
+
+            selectionBox.setAttribute("x", Math.min(startPoint.x, currentPoint.x));
+            selectionBox.setAttribute("y", Math.min(startPoint.y, currentPoint.y));
+            selectionBox.setAttribute("width", Math.abs(width));
+            selectionBox.setAttribute("height", Math.abs(height));
+        }
+
+        function onMouseUp(evt) {
+            if (!isSelecting) return;
+
+            isSelecting = false;
+            const endPoint = getSVGPoint(evt);
+            const width = endPoint.x - startPoint.x;
+            const isCrossing = width < 0;
+
+            const minX = Math.min(startPoint.x, endPoint.x);
+            const maxX = Math.max(startPoint.x, endPoint.x);
+            const minY = Math.min(startPoint.y, endPoint.y);
+            const maxY = Math.max(startPoint.y, endPoint.y);
+
+            log(`選擇框: (${minX.toFixed(1)}, ${minY.toFixed(1)}) → (${maxX.toFixed(1)}, ${maxY.toFixed(1)})`, 'info');
+            log(`模式: ${isCrossing ? 'Crossing (右→左)' : 'Window (左→右)'}`, 'info');
+
+            selectBeams(minX, minY, maxX, maxY, isCrossing);
+
+            if (selectionBox) {
+                selectionBox.remove();
+                selectionBox = null;
+            }
+        }
+
+        function selectBeams(minX, minY, maxX, maxY, isCrossing) {
+            const beams = svg.querySelectorAll('.beam');
+            let count = 0;
+
+            beams.forEach(beam => {
+                const x1 = parseFloat(beam.getAttribute('x1'));
+                const y1 = parseFloat(beam.getAttribute('y1'));
+                const x2 = parseFloat(beam.getAttribute('x2'));
+                const y2 = parseFloat(beam.getAttribute('y2'));
+                const name = beam.dataset.name;
+
+                let isInside = false;
+
+                if (isCrossing) {
+                    isInside = lineIntersectsRect(x1, y1, x2, y2, minX, minY, maxX, maxY);
+                } else {
+                    isInside = (x1 >= minX && x1 <= maxX && y1 >= minY && y1 <= maxY &&
+                               x2 >= minX && x2 <= maxX && y2 >= minY && y2 <= maxY);
+                }
+
+                if (isInside) {
+                    selectedBeams.add(name);
+                    beam.classList.add('selected');
+                    log(`✓ 選中: ${name} (${x1},${y1})→(${x2},${y2})`, 'success');
+                    count++;
+                }
+            });
+
+            log(`本次選中 ${count} 個梁，總計 ${selectedBeams.size} 個`, count > 0 ? 'success' : 'error');
+            document.getElementById('selectedCount').textContent = selectedBeams.size;
+        }
+
+        function lineIntersectsRect(x1, y1, x2, y2, minX, minY, maxX, maxY) {
+            if ((x1 >= minX && x1 <= maxX && y1 >= minY && y1 <= maxY) ||
+                (x2 >= minX && x2 <= maxX && y2 >= minY && y2 <= maxY)) {
+                return true;
+            }
+
+            return lineIntersectsLine(x1, y1, x2, y2, minX, minY, maxX, minY) ||
+                   lineIntersectsLine(x1, y1, x2, y2, maxX, minY, maxX, maxY) ||
+                   lineIntersectsLine(x1, y1, x2, y2, minX, maxY, maxX, maxY) ||
+                   lineIntersectsLine(x1, y1, x2, y2, minX, minY, minX, maxY);
+        }
+
+        function lineIntersectsLine(x1, y1, x2, y2, x3, y3, x4, y4) {
+            const denom = (y4 - y3) * (x2 - x1) - (x4 - x3) * (y2 - y1);
+            if (denom === 0) return false;
+
+            const ua = ((x4 - x3) * (y1 - y3) - (y4 - y3) * (x1 - x3)) / denom;
+            const ub = ((x2 - x1) * (y1 - y3) - (y2 - y1) * (x1 - x3)) / denom;
+
+            return ua >= 0 && ua <= 1 && ub >= 0 && ub <= 1;
+        }
+
+        function clearSelection() {
+            selectedBeams.clear();
+            svg.querySelectorAll('.beam').forEach(b => b.classList.remove('selected'));
+            document.getElementById('selectedCount').textContent = '0';
+            log('已清除所有選擇', 'info');
+        }
+
+        function clearLog() {
+            document.getElementById('log').innerHTML = '<div class="log-entry info">日誌已清除</div>';
+        }
+
+        function resetTest() {
+            clearSelection();
+            clearLog();
+            log('🚀 測試工具已重置', 'info');
+        }
+    </script>
+</body>
+</html>
