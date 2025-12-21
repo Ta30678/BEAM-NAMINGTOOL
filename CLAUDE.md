@@ -95,6 +95,24 @@ Edit `<HintPath>` in `BeamLabeler.csproj` to match your AutoCAD installation:
 ```
 Required: `acdbmgd.dll`, `acmgd.dll`, `accoremgd.dll`
 
+## Custom Symmetry Axis Feature
+
+The HTML tool supports automatic and manual symmetry axis detection for beam numbering:
+
+**Automatic Detection**: Analyzes beam geometry to find symmetry axis with scoring algorithm.
+
+**Manual Override (進階設定)**:
+1. Enable "自訂對稱軸" toggle switch
+2. Choose direction: 垂直 (X=constant) or 水平 (Y=constant)
+3. Choose input method:
+   - **選擇 Grid Line**: Select from existing grid lines dropdown
+   - **點選平面圖**: Click directly on SVG canvas to set axis position
+     - Cursor changes to crosshair when click mode is active
+     - Clicked position is converted back to ETABS coordinates
+     - Visual indicator (dashed line) shows the custom axis
+
+Settings are persisted in localStorage.
+
 ## Known Limitations
 
 1. V1: Manual scale factor and base point required per floor
