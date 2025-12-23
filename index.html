@@ -1556,106 +1556,43 @@
         <span id="mirrorModeStatusInModal" style="font-size: 0.9em; min-width: 40px;">關閉</span>
       </div>
 
-      <!-- 主要設定：及格分數、配對容許誤差 -->
-      <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.9em;">
-        • <b>及格分數</b>：對稱匹配分數需達到此值才會啟用鏡像編號<br>
-        • <b>配對容許誤差</b>：鏡像梁配對時允許的中點距離誤差
-      </p>
-      <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
-        <div style="display: flex; align-items: center; gap: 15px;">
-          <label for="symmetryPassScore" style="min-width: 120px; color: var(--theme-text-secondary);">及格分數 (%)</label>
-          <input
-            type="number"
-            id="symmetryPassScore"
-            value="70"
-            min="10"
-            max="100"
-            step="1"
-            style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-weight: 600; font-size: 1.1em;"
-            onchange="updateSymmetrySettings()"
-            title="🖱️ 滾輪調整"
-          />
-        </div>
-        <div style="display: flex; align-items: center; gap: 15px;">
-          <label for="matchingTolerance" style="min-width: 120px; color: var(--theme-text-secondary);">配對容許誤差 (m)</label>
-          <input
-            type="number"
-            id="matchingTolerance"
-            value="0.80"
-            min="0.01"
-            max="2.00"
-            step="0.01"
-            style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-size: 1.1em;"
-            onchange="updateSymmetrySettings()"
-            title="🖱️ 滾輪調整"
-          />
-        </div>
-      </div>
-
-      <!-- 對稱軸設定區塊 (輔助功能，放最下面) -->
-      <div style="padding: 12px; background: var(--theme-bg); border-radius: 8px; margin-bottom: 20px;">
-        <!-- 1. 標題 -->
-        <div style="font-weight: 600; margin-bottom: 12px; color: var(--theme-text-secondary); font-size: 0.9em;">📍 對稱軸設定 (進階)</div>
-
-        <!-- 2. 自訂對稱軸開關 (Toggle Switch) -->
-        <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--theme-border);">
-          <span style="color: var(--theme-text-secondary); font-size: 0.9em;">自訂對稱軸（覆蓋自動偵測）</span>
-          <div id="customAxisToggleSwitch" class="toggle-switch" onclick="toggleCustomAxis()">
-            <input type="checkbox" id="customAxisToggle">
-            <div class="toggle-switch-slider"></div>
+      <!-- 主要設定：及格分數、配對容許誤差 (只在啟用鏡像模式時顯示) -->
+      <div id="mirrorSettingsSection" style="display: none;">
+        <p style="color: var(--theme-text-secondary); margin-bottom: 15px; font-size: 0.9em;">
+          • <b>及格分數</b>：對稱匹配分數需達到此值才會啟用鏡像編號<br>
+          • <b>配對容許誤差</b>：鏡像梁配對時允許的中點距離誤差
+        </p>
+        <div style="display: flex; flex-direction: column; gap: 15px; margin-bottom: 20px;">
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <label for="symmetryPassScore" style="min-width: 120px; color: var(--theme-text-secondary);">及格分數 (%)</label>
+            <input
+              type="number"
+              id="symmetryPassScore"
+              value="70"
+              min="10"
+              max="100"
+              step="1"
+              style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-weight: 600; font-size: 1.1em;"
+              onchange="updateSymmetrySettings()"
+              title="🖱️ 滾輪調整"
+            />
           </div>
-        </div>
-
-        <!-- 3. 方向選擇 (預設隱藏) -->
-        <div id="customAxisOptions" style="display: none;">
-          <div style="display: flex; gap: 20px; margin-bottom: 12px;">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--theme-text-secondary); font-size: 0.9em;">
-              <input type="radio" name="axisDirection" value="vertical" checked onchange="onAxisDirectionChange()">
-              垂直 (X=常數)
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--theme-text-secondary); font-size: 0.9em;">
-              <input type="radio" name="axisDirection" value="horizontal" onchange="onAxisDirectionChange()">
-              水平 (Y=常數)
-            </label>
-          </div>
-
-          <!-- 4. 輸入方式選擇 -->
-          <div style="display: flex; gap: 20px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--theme-border);">
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--theme-text-secondary); font-size: 0.9em;">
-              <input type="radio" name="axisInputMethod" value="grid" checked onchange="onAxisInputMethodChange()">
-              選擇 Grid Line
-            </label>
-            <label style="display: flex; align-items: center; gap: 6px; cursor: pointer; color: var(--theme-text-secondary); font-size: 0.9em;">
-              <input type="radio" name="axisInputMethod" value="click" onchange="onAxisInputMethodChange()">
-              點選平面圖
-            </label>
-          </div>
-
-          <!-- 5a. 選擇 Grid Line 方式 -->
-          <div id="axisInputGridMethod" style="display: flex; align-items: center; gap: 10px;">
-            <label style="min-width: 90px; color: var(--theme-text-secondary); font-size: 0.9em;">選擇 Grid Line:</label>
-            <select id="symmetryAxisGridSelect" onchange="onGridLineSelect()" style="flex: 1; padding: 8px 12px; border: 1px solid var(--theme-border); border-radius: 6px; background-color: #ffffff; color: var(--theme-text-primary); font-size: 0.9em;">
-              <option value="">-- 選擇 --</option>
-            </select>
-          </div>
-
-          <!-- 5b. 點選平面圖方式 -->
-          <div id="axisInputClickMethod" style="display: none;">
-            <div style="display: flex; align-items: center; gap: 10px; margin-bottom: 10px;">
-              <span style="color: var(--theme-text-secondary); font-size: 0.9em;">目前位置:</span>
-              <span id="clickAxisPosition" style="font-weight: 500; color: var(--theme-text-primary);">-- 尚未設定 --</span>
-              <button id="clearClickAxisBtn" onclick="clearClickAxisPosition()" style="padding: 4px 10px; font-size: 0.8em; border: 1px solid #dc3545; background: transparent; color: #dc3545; border-radius: 4px; cursor: pointer; display: none;">清除</button>
-            </div>
-            <button onclick="startAxisClickMode()" style="width: 100%; padding: 10px 16px; background: linear-gradient(135deg, #2196f3, #1976d2); color: white; border: none; border-radius: 6px; font-size: 0.9em; font-weight: 500; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-              <span>🎯</span>
-              <span>開始點選對稱軸位置</span>
-            </button>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <label for="matchingTolerance" style="min-width: 120px; color: var(--theme-text-secondary);">配對容許誤差 (m)</label>
+            <input
+              type="number"
+              id="matchingTolerance"
+              value="0.80"
+              min="0.01"
+              max="2.00"
+              step="0.01"
+              style="flex: 1; padding: 10px 12px; border: 1px solid var(--theme-border); border-radius: 8px; background-color: #ffffff; color: var(--theme-text-primary); text-align: center; font-size: 1.1em;"
+              onchange="updateSymmetrySettings()"
+              title="🖱️ 滾輪調整"
+            />
           </div>
         </div>
       </div>
-
-      <!-- 隱藏的對稱軸座標顯示（保留給程式碼使用） -->
-      <div id="currentAxisDisplay" style="display: none;"></div>
 
       <div style="display: flex; gap: 10px; justify-content: flex-end;">
         <button class="btn-export" onclick="closeMirrorSettingsModal()">關閉</button>
@@ -2612,51 +2549,18 @@
         }
       }
 
-      // 載入對稱軸設定
+      // 載入對稱軸設定 (僅自動偵測，不再支援自訂)
       function loadSymmetryAxisSettings() {
         try {
           const saved = localStorage.getItem('symmetryAxisSettings');
           if (saved) {
             const settings = JSON.parse(saved);
             symmetryAxisDirection = settings.direction ?? 'vertical';
-            userSymmetryAxisValue = settings.userValue ?? null;
+            // 不再載入自訂值，強制使用自動偵測
+            userSymmetryAxisValue = null;
             showSymmetryAxisLine = settings.showLine ?? true;
-            axisInputMethod = settings.inputMethod ?? 'grid';  // [新增] 載入輸入方式
 
-            // 更新 UI - 方向選擇
-            const directionRadio = document.querySelector(`input[name="axisDirection"][value="${symmetryAxisDirection}"]`);
-            if (directionRadio) directionRadio.checked = true;
-
-            // [新增] 更新 UI - 輸入方式
-            const inputMethodRadio = document.querySelector(`input[name="axisInputMethod"][value="${axisInputMethod}"]`);
-            if (inputMethodRadio) inputMethodRadio.checked = true;
-
-            // 更新 UI - 自訂開關 (Toggle Switch)
-            const customToggle = document.getElementById('customAxisToggle');
-            const toggleSwitch = document.getElementById('customAxisToggleSwitch');
-            if (customToggle && userSymmetryAxisValue !== null) {
-              customToggle.checked = true;
-              document.getElementById('customAxisOptions').style.display = 'block';
-              // 更新 toggle switch 樣式
-              if (toggleSwitch) {
-                toggleSwitch.classList.add('active');
-              }
-              // [新增] 根據輸入方式顯示對應區塊
-              const gridMethodDiv = document.getElementById('axisInputGridMethod');
-              const clickMethodDiv = document.getElementById('axisInputClickMethod');
-              if (axisInputMethod === 'click') {
-                gridMethodDiv.style.display = 'none';
-                clickMethodDiv.style.display = 'block';
-                updateClickAxisPositionDisplay();
-                // 延遲啟用點選模式，等待 SVG 載入完成
-                setTimeout(() => enableAxisClickMode(), 500);
-              } else {
-                gridMethodDiv.style.display = 'flex';
-                clickMethodDiv.style.display = 'none';
-              }
-            }
-
-            console.log(`✓ 已載入對稱軸設定: 方向=${symmetryAxisDirection}, 自訂值=${userSymmetryAxisValue}, 顯示=${showSymmetryAxisLine}, 輸入方式=${axisInputMethod}`);
+            console.log(`✓ 已載入對稱軸設定: 方向=${symmetryAxisDirection}, 顯示=${showSymmetryAxisLine} (僅自動偵測)`);
           }
         } catch (e) {
           console.error('載入對稱軸設定失敗:', e);
@@ -2697,17 +2601,20 @@
         const modalCheckbox = document.getElementById('mirrorModeToggleInModal');
         const mainCheckbox = document.getElementById('mirrorModeToggle');
         const statusInModal = document.getElementById('mirrorModeStatusInModal');
+        const settingsSection = document.getElementById('mirrorSettingsSection');
 
         // 同步兩個 checkbox
         mainCheckbox.checked = modalCheckbox.checked;
 
-        // 更新彈窗內的狀態文字
+        // 更新彈窗內的狀態文字和設定區塊顯示
         if (modalCheckbox.checked) {
           statusInModal.textContent = '開啟';
           statusInModal.style.color = '#f97316';
+          settingsSection.style.display = 'block';
         } else {
           statusInModal.textContent = '關閉';
           statusInModal.style.color = 'var(--theme-text-secondary)';
+          settingsSection.style.display = 'none';
         }
 
         updateMirrorStatusText();
@@ -2728,22 +2635,17 @@
         const mainCheckbox = document.getElementById('mirrorModeToggle');
         const modalCheckbox = document.getElementById('mirrorModeToggleInModal');
         const statusInModal = document.getElementById('mirrorModeStatusInModal');
+        const settingsSection = document.getElementById('mirrorSettingsSection');
 
         modalCheckbox.checked = mainCheckbox.checked;
         if (mainCheckbox.checked) {
           statusInModal.textContent = '開啟';
           statusInModal.style.color = '#f97316';
+          settingsSection.style.display = 'block';
         } else {
           statusInModal.textContent = '關閉';
           statusInModal.style.color = 'var(--theme-text-secondary)';
-        }
-
-        // [新增] 更新對稱軸設定 UI
-        if (typeof populateSymmetryAxisGridDropdown === 'function') {
-          populateSymmetryAxisGridDropdown();
-        }
-        if (typeof updateAxisDisplay === 'function') {
-          updateAxisDisplay();
+          settingsSection.style.display = 'none';
         }
 
         document.getElementById('mirror-settings-dialog').style.display = 'block';
@@ -8943,17 +8845,37 @@
           openBatchEditDialog();
         }
         // 按 Escape 清除所有选择或關閉對話框
-        // [修改] ESC 行為優先順序：1.關閉搜尋對話框 2.關閉資訊欄 3.取消選取
+        // [修改] ESC 行為優先順序：1.關閉各種彈窗 2.關閉資訊欄 3.取消選取
         else if (evt.key === 'Escape') {
-          // 1. 如果搜尋對話框打開，先關閉它
-          if (document.getElementById('search-member-dialog').style.display === 'block') {
+          // 1. 如果 MIRROR 設定對話框打開，先關閉它
+          if (document.getElementById('mirror-settings-dialog').style.display === 'block') {
+            closeMirrorSettingsModal();
+          }
+          // 2. 如果梁編輯對話框打開，關閉它
+          else if (document.getElementById('beam-edit-dialog').style.display === 'block') {
+            closeBeamEditDialog();
+          }
+          // 3. 如果批量編輯對話框打開，關閉它
+          else if (document.getElementById('batch-edit-dialog').style.display === 'block') {
+            closeBatchEditDialog();
+          }
+          // 4. 如果搜尋對話框打開，關閉它
+          else if (document.getElementById('search-member-dialog').style.display === 'block') {
             closeSearchMemberDialog();
           }
-          // 2. 如果資訊欄（tooltip）打開，關閉它
+          // 5. 如果固定編號對話框打開，關閉它
+          else if (document.getElementById('fixed-label-dialog').style.display === 'block') {
+            closeFixedLabelModal();
+          }
+          // 6. 如果格線編號對話框打開，關閉它
+          else if (document.getElementById('grid-bubble-modal') && document.getElementById('grid-bubble-modal').style.display === 'block') {
+            closeGridBubbleModal();
+          }
+          // 7. 如果資訊欄（tooltip）打開，關閉它
           else if (document.getElementById('beam-info-tooltip')) {
             document.getElementById('beam-info-tooltip').remove();
           }
-          // 3. 如果有選取的梁，取消選取
+          // 8. 如果有選取的梁，取消選取
           else if (selectedBeams.size > 0) {
             clearAllSelections();
           }
